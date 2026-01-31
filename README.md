@@ -1,95 +1,96 @@
-# Cold Emailing System
+# ❄️ Cold Email Discovery Engine
 
-AI-powered cold outreach with a calm, focused interface.
+> **The "Apple-style" Command Center for high-precision outreach.**  
+> Find leads, verify emails, and draft personalized sequences—all in one calm, focused interface.
 
-## Tech Stack
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Frontend](https://img.shields.io/badge/frontend-Next.js_14-black)
+![Backend](https://img.shields.io/badge/backend-FastAPI-teal)
+![AI](https://img.shields.io/badge/AI-Llama_3-purple)
 
-- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS, Framer Motion
-- **Backend**: FastAPI, Python 3.12
-- **Database**: Supabase (PostgreSQL)
-- **AI**: Groq API (Llama 3.3 70B)
+---
 
-## Project Structure
+## ✨ Features
 
+### 🔍 Deep Web Discovery
+
+Move beyond basic lists. Our **Discovery Engine** scans multiple sources (LinkedIn, GitHub, and niche communities) to find high-relevance leads that others miss.
+
+- **Role-based Search**: Just type "DevOps Engineer" or "Growth Marketer".
+- **Real-time Streaming**: Results appear instantly as they are found.
+- **Broad vs. Precision Mode**: Toggle between wide-net scanning and laser-focused targeting.
+
+### ✅ Triple-Layer Verification
+
+Stop bouncing. Every email goes through a rigorous **Zero False Positive** check:
+
+1.  **Syntax Validation**: Checks format and domain structure.
+2.  **DNS Lookup**: Verifies domain records and MX server existence.
+3.  **SMTP Handshake**: Pings the actual mail server (safely) to confirm the user exists.
+
+### 🧠 AI-Powered Context
+
+Don't just say "Hi". The engine analyzes the lead's summary, company, and role to:
+
+- **Draft Personalized Openers**: Uses Llama-3 to write human-like intros.
+- **Match Scoring**: Auto-calculates how well a candidate fits your goals.
+
+### 📋 Kanban Pipeline
+
+Manage your outreach without the spreadsheet chaos.
+
+- **One-Click Add**: Move verified leads from Search to Pipeline instantly.
+- **Status Tracking**: New $\rightarrow$ Contacted $\rightarrow$ Replied.
+- **Soft UI**: A "Calm Command Center" designed to reduce overwhelm.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Frontend**: Next.js 14, Tailwind CSS, Framer Motion (Glassmorphism & Micro-interactions).
+- **Backend**: FastAPI (Python), Asyncio, SSE (Server-Sent Events).
+- **Database**: Supabase (PostgreSQL).
+- **AI**: Groq API (Llama-3-70b).
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the Repo
+
+```bash
+git clone https://github.com/Wrathsid/cold_email.git
+cd cold_email
 ```
-cold-emailing/
-├── frontend/                 # Next.js frontend
-│   ├── src/
-│   │   ├── app/             # App router pages
-│   │   │   ├── brain/       # Personal AI settings
-│   │   │   ├── candidates/  # Candidate profiles
-│   │   │   ├── resources/   # Growth resources
-│   │   │   ├── search/      # Search page
-│   │   │   ├── success/     # Email sent success
-│   │   │   └── waitlist/    # Waitlist page
-│   │   ├── components/      # React components
-│   │   │   ├── ui/          # Base UI components
-│   │   │   └── ...          # Feature components
-│   │   └── lib/             # Utilities & API client
-│   └── public/              # Static assets
-├── backend/                  # FastAPI backend
-│   ├── main.py              # API endpoints
-│   └── requirements.txt     # Python dependencies
-├── database/                 # Database schema
-│   └── schema.sql.md        # SQL for Supabase
-└── .env                     # Environment variables (not committed)
+
+### 2. Backend Setup
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate  # or venv\Scripts\activate on Windows
+pip install -r requirements.txt
+python main.py
 ```
 
-## Getting Started
+### 3. Frontend Setup
 
-### Prerequisites
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-- Node.js 18+
-- Python 3.10+
-- Supabase account
-- Groq API key
+### 4. Environment Variables
 
-### Environment Variables
-
-Create a `.env` file in the root:
+Create a `.env` file in `backend/` with:
 
 ```env
-SUPABASE_URL=your_supabase_url
-SUPABASE_KEY=your_supabase_anon_key
-GROQ_API_KEY=your_groq_api_key
-TAVILY_API_KEY=your_tavily_key
+SUPABASE_URL=your_url
+SUPABASE_KEY=your_key
+GROQ_API_KEY=your_groq_key
 ```
 
-### Installation
+---
 
-1. **Frontend**
-   ```bash
-   cd frontend
-   npm install
-   npm run dev
-   ```
-
-2. **Backend**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   python main.py
-   ```
-
-3. **Database**
-   - Go to Supabase SQL Editor
-   - Run the SQL from `database/schema.sql.md`
-
-### Development
-
-- Frontend: http://localhost:3001
-- Backend: http://localhost:8000
-- API Docs: http://localhost:8000/docs
-
-## Features
-
-- 📊 **Dashboard** - Real-time stats and activity feed
-- 🔍 **Search** - Find candidates in your pipeline
-- 🧠 **Brain** - Configure AI personality and tone
-- ✉️ **AI Drafts** - Generate personalized emails with Groq
-- 📚 **Resources** - Curated outreach guides
-- 🎨 **Premium UI** - Smooth animations, glassmorphism
-
-## License
-
-MIT
+_Built with focus and precision._
