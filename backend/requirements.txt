@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+supabase
+python-dotenv
+openai
+pydantic
+python-multipart
+pypdf
+groq
+beautifulsoup4
+ddgs
+requests
+dnspython

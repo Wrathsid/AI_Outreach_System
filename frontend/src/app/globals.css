@@ -1,0 +1,383 @@
+@import "tailwindcss";
+
+:root {
+  /* Apple-inspired color palette */
+  --background-light: #f5f5f7;
+  --background-dark: #000000;
+  --surface-elevated: rgba(28, 28, 30, 0.8);
+  --primary: #0071e3;
+  --primary-hover: #0077ed;
+  --accent-blue: #2997ff;
+  --accent-purple: #bf5af2;
+  --accent-pink: #ff375f;
+  --accent-green: #30d158;
+  
+  /* Glass variables */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg-light: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-light: rgba(255, 255, 255, 0.12);
+  --glass-blur: 40px;
+  --glass-blur-heavy: 80px;
+  
+  /* Text colors */
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-tertiary: rgba(255, 255, 255, 0.45);
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.35);
+  --shadow-glow: 0 0 60px -15px rgba(0, 113, 227, 0.4);
+}
+
+@layer base {
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    @apply bg-black text-white font-sans overflow-hidden;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background: linear-gradient(180deg, #000000 0%, #0a0a0f 100%);
+  }
+
+  ::selection {
+    background: var(--primary);
+    color: white;
+  }
+}
+
+@layer utilities {
+  /* =============================================
+     APPLE-STYLE GLASSMORPHISM
+     ============================================= */
+  
+  /* Standard glass panel - like macOS windows */
+  .glass-panel {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.02) 100%
+    );
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 
+      var(--shadow-md),
+      inset 0 0.5px 0 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* Elevated glass - for modals, popovers */
+  .glass-elevated {
+    background: linear-gradient(
+      180deg,
+      rgba(45, 45, 50, 0.9) 0%,
+      rgba(35, 35, 40, 0.95) 100%
+    );
+    backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
+    -webkit-backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 
+      0 24px 80px -12px rgba(0, 0, 0, 0.5),
+      0 12px 30px -8px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+  }
+
+  /* Hero glass card - vibrant effect */
+  .glass-card-hero {
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      rgba(255, 255, 255, 0.02) 50%,
+      rgba(0, 113, 227, 0.05) 100%
+    );
+    backdrop-filter: blur(60px) saturate(150%);
+    -webkit-backdrop-filter: blur(60px) saturate(150%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 32px 64px -16px rgba(0, 0, 0, 0.5),
+      0 16px 32px -8px rgba(0, 113, 227, 0.1),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .glass-card-hero::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%
+    );
+  }
+
+  /* Subtle glass - for input fields */
+  .glass-input {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.2s ease;
+  }
+
+  .glass-input:focus {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.2);
+  }
+
+  /* =============================================
+     BUTTONS - APPLE STYLE
+     ============================================= */
+
+  .btn-primary {
+    background: linear-gradient(180deg, var(--primary-hover) 0%, var(--primary) 100%);
+    color: white;
+    font-weight: 500;
+    border-radius: 980px;
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
+    letter-spacing: -0.01em;
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    box-shadow: 
+      0 2px 8px rgba(0, 113, 227, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .btn-primary:hover {
+    transform: scale(1.02);
+    box-shadow: 
+      0 4px 16px rgba(0, 113, 227, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    color: white;
+    font-weight: 500;
+    border-radius: 980px;
+    padding: 0.75rem 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    transition: all 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.25);
+  }
+
+  /* =============================================
+     SHADOWS & GLOWS
+     ============================================= */
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .shadow-glow-intense {
+    box-shadow: 
+      0 0 80px -20px rgba(0, 113, 227, 0.5),
+      0 0 40px -10px rgba(0, 113, 227, 0.3);
+  }
+
+  .shadow-glass {
+    box-shadow: var(--shadow-lg);
+  }
+
+  .shadow-subtle {
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* =============================================
+     VIBRANCY BACKGROUNDS  
+     ============================================= */
+
+  .vibrancy-dark {
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.7) 0%,
+      rgba(0, 0, 0, 0.8) 100%
+    );
+    backdrop-filter: blur(var(--glass-blur)) saturate(180%) brightness(0.9);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) brightness(0.9);
+  }
+
+  .vibrancy-ultra-dark {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
+    -webkit-backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
+  }
+
+  /* =============================================
+     TEXT STYLES
+     ============================================= */
+
+  .text-primary-var {
+    color: var(--text-primary);
+  }
+
+  .text-secondary-var {
+    color: var(--text-secondary);
+  }
+
+  .text-tertiary-var {
+    color: var(--text-tertiary);
+  }
+
+  /* Apple-style gradient text */
+  .text-gradient {
+    background: linear-gradient(
+      135deg,
+      #ffffff 0%,
+      rgba(255, 255, 255, 0.8) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-blue {
+    background: linear-gradient(
+      135deg,
+      var(--accent-blue) 0%,
+      var(--primary) 100%
+    );
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* =============================================
+     ANIMATIONS
+     ============================================= */
+
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 30px -10px rgba(0, 113, 227, 0.3);
+    }
+    50% { 
+      box-shadow: 0 0 50px -10px rgba(0, 113, 227, 0.5);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s ease forwards;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  /* =============================================
+     SCROLLBAR - APPLE STYLE
+     ============================================= */
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 100px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25);
+    background-clip: content-box;
+  }
+
+  /* Hide scrollbar for Chrome, Safari */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for Firefox */
+  .scrollbar-hide {
+    scrollbar-width: none;
+  }
+
+  /* =============================================
+     UTILITY CLASSES
+     ============================================= */
+
+  .bg-primary {
+    background-color: var(--primary);
+  }
+
+  .text-primary {
+    color: var(--primary);
+  }
+
+  .hover-lift {
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  .transition-apple {
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+
+  /* Noise texture overlay for premium feel */
+  .noise-overlay::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.02;
+    pointer-events: none;
+  }
+}
