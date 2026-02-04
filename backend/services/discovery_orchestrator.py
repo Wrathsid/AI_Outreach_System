@@ -103,43 +103,41 @@ class DiscoveryOrchestrator:
             company = "GitHub"
 
         # B. Email Extraction (Strict Regex)
-        # Try finding email in body first, then title
         email = EmailPatterns.extract(body) or EmailPatterns.extract(title)
         
-        # C. Context Enrichment (if we have email but generic name/role)
+        # C. Context Enrichment
         if email and name == "Candidate":
-            # Scanning around the email text for better info
             context_info = extract_context_info(body, email)
             if context_info["role"]: role = context_info["role"]
+        
+        # D. HR/Role Analysis
+        hr_data = extract_hr_score(role)
             
-        # D. Triple Verification (DNS/SMTP) - 0 False Positives
+        # E. Email Verification (if present)
         if email:
             is_valid = verify_email_deep(email)
-            if not is_valid:
-                return None # Reject invalid emails
-        
-        # E. HR/Role Analysis
-        hr_data = extract_hr_score(role)
-        
-        # F. Acceptance Criteria
-        # Must have verified email OR be a high-value HR target (we can enrich later)
-        if not email and not hr_data["is_hr"]:
-            return None
+            if not is_valid: email = None 
+
+        # F. Acceptance Criteria (RELAXED - return everything)
+        # Only reject if literally no name AND no valid info
+        if not name and not url:
+             return None
 
         # G. Construct Lead Object
         lead = {
-            "name": name,
-            "title": role,
-            "company": company,
+            "name": name if name else "Unknown",
+            "title": role if role else search_role,
+            "company": company if company else "Unknown",
             "email": email,
             "linkedin_url": url,
             "source": "web_scan",
-            "summary": body[:200],
-            "is_hr": hr_data["is_hr"],
-            "hr_score": hr_data["score"]
+            "summary": body[:200] if body else "",
+            "is_hr": hr_data.get("is_hr", False),
+            "hr_score": hr_data.get("score", 0)
         }
         
         # H. Confidence Scoring
         lead = self.scorer.score(lead)
         
         return lead
+

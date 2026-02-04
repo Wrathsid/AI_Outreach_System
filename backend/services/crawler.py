@@ -1,146 +1,158 @@
-import json
-import time
+import os
+import asyncio
 import random
 from typing import List, Generator, Dict
-from ddgs import DDGS
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Crawler:
     """
-    Handles safe searching using DuckDuckGo with rate limiting and robust error handling.
+    Handles searching using SerpAPI (Google) for reliable, production-grade results.
+    Falls back to DuckDuckGo if SerpAPI fails.
     """
     
     def __init__(self):
         self.seen_urls = set()
+        self.serpapi_key = os.getenv("SERPAPI_KEY")
 
     def get_queries_for_role(self, role: str) -> List[str]:
         """
-        Generate specialized dorks based on the role category.
+        Generate specialized search queries based on the role category.
         """
         role_lower = role.lower()
         
-        # 1. Tech Roles
-        tech_keywords = ['eng', 'dev', 'soft', 'data', 'cloud', 'security', 'full stack', 'qa', 'sre']
+        # Tech Roles
+        tech_keywords = ['eng', 'dev', 'soft', 'data', 'cloud', 'security', 'full stack', 'qa', 'sre', 'devops', 'ml', 'ai']
         is_tech = any(k in role_lower for k in tech_keywords)
         
-        # 2. Creative Roles
+        # Creative Roles
         creative_keywords = ['writer', 'content', 'copy', 'design', 'art', 'creative', 'ux', 'ui']
         is_creative = any(k in role_lower for k in creative_keywords)
         
         if is_tech:
             return [
-                # GitHub & StackOverflow
-                f'site:github.com "{role}" "gmail.com"',
-                f'site:github.com "{role}" "email" -site:github.com/orgs',
-                f'site:stackoverflow.com/users "{role}" "gmail.com"',
-                f'site:gitlab.com "{role}" "gmail.com"',
-                f'site:dev.to "{role}" "gmail.com"',
-                
-                # Hiring Posts
-                f'site:linkedin.com/posts "hiring" "{role}" "email me"',
-                f'site:linkedin.com/feed "lookign for" "{role}" "send resume"',
-                
-                # Job Boards
-                f'site:lever.co "{role}"',
-                f'site:greenhouse.io "{role}"',
+                f'site:linkedin.com/in "{role}"',
+                f'site:github.com "{role}" email',
+                f'"{role}" hiring email contact',
             ]
         elif is_creative:
             return [
-                # Portfolio Sites
-                f'site:medium.com "{role}" "gmail.com"',
-                f'site:behance.net "{role}" "gmail.com"',
-                f'site:dribbble.com "{role}" "email"',
-                f'site:contently.com "{role}" "email"',
-                
-                # Social
-                f'site:twitter.com "hiring" "{role}" "dm me"',
+                f'site:linkedin.com/in "{role}"',
+                f'site:behance.net "{role}"',
+                f'"{role}" portfolio contact',
             ]
         else:
-            # General
             return [
-                f'site:linkedin.com/in/ "{role}" "email"',
-                f'site:linkedin.com/posts "hiring" "{role}" "email me"',
-                f'site:reddit.com "hiring" "{role}" "email"',
-                f'site:x.com "hiring" "{role}" "email"',
+                f'site:linkedin.com/in "{role}"',
+                f'"{role}" professional email',
             ]
 
     def get_broad_queries(self, role: str) -> List[str]:
         """
-        Broad Reach Mode: High volume, lower precision.
-        Directly searches for email patterns associated with the role across the entire web.
+        Broad Reach Mode: High volume queries.
         """
         return [
-            f'"{role}" "@gmail.com" -intitle:jobs -intitle:hiring',
-            f'"{role}" "@outlook.com" -intitle:jobs',
-            f'"{role}" "email me at" -site:linkedin.com',
-            f'"{role}" "contact me" "@gmail.com"',
-            f'"{role}" "resume" "@gmail.com" filetype:pdf',
+            f'"{role}" "@gmail.com"',
+            f'"{role}" email contact',
+            f'"{role}" hiring now',
         ]
 
     async def crawl_stream(self, role: str, limit: int = 20, broad_mode: bool = False) -> Generator[Dict, None, None]:
         """
-        Async Generator: Yields raw search results (title, body, url).
+        Async Generator: Yields raw search results using SerpAPI.
         """
-        import asyncio 
-
         if broad_mode:
             queries = self.get_broad_queries(role)
         else:
             queries = self.get_queries_for_role(role)
-            # Add universal queries for normal mode
-            queries += [
-                f'site:linkedin.com/in/ "Talent Acquisition" "{role}" "email"',
-                f'site:linkedin.com/posts "vacancy" "{role}" "send resume"',
-            ]
 
         count = 0
-        
         mode_text = "Broad Mode" if broad_mode else "Precision Mode"
-        yield {"type": "status", "data": f"Initializing {mode_text} crawl for {len(queries)} potential sources..."}
+        yield {"type": "status", "data": f"Starting {mode_text} search for '{role}'..."}
 
-        # We can't use 'with DDGS()' easily in async unless we wrap it carefully or it supports it.
-        # DDGS context manager is sync. 
-        # Safer to instantiate inside the thread or just use simple instantiation if possible.
-        # DDGS() usage: it initializes session.
-        
         for q in queries:
-            if count >= limit: break
+            if count >= limit:
+                break
             
-            yield {"type": "status", "data": f"Query: {q[:40]}..."}
-            
-            # Non-blocking delay
-            await asyncio.sleep(random.uniform(1.8, 3.2))
-            
-            try:
-                # Run blocking DDGS call in a separate thread
-                # We define a helper to run inside the thread
-                def _run_search(query):
-                    with DDGS() as ddgs:
-                        return list(ddgs.text(query, max_results=15))
+            yield {"type": "status", "data": f"Searching: {q[:50]}..."}
+            await asyncio.sleep(random.uniform(0.5, 1.5))  # Small delay between queries
 
-                results = await asyncio.to_thread(_run_search, q)
-                
-                if not results: continue
-                
-                for r in results:
-                    if count >= limit: break
-                    
-                    url = r.get('href', '')
-                    if not url or url in self.seen_urls: continue
-                    
-                    self.seen_urls.add(url)
-                    count += 1
-                    
-                    yield {
-                        "type": "raw_result",
-                        "data": {
-                            "title": r.get('title', ''),
-                            "body": r.get('body', ''),
-                            "url": url
+            results = []
+
+            # Primary: SerpAPI (Google)
+            if self.serpapi_key:
+                try:
+                    def _serpapi_search(query, api_key):
+                        from serpapi import GoogleSearch
+                        params = {
+                            "q": query,
+                            "api_key": api_key,
+                            "num": 10,
+                            "engine": "google"
                         }
-                    }
+                        search = GoogleSearch(params)
+                        data = search.get_dict()
+                        organic = data.get("organic_results", [])
+                        return [
+                            {
+                                "title": r.get("title", ""),
+                                "body": r.get("snippet", ""),
+                                "href": r.get("link", "")
+                            }
+                            for r in organic
+                        ]
                     
-            except Exception as e:
-                print(f"Crawl error for {q}: {e}")
-                continue
-    
-        yield {"type": "status", "data": "Crawl finished."}
+                    results = await asyncio.to_thread(_serpapi_search, q, self.serpapi_key)
+                    if results:
+                        yield {"type": "status", "data": f"Found {len(results)} results via SerpAPI"}
+                except Exception as e:
+                    yield {"type": "status", "data": f"SerpAPI error: {str(e)[:50]}"}
+
+            # Fallback: DuckDuckGo (if SerpAPI fails or no key)
+            if not results:
+                yield {"type": "status", "data": "Trying DuckDuckGo fallback..."}
+                try:
+                    def _ddg_search(query):
+                        from ddgs import DDGS
+                        with DDGS() as ddgs:
+                            try:
+                                return list(ddgs.text(query, max_results=10))
+                            except:
+                                return []
+                    
+                    ddg_results = await asyncio.to_thread(_ddg_search, q)
+                    if ddg_results:
+                        results = [
+                            {
+                                "title": r.get("title", ""),
+                                "body": r.get("body", ""),
+                                "href": r.get("href", "")
+                            }
+                            for r in ddg_results
+                        ]
+                except Exception:
+                    pass
+
+            if not results:
+                yield {"type": "status", "data": "No results for this query."}
+
+            for r in results:
+                if count >= limit:
+                    break
+                url = r.get("href", "")
+                if not url or url in self.seen_urls:
+                    continue
+                self.seen_urls.add(url)
+                count += 1
+                
+                yield {
+                    "type": "raw_result",
+                    "data": {
+                        "title": r.get("title", "Unknown"),
+                        "body": r.get("body", ""),
+                        "url": url
+                    }
+                }
+
+        yield {"type": "status", "data": f"Crawl complete. Found {count} results."}

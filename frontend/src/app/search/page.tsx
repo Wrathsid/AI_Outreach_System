@@ -72,6 +72,8 @@ const SearchPage = () => {
     // Derived state for Select All checkbox
     const isAllSelected = results.length > 0 && selectedEmails.size === results.length;
     
+    const [statusMessage, setStatusMessage] = useState('');
+
     // Filter suggestions based on input
     const filteredSuggestions = ROLE_SUGGESTIONS.filter(s => 
         s.toLowerCase().includes(role.toLowerCase()) && 
@@ -83,6 +85,7 @@ const SearchPage = () => {
         if (!role) return;
         setShowSuggestions(false);
         setIsScanning(true);
+        setStatusMessage('Initializing deep scan...');
         setResults([]);
         
         try {
@@ -112,7 +115,10 @@ const SearchPage = () => {
                         const msg = JSON.parse(line);
                         if (msg.type === 'result') {
                             setResults(prev => [...prev, msg.data]);
-                            // Auto-save removed in favor of manual selection
+                        } else if (msg.type === 'status') {
+                            setStatusMessage(msg.data);
+                        } else if (msg.type === 'done') {
+                            setStatusMessage('Scan complete.');
                         }
                     } catch (e) {
                         console.error("Parse error", e);
@@ -121,8 +127,10 @@ const SearchPage = () => {
             }
         } catch (e) {
             console.error(e);
+            setStatusMessage('Scan failed.');
         } finally {
             setIsScanning(false);
+            setTimeout(() => setStatusMessage(''), 3000);
         }
     };
 
@@ -194,6 +202,13 @@ const SearchPage = () => {
                                 {isScanning ? <Loader2 className="animate-spin" /> : 'Scan'}
                             </button>
                         </div>
+                        
+                        {/* Status Message */}
+                        {isScanning && statusMessage && (
+                            <FadeUp delay={0.1} className="mt-4 text-center">
+                                <p className="text-sm text-slate-400 font-mono animate-pulse">{statusMessage}</p>
+                            </FadeUp>
+                        )}
 
                         {/* Dropdown Suggestions */}
                         {showSuggestions && role && filteredSuggestions.length > 0 && (
@@ -298,14 +313,20 @@ const SearchPage = () => {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div 
-                                                        onClick={(e) => e.stopPropagation()} 
-                                                        className="bg-green-500/10 border border-green-500/20 text-green-400 text-xs px-2.5 py-1.5 rounded-md font-mono flex items-center gap-1.5 shadow-sm shadow-green-900/20 hover:bg-green-500/20 transition-colors cursor-copy" 
-                                                        title="Copy Email"
-                                                    >
-                                                        <Mail size={11} />
-                                                        {r.email}
-                                                    </div>
+                                                    {r.email && (
+                                                        <div 
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                navigator.clipboard.writeText(r.email!);
+                                                                success(`Copied ${r.email}`);
+                                                            }} 
+                                                            className="bg-green-500/10 border border-green-500/20 text-green-400 text-xs px-2.5 py-1.5 rounded-md font-mono flex items-center gap-1.5 shadow-sm shadow-green-900/20 hover:bg-green-500/20 transition-colors cursor-copy" 
+                                                            title="Copy Email"
+                                                        >
+                                                            <Mail size={11} />
+                                                            {r.email}
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 
                                                 {r.summary && (

@@ -65,9 +65,6 @@ def extract_context_info(text: str, email: str) -> Dict[str, Optional[str]]:
         
         lines = context.split('\n')
         
-        # Heuristic: Look for lines near the email that look like names or roles
-        # This is simple heuristic: "Name - Role" or "Role at Company"
-        
         candidates = []
         for line in lines:
             if email in line: continue # Skip the email line itself if it's just email
@@ -86,19 +83,71 @@ def extract_context_info(text: str, email: str) -> Dict[str, Optional[str]]:
 
 def parse_linkedin_title(title: str):
     """
-    Parses 'Name - Role - Company' format common in search titles
+    Robust Parsing for LinkedIn Titles:
+    - 'Name - Role - Company'
+    - 'Name | Role | Company'
+    - 'Name – Role at Company'
+    - 'Role at Company' (for headline extraction)
     """
-    parts = title.split(" - ")
+    # Normalize separators
+    # Replace en-dash, em-dash, vertical bar with standard dash
+    normalized = title.replace("–", "-").replace("—", "-").replace("|", "-").replace(" at ", " - at - ") 
+    
+    parts = [p.strip() for p in normalized.split("-") if p.strip()]
+    
+    name = "Unknown"
+    role = "Unknown"
+    company = "Unknown"
+
     if len(parts) >= 3:
-        return {
-            "name": parts[0].strip(),
-            "role": parts[1].strip(),
-            "company": parts[2].strip()
-        }
+        # Best case: Name - Role - Company
+        # OR: Name - Role - at - Company
+        if parts[2].lower() == "at": 
+            # Name - Role - at - Company -> Company is at index 3
+            if len(parts) > 3:
+                company = parts[3]
+            name = parts[0]
+            role = parts[1]
+        else:
+            name = parts[0]
+            role = parts[1]
+            company = parts[2]
+            
+            # Heuristic: If "Company" looks like "Location", ignore it
+            # e.g. "San Francisco Bay Area"
+            if any(x in company.lower() for x in ["area", "united states", "kingdom", "canada", "city"]):
+                company = "Unknown" # Likely location, not company
+
     elif len(parts) == 2:
-        return {
-            "name": parts[0].strip(),
-            "role": parts[1].strip(),
-            "company": None
-        }
-    return {"name": title, "role": "Unknown", "company": None}
+        # Case: Name - Role (Company might be in Role string like "Engineer at X")
+        name = parts[0]
+        role_part = parts[1]
+        
+        # Check for " at " in the role part
+        if " at " in role_part.lower(): 
+            # "Senior Engineer at Google"
+            subparts = role_part.lower().split(" at ")
+            role = role_part[:role_part.lower().find(" at ")].strip()
+            company = role_part[role_part.lower().find(" at ")+4:].strip()
+            # Restore capitalization roughly? No, keep original casing from slice
+            # Actually, split is lowercase, so use index
+            idx = role_part.lower().find(" at ")
+            role = role_part[:idx].strip()
+            company = role_part[idx+4:].strip()
+        else:
+            role = role_part
+            company = "Unknown"
+            
+    else:
+        # Fallback
+        name = title
+    
+    # Clean up LinkedIn suffixes
+    if " | LinkedIn" in name: name = name.replace(" | LinkedIn", "")
+    if " | LinkedIn" in company: company = company.replace(" | LinkedIn", "")
+    
+    return {
+        "name": name,
+        "role": role,
+        "company": company
+    }

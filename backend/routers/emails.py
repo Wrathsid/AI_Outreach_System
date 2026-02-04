@@ -1,0 +1,252 @@
+"""
+Emails router - Email sending, guessing, and verification.
+"""
+from fastapi import APIRouter, HTTPException
+from datetime import datetime
+import re as regex
+
+from config import get_supabase
+from models.schemas import (
+    SendEmailRequest, SendEmailDirectRequest, 
+    EmailGuessRequest, EmailVerifyRequest, EmailVerifyBatchRequest
+)
+from services.email_guesser import guess_emails, guess_email_for_candidate
+from services.email_verifier import verify_email, verify_emails_batch
+from services.email_sender import EmailSender
+from services.followup_scheduler import FollowUpScheduler
+
+router = APIRouter(tags=["Emails"])
+
+
+# ==================== EMAIL GUESSING ====================
+
+@router.post("/guess")
+async def guess_email_patterns(request: EmailGuessRequest):
+    """Generate likely email addresses for a person based on name and company."""
+    domain = request.domain
+    if not domain and request.company:
+        company_clean = request.company.lower().strip()
+        company_clean = regex.sub(r'\s+(inc\.?|llc\.?|ltd\.?|corp\.?|co\.?)$', '', company_clean, flags=regex.IGNORECASE)
+        company_clean = regex.sub(r'[^a-z0-9]', '', company_clean)
+        domain = f"{company_clean}.com"
+    
+    if not domain:
+        return {"error": "Could not determine domain. Please provide company or domain."}
+    
+    emails = guess_emails(request.name, domain)
+    return {
+        "name": request.name,
+        "company": request.company,
+        "domain": domain,
+        "guesses": emails[:5]
+    }
+
+
+@router.post("/candidate/{candidate_id}/guess")
+async def guess_candidate_email(candidate_id: int):
+    """Guess email for a specific candidate and save the best guess."""
+    supabase = get_supabase()
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    result = supabase.table("candidates").select("*").eq("id", candidate_id).single().execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    
+    candidate = result.data
+    
+    emails = guess_email_for_candidate(
+        name=candidate.get("name", ""),
+        company=candidate.get("company", ""),
+        linkedin_url=candidate.get("linkedin_url")
+    )
+    
+    best_guess = emails[0]["email"] if emails else None
+    
+    if best_guess:
+        supabase.table("candidates").update({
+            "email": best_guess,
+            "email_source": "guessed"
+        }).eq("id", candidate_id).execute()
+    
+    return {
+        "candidate_id": candidate_id,
+        "name": candidate.get("name"),
+        "company": candidate.get("company"),
+        "guesses": emails,
+        "saved_email": best_guess
+    }
+
+
+# ==================== EMAIL VERIFICATION ====================
+
+@router.post("/verify")
+async def verify_single_email(request: EmailVerifyRequest):
+    """Verify a single email address for deliverability."""
+    result = await verify_email(request.email)
+    return result
+
+
+@router.post("/verify-batch")
+async def verify_multiple_emails(request: EmailVerifyBatchRequest):
+    """Verify multiple email addresses (max 25 at a time)."""
+    if len(request.emails) > 25:
+        raise HTTPException(status_code=400, detail="Maximum 25 emails per batch")
+    
+    results = await verify_emails_batch(request.emails)
+    valid_count = sum(1 for r in results if r.get("status") == "valid")
+    invalid_count = sum(1 for r in results if r.get("status") == "invalid")
+    
+    return {
+        "total": len(results),
+        "valid": valid_count,
+        "invalid": invalid_count,
+        "results": results
+    }
+
+
+@router.post("/candidate/{candidate_id}/verify")
+async def verify_candidate_email(candidate_id: int):
+    """Verify the email of a specific candidate."""
+    supabase = get_supabase()
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    result = supabase.table("candidates").select("email").eq("id", candidate_id).single().execute()
+    if not result.data or not result.data.get("email"):
+        raise HTTPException(status_code=404, detail="Candidate has no email")
+    
+    email = result.data["email"]
+    verification = await verify_email(email)
+    
+    supabase.table("candidates").update({
+        "email_verified": verification.get("status") == "valid",
+        "email_verification_status": verification.get("status")
+    }).eq("id", candidate_id).execute()
+    
+    return {
+        "candidate_id": candidate_id,
+        "email": email,
+        "verification": verification
+    }
+
+
+# ==================== EMAIL SENDING ====================
+
+@router.post("/send")
+async def send_email_direct(request: SendEmailDirectRequest):
+    """Send an email directly via SendGrid."""
+    sender = EmailSender()
+    result = await sender.send(
+        to_email=request.to_email,
+        subject=request.subject,
+        body=request.body,
+        reply_to=request.reply_to
+    )
+    return result
+
+
+@router.post("/send-legacy")
+def send_email_legacy(request: SendEmailRequest):
+    """Send an email and log it (legacy endpoint)."""
+    supabase = get_supabase()
+    if supabase:
+        supabase.table("sent_emails").insert({
+            "candidate_id": request.candidate_id,
+            "to_email": request.to,
+            "subject": request.subject,
+            "body": request.body
+        }).execute()
+        
+        if request.candidate_id:
+            supabase.table("candidates").update({"status": "contacted"}).eq("id", request.candidate_id).execute()
+            supabase.table("drafts").update({
+                "status": "sent",
+                "sent_at": datetime.now().isoformat()
+            }).eq("candidate_id", request.candidate_id).eq("status", "draft").execute()
+            
+            candidate = supabase.table("candidates").select("name").eq("id", request.candidate_id).single().execute()
+            supabase.table("activity_log").insert({
+                "candidate_id": request.candidate_id,
+                "action_type": "email_sent",
+                "title": f"Sent email to {candidate.data['name'] if candidate.data else 'Unknown'}",
+                "description": request.subject
+            }).execute()
+            
+            today = datetime.now().date().isoformat()
+            existing_stats = supabase.table("dashboard_stats").select("*").eq("stat_date", today).execute()
+            if existing_stats.data:
+                current = existing_stats.data[0]
+                supabase.table("dashboard_stats").update({
+                    "emails_sent": current.get("emails_sent", 0) + 1
+                }).eq("stat_date", today).execute()
+            else:
+                supabase.table("dashboard_stats").insert({
+                    "stat_date": today,
+                    "emails_sent": 1,
+                    "weekly_goal_percent": 10,
+                    "people_found": 0
+                }).execute()
+        
+        return {"status": "success", "message": f"Email sent to {request.to}"}
+    
+    return {"status": "success", "message": f"Email sent to {request.to} (not persisted)"}
+
+
+@router.post("/draft/{draft_id}/send")
+async def send_draft(draft_id: int):
+    """Send a draft email to the candidate."""
+    supabase = get_supabase()
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    draft_result = supabase.table("drafts").select("*, candidates(*)").eq("id", draft_id).single().execute()
+    if not draft_result.data:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    
+    draft = draft_result.data
+    candidate = draft.get("candidates", {})
+    
+    to_email = candidate.get("email")
+    if not to_email:
+        raise HTTPException(status_code=400, detail="Candidate has no email address")
+    
+    sender = EmailSender()
+    result = await sender.send(
+        to_email=to_email,
+        subject=draft.get("subject"),
+        body=draft.get("body")
+    )
+    
+    if result.get("success"):
+        supabase.table("drafts").update({"status": "sent"}).eq("id", draft_id).execute()
+        supabase.table("candidates").update({
+            "status": "contacted",
+            "contacted_at": datetime.now().isoformat()
+        }).eq("id", candidate.get("id")).execute()
+        
+        scheduler = FollowUpScheduler(supabase)
+        await scheduler.schedule_follow_ups(candidate.get("id"))
+        
+        supabase.table("activity_logs").insert({
+            "action_type": "email_sent",
+            "title": f"Email sent to {candidate.get('name')}",
+            "description": f"Subject: {draft.get('subject')}",
+            "candidate_id": candidate.get("id")
+        }).execute()
+    
+    return {
+        "draft_id": draft_id,
+        "to": to_email,
+        "result": result
+    }
+
+
+@router.get("/sent")
+def get_sent_emails():
+    """Get all sent emails."""
+    supabase = get_supabase()
+    if supabase:
+        result = supabase.table("sent_emails").select("*").order("sent_at", desc=True).execute()
+        return {"emails": result.data}
+    return {"emails": []}

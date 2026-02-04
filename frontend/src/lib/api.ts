@@ -42,6 +42,8 @@ export interface DashboardStats {
   people_found: number;
   emails_sent: number;
   replies_received: number;
+  recent_leads: { date: string; count: number }[];
+  top_industries: { name: string; value: number }[];
 }
 
 export interface UserSettings {
@@ -143,7 +145,8 @@ export const api = {
       });
       if (!res.ok) throw new Error('API error');
       return res.json();
-    } catch {
+    } catch (e) {
+      console.error("Failed to create candidate:", e);
       return null;
     }
   },
@@ -246,7 +249,7 @@ export const api = {
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
-      return { weekly_goal_percent: 0, people_found: 0, emails_sent: 0, replies_received: 0 };
+      return { weekly_goal_percent: 0, people_found: 0, emails_sent: 0, replies_received: 0, recent_leads: [], top_industries: [] };
     }
   },
 
@@ -311,6 +314,28 @@ export const api = {
       return res.json();
     } catch (e) {
       console.error(e);
+      return null;
+    }
+  },
+
+  // Gmail OAuth
+  async getGmailStatus(userId: number = 1): Promise<{ connected: boolean; email?: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/gmail/status?user_id=${userId}`);
+      if (!res.ok) throw new Error('API error');
+      return res.json();
+    } catch {
+      return { connected: false };
+    }
+  },
+
+  async getGmailAuthUrl(userId: number = 1): Promise<string | null> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/google?user_id=${userId}`);
+      if (!res.ok) throw new Error('API error');
+      const data = await res.json();
+      return data.auth_url;
+    } catch {
       return null;
     }
   },

@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RefreshCw, Flag, TrendingUp, Mail, UserSearch, MoreHorizontal, ArrowRight, X, Loader2 } from 'lucide-react';
-import StatCard from './StatCard';
+import { RefreshCw, Mail, UserSearch, MoreHorizontal, ArrowRight, X, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
 import { api, Draft, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
 import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, MagneticHover, BlurIn } from './Animations';
+import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import FunnelChart from './FunnelChart';
 
 
 const Dashboard = () => {
@@ -14,7 +15,14 @@ const Dashboard = () => {
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [activity, setActivity] = useState<ActivityLog[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({ weekly_goal_percent: 0, people_found: 0, emails_sent: 0, replies_received: 0 });
+  const [stats, setStats] = useState<DashboardStats>({ 
+    weekly_goal_percent: 0, 
+    people_found: 0, 
+    emails_sent: 0, 
+    replies_received: 0,
+    recent_leads: [],
+    top_industries: []
+  });
   const [loading, setLoading] = useState(true);
 
 
@@ -200,63 +208,112 @@ const Dashboard = () => {
           </section>
         </FadeUp>
 
-        {/* Metrics Grid */}
+        {/* Analytics Grid */}
         <StaggerContainer className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StaggerItem>
-            <StatCard 
-              title="Weekly Goal" 
-              subtitle="Outreach target"
-              icon={<Flag className="text-slate-400" size={24} />}
-            >
-              <div className="flex flex-col gap-6">
-                <div className="flex items-end gap-2">
-                  <span className="text-5xl font-bold text-white tracking-tight">
-                    <CountUp target={stats.weekly_goal_percent} suffix="%" />
-                  </span>
-                  <span className="text-green-400 mb-2 font-medium text-sm flex items-center gap-0.5">
-                    <TrendingUp size={16} /> {stats.weekly_goal_percent >= 80 ? 'On track' : 'Keep going'}
-                  </span>
-                </div>
-                <div className="w-full bg-[#2a2a45] rounded-full h-3 overflow-hidden">
-                  <motion.div 
-                    className="bg-linear-to-r from-blue-600 to-primary h-3 rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stats.weekly_goal_percent}%` }}
-                    transition={{ duration: 1.5, ease: [0.25, 0.4, 0.25, 1], delay: 0.8 }}
-                  />
-                </div>
-                <div className="flex justify-between items-center mt-2 pt-4 border-t border-white/5">
-                  <p className="text-slate-500 text-xs">{stats.emails_sent} emails sent this week</p>
-                </div>
-              </div>
-            </StatCard>
+            <div className="glass-panel rounded-3xl p-6 md:p-8 flex flex-col h-[320px]">
+               <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
+                        <BarChart3 size={20} />
+                     </div>
+                     <div>
+                        <h3 className="text-white font-medium">Leads Found</h3>
+                        <p className="text-slate-400 text-xs">Last 7 Days</p>
+                     </div>
+                  </div>
+                  <div className="text-right">
+                     <p className="text-2xl font-bold text-white"><CountUp target={stats.people_found} /></p>
+                     <p className="text-slate-500 text-xs text-right">Total Leads</p>
+                  </div>
+               </div>
+               
+               <div className="flex-1 w-full min-h-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                     <BarChart data={stats.recent_leads}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                        <XAxis 
+                           dataKey="date" 
+                           axisLine={false} 
+                           tickLine={false} 
+                           tick={{fill: '#94a3b8', fontSize: 10}}
+                           tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', {weekday: 'short'})} 
+                           dy={10}
+                        />
+                        <Tooltip 
+                           contentStyle={{backgroundColor: '#1e1e2e', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px'}}
+                           itemStyle={{color: '#fff'}}
+                           cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                        />
+                        <Bar 
+                           dataKey="count" 
+                           fill="#3b82f6" 
+                           radius={[4, 4, 0, 0]} 
+                           barSize={30}
+                           animationDuration={1500}
+                        />
+                     </BarChart>
+                  </ResponsiveContainer>
+               </div>
+            </div>
           </StaggerItem>
 
           <StaggerItem>
-            <div className="glass-panel rounded-3xl p-6 md:p-8 flex flex-col min-h-[280px]">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex flex-col gap-1">
-                  <h3 className="text-white text-lg font-medium">People Found</h3>
-                  <p className="text-slate-400 text-sm">New Connections</p>
-                </div>
-                <motion.div 
-                  className="flex items-center gap-1 text-green-400 bg-green-400/10 px-2 py-1 rounded-lg text-xs font-medium"
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1 }}
-                >
-                  <span>+{stats.people_found} total</span>
-                </motion.div>
-              </div>
-              <div className="flex-1 flex flex-col justify-center items-center">
-                <div className="text-6xl font-bold text-white mb-2">
-                  <CountUp target={stats.people_found} />
-                </div>
-                <p className="text-slate-500 text-sm">Candidates in pipeline</p>
-              </div>
+            <div className="glass-panel rounded-3xl p-6 md:p-8 flex flex-col h-[320px]">
+               <div className="flex justify-between items-center mb-6">
+                  <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
+                        <PieIcon size={20} />
+                     </div>
+                     <div>
+                        <h3 className="text-white font-medium">Top Roles</h3>
+                        <p className="text-slate-400 text-xs">Distribution by Job Title</p>
+                     </div>
+                  </div>
+               </div>
+               
+               <div className="flex-1 w-full min-h-0 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                     <PieChart>
+                        <Pie
+                           data={stats.top_industries}
+                           cx="50%"
+                           cy="50%"
+                           innerRadius={60}
+                           outerRadius={80}
+                           paddingAngle={5}
+                           dataKey="value"
+                        >
+                           {stats.top_industries.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={[
+                                 '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'
+                              ][index % 5]} stroke="rgba(0,0,0,0)" />
+                           ))}
+                        </Pie>
+                        <Tooltip 
+                           contentStyle={{backgroundColor: '#1e1e2e', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px'}}
+                           itemStyle={{color: '#fff'}}
+                        />
+                     </PieChart>
+                  </ResponsiveContainer>
+                  {/* Center Text */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                     <div className="text-center">
+                        <p className="text-2xl font-bold text-white">{stats.top_industries.length}</p>
+                        <p className="text-xs text-slate-500">Roles</p>
+                     </div>
+                  </div>
+               </div>
             </div>
           </StaggerItem>
         </StaggerContainer>
+
+        {/* Conversion Funnel */}
+        <FadeUp delay={0.25}>
+          <section className="mt-4">
+            <FunnelChart />
+          </section>
+        </FadeUp>
 
         {/* Recent Leads / Pipeline Preview */}
         {candidates.length > 0 && (

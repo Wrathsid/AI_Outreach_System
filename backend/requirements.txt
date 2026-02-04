@@ -8,6 +8,6 @@ python-multipart
 pypdf
 groq
 beautifulsoup4
-ddgs
+duckduckgo-search
 requests
 dnspython
