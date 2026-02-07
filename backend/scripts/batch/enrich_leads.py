@@ -13,7 +13,7 @@ load_dotenv(dotenv_path=".env")
 # Initialize Supabase & OpenAI
 try:
     from supabase import create_client
-    from backend.config import generate_with_openai, OPENAI_API_KEY
+    from backend.config import generate_with_gemini
     from backend.services.crawler import Crawler # Reuse the crawler for search
     
     SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -54,7 +54,7 @@ async def extract_company_with_ai(name, title, search_context):
     """
     
     try:
-        return await generate_with_openai(
+        return await generate_with_gemini(
             prompt,
             system_prompt="You are a data extractor. Return pure company name or 'Unknown'."
         ) or "Unknown"

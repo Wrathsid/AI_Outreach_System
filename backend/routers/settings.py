@@ -9,7 +9,7 @@ from typing import List
 from datetime import datetime
 from pypdf import PdfReader
 
-from backend.config import get_supabase, generate_with_openai, OPENAI_API_KEY, logger
+from backend.config import get_supabase, generate_with_gemini, logger
 from backend.models.schemas import UserSettings
 
 router = APIRouter(tags=["Settings"])
@@ -121,40 +121,37 @@ async def upload_file(file: UploadFile = File(...)):
         warning = "Could not extract text from this file. It might be an image-based PDF or encrypted."
     
     elif len(extracted_text) > 10:
-        if OPENAI_API_KEY:
-            try:
-                prompt = f"""Analyze this resume and extract the following details accurately:
-                1. Full Name
-                2. Current Company (most recent employer, or null if not found)
-                3. ALL Technical & Professional Skills (List every single hard skill, tool, framework, language, libary, or methodology found. Do not limit the number. Be exhaustive and accurate.)
+        try:
+            prompt = f"""Analyze this resume and extract the following details accurately:
+            1. Full Name
+            2. Current Company (most recent employer, or null if not found)
+            3. ALL Technical & Professional Skills (List every single hard skill, tool, framework, language, libary, or methodology found. Do not limit the number. Be exhaustive and accurate.)
+            
+            Return ONLY valid JSON:
+            {{
+                "full_name": "John Doe",
+                "company": "Tech Corp",
+                "skills": ["Python", "React", "AWS", "Project Management", "etc..."]
+            }}
+            
+            Resume Text:
+            {extracted_text[:30000]}"""
+            
+            ai_response = await generate_with_gemini(prompt)
+            
+            if ai_response:
+                json_str = ai_response.strip()
+                if json_str.startswith("```json"):
+                    json_str = json_str.replace("```json", "").replace("```", "")
                 
-                Return ONLY valid JSON:
-                {{
-                    "full_name": "John Doe",
-                    "company": "Tech Corp",
-                    "skills": ["Python", "React", "AWS", "Project Management", "etc..."]
-                }}
-                
-                Resume Text:
-                {extracted_text[:30000]}"""
-                
-                ai_response = await generate_with_openai(prompt)
-                
-                if ai_response:
-                    json_str = ai_response.strip()
-                    if json_str.startswith("```json"):
-                        json_str = json_str.replace("```json", "").replace("```", "")
-                    
-                    data = json.loads(json_str)
-                    extracted_skills = data.get("skills", [])
-                    identity = {
-                        "full_name": data.get("full_name"),
-                        "company": data.get("company")
-                    }
-            except Exception as e:
-                logger.error(f"AI extraction failed: {e}")
-                extracted_skills = extract_skills_from_text(extracted_text)
-        else:
+                data = json.loads(json_str)
+                extracted_skills = data.get("skills", [])
+                identity = {
+                    "full_name": data.get("full_name"),
+                    "company": data.get("company")
+                }
+        except Exception as e:
+            logger.error(f"AI extraction failed: {e}")
             extracted_skills = extract_skills_from_text(extracted_text)
     
     supabase = get_supabase()

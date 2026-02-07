@@ -32,8 +32,6 @@ load_dotenv(dotenv_path=env_path)
 # Environment Variables
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-# OpenAI API Key - REMOVED (Migrated to Gemini)
-# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Initialize Supabase client
 supabase = None
@@ -63,12 +61,8 @@ else:
     print("[WARN] GEMINI_API_KEY not found - AI features disabled")
 
 
-async def generate_with_openai(prompt: str, temperature: float = 0.5, max_tokens: int = 300, system_prompt: str = None) -> str:
-    """Generate text using Gemini API.
-    
-    Note: Function name kept as 'generate_with_openai' to minimize refactoring in other files,
-    but implementation is Swapped to Gemini.
-    """
+async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens: int = 300, system_prompt: str = None) -> str:
+    """Generate text using Gemini API."""
     if not gemini_model:
         return None
     

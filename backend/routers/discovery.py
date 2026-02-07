@@ -5,7 +5,7 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from backend.config import generate_with_openai, OPENAI_API_KEY, logger
+from backend.config import generate_with_gemini, logger
 from backend.models.schemas import ExtractionRequest, CrawlRequest, PatternRequest
 from backend.services.discovery_orchestrator import DiscoveryOrchestrator
 
@@ -18,11 +18,9 @@ orchestrator = DiscoveryOrchestrator()
 @router.post("/extract-opportunity")
 async def extract_opportunity(request: ExtractionRequest):
     """Extract key info from job description text."""
-    if not OPENAI_API_KEY:
-        return {"opportunity": "AI not configured"}
-        
+    # generate_with_gemini handles missing model internally
     try:
-        response = await generate_with_openai(
+        response = await generate_with_gemini(
             request.text, 
             system_prompt="Extract the core value proposition and key requirement from this text. Summarize it in one concise sentence starting with 'Opportunity to...' or 'Seeking...'"
         )
@@ -121,9 +119,7 @@ async def _search_leads_generator(role: str):
     corrected_role = role
     
     try:
-        if OPENAI_API_KEY:
-            yield json.dumps({"type": "status", "data": "AI checking spelling..."}) + "\n"
-            suggestion = await generate_with_openai(
+            suggestion = await generate_with_gemini(
                 role,
                 system_prompt="You are a spell checker. Correct the job title or search term. Return ONLY the corrected term. No quotes, no explanation. If correct, return original."
             )

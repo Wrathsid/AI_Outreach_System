@@ -18,7 +18,7 @@ logger = logging.getLogger("backend")
 
 load_dotenv()
 
-from backend.config import generate_with_openai, OPENAI_API_KEY
+from backend.config import generate_with_gemini
 
 # Follow-up timing configuration
 DEFAULT_FOLLOW_UP_DAYS = [3, 7, 14]  # Days after initial email to send follow-ups
@@ -30,7 +30,6 @@ class FollowUpScheduler:
     
     def __init__(self, supabase_client):
         self.supabase = supabase_client
-        self.openai_api_key = OPENAI_API_KEY
     
     async def schedule_follow_ups(self, candidate_id: int, initial_sent_at: datetime = None) -> List[Dict]:
         """
@@ -112,10 +111,6 @@ class FollowUpScheduler:
         Returns:
             {"subject": "...", "body": "..."}
         """
-        if not self.openai_api_key:
-            # Fallback template
-            return self._get_template_follow_up(candidate_name, original_subject, follow_up_number, user_name)
-        
         tone_map = {
             1: "friendly reminder",
             2: "gentle nudge",
@@ -142,7 +137,7 @@ class FollowUpScheduler:
         """
         
         try:
-            content = await generate_with_openai(
+            content = await generate_with_gemini(
                 prompt,
                 system_prompt="You write concise follow-up emails."
             )

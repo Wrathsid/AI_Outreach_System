@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 import re
 
-from backend.config import get_supabase, generate_with_openai, logger
+from backend.config import get_supabase, generate_with_gemini, logger
 from backend.models.schemas import Draft, DraftCreate, IntentType
 
 router = APIRouter(tags=["Drafts"])
@@ -434,7 +434,7 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
         system_prompt = SYSTEM_PROMPTS.get(intent_value, SYSTEM_PROMPTS[IntentType.CURIOUS])
         
         # Create a coroutine for each generation task
-        tasks.append(generate_with_openai(prompt, temperature=temp, system_prompt=system_prompt))
+        tasks.append(generate_with_gemini(prompt, temperature=temp, system_prompt=system_prompt))
 
     # Execute all generation tasks in parallel
     if not tasks:
@@ -615,7 +615,7 @@ async def polish_draft(request: dict):
     
     if gemini_model:
         try:
-            polished = await generate_with_openai(
+            polished = await generate_with_gemini(
                 prompt=text,
                 system_prompt="You are a professional editor. Fix grammar, spelling, and improve flow. Keep the tone professional but conversational. Return ONLY the polished text. Do not add intro/outro.",
                 temperature=0.4

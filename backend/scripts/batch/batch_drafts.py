@@ -12,7 +12,7 @@ load_dotenv(dotenv_path=".env")
 # Initialize Supabase & OpenAI
 try:
     from supabase import create_client
-    from backend.config import generate_with_openai, OPENAI_API_KEY
+    from backend.config import generate_with_gemini
     
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -47,7 +47,7 @@ async def generate_draft_content(candidate, user_settings):
     """
     
     try:
-        content = await generate_with_openai(
+        content = await generate_with_gemini(
             prompt,
             system_prompt="You are an expert copywriter."
         )
