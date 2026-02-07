@@ -416,12 +416,15 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
     This is the SECRET SAUCE for reply-rate optimization.
     User sees 1 draft, but we generated 3 and picked the best.
     """
-    variants = []
+    import asyncio
     
     # Generate variants with CHANNEL-SPECIFIC temperatures (Gemini Tuning)
     # LinkedIn: 0.35 - 0.45 (Strict control)
     # Email: 0.45 - 0.55 (Slight flow)
     base_temp = 0.35 if contact_type == "linkedin" else 0.45
+    
+    # Prepare tasks for parallel execution
+    tasks = []
     
     for i in range(num_variants):
         temp = base_temp + (i * 0.05)
@@ -430,8 +433,19 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
         intent_value = candidate_context.get('intent', IntentType.CURIOUS)
         system_prompt = SYSTEM_PROMPTS.get(intent_value, SYSTEM_PROMPTS[IntentType.CURIOUS])
         
-        response_text = await generate_with_openai(prompt, temperature=temp, system_prompt=system_prompt)
-        
+        # Create a coroutine for each generation task
+        tasks.append(generate_with_openai(prompt, temperature=temp, system_prompt=system_prompt))
+
+    # Execute all generation tasks in parallel
+    if not tasks:
+        return None
+
+    # Wait for all generations to complete
+    responses = await asyncio.gather(*tasks)
+    
+    variants = []
+    for i, response_text in enumerate(responses):
+        temp = base_temp + (i * 0.05)
         if response_text:
             score = score_draft(response_text, contact_type, candidate_context)
             variants.append({"text": response_text, "score": score, "temp": temp})
