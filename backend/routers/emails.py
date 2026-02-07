@@ -6,6 +6,7 @@ from datetime import datetime
 import re as regex
 
 from backend.config import get_supabase
+import hashlib
 from backend.models.schemas import (
     SendEmailRequest, SendEmailDirectRequest, 
     EmailGuessRequest, EmailVerifyRequest, EmailVerifyBatchRequest
@@ -172,6 +173,29 @@ def send_email_legacy(request: SendEmailRequest):
                 "title": f"Sent email to {candidate.data['name'] if candidate.data else 'Unknown'}",
                 "description": request.subject
             }).execute()
+
+            # Record opener in sent_openers for Anti-Repetition Memory (Optimization 13)
+            try:
+                # Extract opener (first line)
+                first_line = request.body.split('\n')[0].strip()
+                if "," in first_line and len(first_line.split(',')[0]) < 20: 
+                    parts = first_line.split(',', 1)
+                    if len(parts) > 1:
+                        opener = parts[1].strip()
+                    else:
+                        opener = first_line
+                else:
+                    opener = first_line
+                
+                if opener:
+                    opener_hash = hashlib.md5(opener.lower().encode()).hexdigest()
+                    supabase.table("sent_openers").insert({
+                        "opener_hash": opener_hash
+                    }).execute()
+            except Exception as e:
+                # Don't fail the send if memory logging fails
+                from backend.config import logger
+                logger.error(f"Failed to record opener memory: {e}")
             
             today = datetime.now().date().isoformat()
             existing_stats = supabase.table("dashboard_stats").select("*").eq("stat_date", today).execute()
@@ -234,6 +258,28 @@ async def send_draft(draft_id: int):
             "description": f"Subject: {draft.get('subject')}",
             "candidate_id": candidate.get("id")
         }).execute()
+
+        # Record opener in sent_openers for Anti-Repetition Memory (Optimization 13)
+        try:
+            body = draft.get("body", "")
+            first_line = body.split('\n')[0].strip()
+            if "," in first_line and len(first_line.split(',')[0]) < 20: 
+                parts = first_line.split(',', 1)
+                if len(parts) > 1:
+                    opener = parts[1].strip()
+                else:
+                    opener = first_line
+            else:
+                opener = first_line
+            
+            if opener:
+                opener_hash = hashlib.md5(opener.lower().encode()).hexdigest()
+                supabase.table("sent_openers").insert({
+                    "opener_hash": opener_hash
+                }).execute()
+        except Exception as e:
+            from backend.config import logger
+            logger.error(f"Failed to record opener memory in send_draft: {e}")
     
     return {
         "draft_id": draft_id,

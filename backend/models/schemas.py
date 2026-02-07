@@ -75,6 +75,9 @@ class Draft(BaseModel):
     intent: Optional[str] = None
     temperature: Optional[float] = None
     signal_used: Optional[str] = None
+    variant_id: Optional[str] = None
+    reply_status: Optional[str] = "no_reply"
+    generation_params: Optional[dict] = None
     # Optimization Fields
     time_to_read: Optional[int] = 0
 
@@ -88,6 +91,8 @@ class DraftCreate(BaseModel):
     intent: Optional[str] = None
     temperature: Optional[float] = None
     signal_used: Optional[str] = None
+    variant_id: Optional[str] = None
+    generation_params: Optional[dict] = None
 
 
 # ==================== EMAIL MODELS ====================

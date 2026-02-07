@@ -1,9 +1,12 @@
 """
 Drafts router - Draft management and AI generation.
 """
-from fastapi import APIRouter, HTTPException
-from typing import List, Dict
+from fastapi import APIRouter, HTTPException, BackgroundTasks
+from typing import List, Dict, Optional
 import re
+import hashlib
+import uuid
+import json
 
 from backend.config import get_supabase, generate_with_gemini, logger
 from backend.models.schemas import Draft, DraftCreate, IntentType
@@ -39,27 +42,34 @@ def sanitize_scraped_content(text: str) -> str:
     return text.strip()
 
 
-def get_recent_openers(supabase, limit: int = 5) -> List[str]:
-    """Fetch recent openers to avoid repetition (Optimization 13)."""
+def get_recent_opener_hashes(supabase, limit: int = 50) -> List[str]:
+    """Fetch hashes of recently sent openers to avoid repetition (Optimization 13)."""
     try:
-        # Fetch last 10 drafts to get a good sample
+        res = supabase.table("sent_openers").select("opener_hash").order("created_at", desc=True).limit(limit).execute()
+        return [d["opener_hash"] for d in res.data]
+    except Exception as e:
+        logger.error(f"Memory fetch (hashes) failed: {e}")
+        return []
+
+
+def get_recent_openers(supabase, limit: int = 5) -> List[str]:
+    """Fetch recent openers for the prompt to avoid repetition (Optimization 13)."""
+    try:
+        # Legacy: Still check drafts to avoid repeating what we just generated
         res = supabase.table("drafts").select("body").order("created_at", desc=True).limit(limit).execute()
         openers = []
         for d in res.data:
             body = d.get("body", "")
             if body:
-                # Extract first sentence
                 first_line = body.split('\n')[0].strip()
                 if first_line:
-                    # Remove "Hi Name," if present
                     if "," in first_line and len(first_line.split(',')[0]) < 20: 
-                         # Likely a greeting
                          parts = first_line.split(',', 1)
                          if len(parts) > 1:
-                             openers.append(parts[1].strip()[:50] + "...")
+                             openers.append(parts[1].strip()[:50])
                     else:
-                        openers.append(first_line[:50] + "...")
-        return list(set(openers))  # Unique only
+                        openers.append(first_line[:50])
+        return list(set(openers))
     except Exception as e:
         logger.error(f"Memory fetch failed: {e}")
         return []
@@ -443,13 +453,31 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
     # Wait for all generations to complete
     responses = await asyncio.gather(*tasks)
     
+    # Fetch recent sent hashes for deduplication
+    sent_hashes = get_recent_opener_hashes(supabase)
+    
     variants = []
     for i, response_text in enumerate(responses):
         temp = base_temp + (i * 0.05)
         if response_text:
+            # Extract opener for hashing
+            opener = response_text.split('\n')[0].strip()
+            if "," in opener and len(opener.split(',')[0]) < 20:
+                opener = opener.split(',', 1)[1].strip()
+            
+            # Compute hash
+            opener_hash = hashlib.md5(opener.lower().encode()).hexdigest()
+            
+            # Base score
             score = score_draft(response_text, contact_type, candidate_context)
-            variants.append({"text": response_text, "score": score, "temp": temp})
-            logger.info(f"Variant {i+1}: score={score:.1f}, temp={temp}, length={len(response_text)}")
+            
+            # Anti-Repetition Penalty (Optimization 13)
+            if opener_hash in sent_hashes:
+                logger.warning(f"Repeated opener detected (hash: {opener_hash[:8]}). Penalizing variant {i+1}.")
+                score -= 80  # Heavy penalty for repetition
+            
+            variants.append({"text": response_text, "score": score, "temp": temp, "opener_hash": opener_hash})
+            logger.info(f"Variant {i+1}: score={score:.1f}, temp={temp}, hash={opener_hash[:8]}")
     
     # Return the best one
     if variants:
@@ -600,8 +628,24 @@ def create_draft(draft: DraftCreate):
                 "title": f"Drafted email to {candidate.data['name'] if candidate.data else 'Unknown'}",
                 "description": "AI generated based on profile"
             }).execute()
-            return {**result.data[0], "candidate_name": None, "candidate_company": None}
+            return result.data[0]
     raise HTTPException(status_code=500, detail="Failed to create draft")
+
+
+@router.patch("/{draft_id}/reply")
+def track_reply(draft_id: int, status: str = "replied"):
+    """Update reply status for a draft (Learning Loop)."""
+    supabase = get_supabase()
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    if status not in ["replied", "no_reply", "bounced"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+        
+    result = supabase.table("drafts").update({"reply_status": status}).eq("id", draft_id).execute()
+    if result.data:
+        return {"message": f"Draft {draft_id} marked as {status}"}
+    raise HTTPException(status_code=404, detail="Draft not found")
 
 
 @router.post("/polish")
@@ -751,6 +795,15 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         logger.info(f"FINAL DRAFT | Score: {score:.1f} | Type: {contact_type} | Length: {len(response_text)}")
 
         # 6. Parse and Save
+        # Compute variant ID for this generation attempt
+        variant_id = str(uuid.uuid4())
+        gen_params = {
+            "model": "gemini-2.0-flash",
+            "temperature": result.get('temp'),
+            "context_band": context_band,
+            "signal_type": signal['type']
+        }
+
         if contact_type == "linkedin":
             final_msg = response_text.replace("Subject:", "").strip()
             
@@ -765,7 +818,9 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                 "body": final_msg,
                 "intent": intent,
                 "temperature": result.get('temp'),
-                "signal_used": signal['signal']
+                "signal_used": signal['signal'],
+                "variant_id": variant_id,
+                "generation_params": gen_params
             }).execute()
             
             return {
@@ -774,12 +829,13 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                 "char_count": len(final_msg), 
                 "quality_score": round(score, 1),
                 "draft_id": res.data[0]["id"],
-                "time_to_read": calculate_time_to_read(final_msg)
+                "time_to_read": calculate_time_to_read(final_msg),
+                "variant_id": variant_id
             }
 
         else:
             # Email parsing
-            lines = response_text.strip().split('\\n')
+            lines = response_text.strip().split('\n')
             subject = "Quick question"
             body_lines = []
             
@@ -789,7 +845,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                 elif line.strip():  # Non-empty lines
                     body_lines.append(line)
             
-            final_body = "\\n".join(body_lines).strip()
+            final_body = "\n".join(body_lines).strip()
             
             res = supabase.table("drafts").insert({
                 "candidate_id": candidate_id, 
@@ -797,7 +853,9 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                 "body": final_body,
                 "intent": intent,
                 "temperature": result.get('temp'),
-                "signal_used": signal['signal']
+                "signal_used": signal['signal'],
+                "variant_id": variant_id,
+                "generation_params": gen_params
             }).execute()
             
             return {
@@ -807,7 +865,8 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                 "word_count": len(final_body.split()),
                 "quality_score": round(score, 1),
                 "draft_id": res.data[0]["id"],
-                "time_to_read": calculate_time_to_read(final_body)
+                "time_to_read": calculate_time_to_read(final_body),
+                "variant_id": variant_id
             }
 
     except HTTPException:
