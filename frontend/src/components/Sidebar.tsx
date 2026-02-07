@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Settings, Brain, Menu, X, Users, FileText } from 'lucide-react';
+import { Home, Settings, Brain, Menu, X, Users, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -27,7 +27,8 @@ const Sidebar = () => {
     { href: '/', icon: Home, label: 'Dashboard' },
     { href: '/search', icon: Users, label: 'Candidates' },
     { href: '/brain', icon: Brain, label: 'Personal Brain' },
-    { href: '/settings/templates', icon: FileText, label: 'Templates' },
+    { href: '/drafts', icon: Mail, label: 'Drafts' },
+
   ];
 
   return (
@@ -118,10 +119,9 @@ const Sidebar = () => {
               >
                 <motion.div
                   className={`
-                    p-3 rounded-xl transition-colors group flex items-center gap-3 md:justify-center w-full md:w-auto
                     ${isActive(item.href) 
-                      ? 'bg-primary/20 text-white' 
-                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                      ? 'bg-primary/20 text-white shadow-[0_0_20px_-5px_rgba(37,99,235,0.3)]' 
+                      : 'text-white/40 hover:text-white hover:bg-white/5'
                     }
                   `}
                   whileHover={{ scale: 1.05 }}
@@ -161,7 +161,7 @@ const Sidebar = () => {
             onClick={() => setIsMobileOpen(false)}
           >
             <motion.div
-              className="p-3 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 transition-colors mb-2 flex items-center gap-3"
+              className="p-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors mb-2 flex items-center gap-3"
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 400, damping: 17 }}

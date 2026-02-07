@@ -10,12 +10,21 @@ export interface Candidate {
   company?: string;
   location?: string;
   email?: string;
+  generated_email?: string;  // AI-generated email
+  email_confidence?: number;  // 0-100
   linkedin_url?: string;
   avatar_url?: string;
   match_score: number;
   summary?: string;
   tags?: string[];
   status?: string;
+  email_source?: 'verified' | 'generated' | 'none';
+  // UX Improvement fields
+  email_status?: 'verified' | 'risky' | 'invalid' | 'unknown';
+  added_to_pipeline?: boolean;
+  sent_at?: string;
+  reply_received?: boolean;
+  reply_at?: string;
 }
 
 export interface Draft {
@@ -26,6 +35,11 @@ export interface Draft {
   status: string;
   candidate_name?: string;
   candidate_company?: string;
+  candidate_title?: string;
+  candidate_email?: string;
+  candidate_generated_email?: string;
+  candidate_email_confidence?: number;
+  email_source?: 'verified' | 'generated' | 'none';
 }
 
 export interface ActivityLog {
@@ -91,7 +105,7 @@ export const api = {
   },
 
   crawlWebsite: async (url: string): Promise<unknown> => {
-    const res = await fetch(`${API_BASE}/discovery/crawl`, {
+    const res = await fetch(`${API_BASE}/discover/crawl`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ domain: url })
@@ -100,7 +114,7 @@ export const api = {
   },
 
   guessEmailPattern: async (firstName: string, lastName: string, domain: string): Promise<unknown> => {
-    const res = await fetch(`${API_BASE}/discovery/pattern`, {
+    const res = await fetch(`${API_BASE}/discover/pattern`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ first_name: firstName, last_name: lastName, domain })
@@ -143,7 +157,7 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(candidate),
       });
-      if (!res.ok) throw new Error('API error');
+      if (!res.ok) throw new Error(await res.text());
       return res.json();
     } catch (e) {
       console.error("Failed to create candidate:", e);
@@ -171,6 +185,52 @@ export const api = {
     }
   },
 
+  // UX Improvements: Bulk Operations & Sent Tracking
+  async bulkAddToPipeline(candidateIds: number[]): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/candidates/bulk-add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidate_ids: candidateIds }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async getSentCandidates(): Promise<Candidate[]> {
+    try {
+      const res = await fetch(`${API_BASE}/candidates/sent`);
+      if (!res.ok) throw new Error('API error');
+      return res.json();
+    } catch {
+      return [];
+    }
+  },
+
+  async markAsSent(candidateId: number): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/candidates/${candidateId}/mark-sent`, {
+        method: 'PATCH',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  async markAsReplied(candidateId: number): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/candidates/${candidateId}/mark-replied`, {
+        method: 'PATCH',
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   // Drafts
   async getDrafts(): Promise<Draft[]> {
     try {
@@ -182,9 +242,9 @@ export const api = {
     }
   },
 
-  async generateDraft(candidateId: number, context: string = ''): Promise<{ subject: string; body: string; draft_id?: number } | null> {
+  async generateDraft(candidateId: number, context: string = '', contactType: 'auto' | 'email' | 'linkedin' = 'auto'): Promise<{ type: 'email' | 'linkedin'; subject?: string; body?: string; message?: string; char_count?: number; draft_id?: number } | null> {
     try {
-      const res = await fetch(`${API_BASE}/generate-draft?candidate_id=${candidateId}&context=${encodeURIComponent(context)}`, {
+      const res = await fetch(`${API_BASE}/drafts/generate/${candidateId}?context=${encodeURIComponent(context)}&contact_type=${contactType}`, {
         method: 'POST',
       });
       if (!res.ok) throw new Error('API error');
@@ -196,7 +256,7 @@ export const api = {
 
   async polishDraft(text: string): Promise<string | null> {
     try {
-      const res = await fetch(`${API_BASE}/polish-draft`, {
+      const res = await fetch(`${API_BASE}/drafts/polish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -212,7 +272,7 @@ export const api = {
   // Send Email
   async sendEmail(to: string, subject: string, body: string, candidateId?: number): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/send-email`, {
+      const res = await fetch(`${API_BASE}/emails/send-legacy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to, subject, body, candidate_id: candidateId }),
@@ -225,7 +285,7 @@ export const api = {
 
   async getSentEmails(): Promise<{ emails: unknown[] }> {
     try {
-      const res = await fetch(`${API_BASE}/sent-emails`);
+      const res = await fetch(`${API_BASE}/emails/sent`);
       return res.json();
     } catch {
       return { emails: [] };
@@ -235,7 +295,7 @@ export const api = {
   // Activity & Stats
   async getActivity(): Promise<ActivityLog[]> {
     try {
-      const res = await fetch(`${API_BASE}/activity`);
+      const res = await fetch(`${API_BASE}/stats/activity`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {

@@ -9,8 +9,8 @@ from typing import List
 from datetime import datetime
 from pypdf import PdfReader
 
-from config import get_supabase, generate_with_groq, GROQ_API_KEY
-from models.schemas import UserSettings
+from backend.config import get_supabase, generate_with_openai, OPENAI_API_KEY, logger
+from backend.models.schemas import UserSettings
 
 router = APIRouter(tags=["Settings"])
 
@@ -108,7 +108,7 @@ async def upload_file(file: UploadFile = File(...)):
             for page in reader.pages:
                 extracted_text += page.extract_text() + "\n"
         except Exception as e:
-            print(f"Error parsing PDF: {e}")
+            logger.error(f"Error parsing PDF: {e}")
             extracted_text = "Error extraction text from PDF"
             
     elif filename.lower().endswith('.txt'):
@@ -121,7 +121,7 @@ async def upload_file(file: UploadFile = File(...)):
         warning = "Could not extract text from this file. It might be an image-based PDF or encrypted."
     
     elif len(extracted_text) > 10:
-        if GROQ_API_KEY:
+        if OPENAI_API_KEY:
             try:
                 prompt = f"""Analyze this resume and extract the following details accurately:
                 1. Full Name
@@ -138,7 +138,7 @@ async def upload_file(file: UploadFile = File(...)):
                 Resume Text:
                 {extracted_text[:30000]}"""
                 
-                ai_response = await generate_with_groq(prompt)
+                ai_response = await generate_with_openai(prompt)
                 
                 if ai_response:
                     json_str = ai_response.strip()
@@ -152,7 +152,7 @@ async def upload_file(file: UploadFile = File(...)):
                         "company": data.get("company")
                     }
             except Exception as e:
-                print(f"AI extraction failed: {e}")
+                logger.error(f"AI extraction failed: {e}")
                 extracted_skills = extract_skills_from_text(extracted_text)
         else:
             extracted_skills = extract_skills_from_text(extracted_text)
@@ -169,7 +169,7 @@ async def upload_file(file: UploadFile = File(...)):
                 "updated_at": datetime.now().isoformat()
             }).execute()
         except Exception as e:
-            print(f"Brain Update Failed: {e}")
+            logger.error(f"Brain Update Failed: {e}")
             try:
                 supabase.table("brain_context").upsert({
                     "id": 1,
@@ -178,7 +178,7 @@ async def upload_file(file: UploadFile = File(...)):
                     "updated_at": datetime.now().isoformat()
                 }).execute()
             except Exception as e2:
-                print(f"DB Fallback Failed: {e2}")
+                logger.error(f"DB Fallback Failed: {e2}")
 
         # Update User Settings (if identity found)
         if identity.get("full_name") or identity.get("company"):
@@ -204,7 +204,7 @@ async def upload_file(file: UploadFile = File(...)):
                         updates["role"] = "Professional"
                     supabase.table("user_settings").upsert(updates).eq("id", 1).execute()
             except Exception as e:
-                print(f"Settings Update Failed: {e}")
+                logger.error(f"Settings Update Failed: {e}")
     
     return {
         "filename": filename,

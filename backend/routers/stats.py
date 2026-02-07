@@ -6,8 +6,8 @@ from typing import List
 from datetime import datetime, timedelta
 from collections import Counter
 
-from config import get_supabase
-from models.schemas import DashboardStats, ActivityLog
+from backend.config import get_supabase, logger
+from backend.models.schemas import DashboardStats, ActivityLog
 
 router = APIRouter(tags=["Stats"])
 
@@ -44,7 +44,7 @@ def get_stats():
                         "count": date_counts.get(d, 0)
                     })
             except Exception as e:
-                print(f"Stats Aggregation Error (Recent): {e}")
+                logger.error(f"Stats Aggregation Error (Recent): {e}")
 
             # Top Roles/Industries
             top_industries = []
@@ -54,7 +54,7 @@ def get_stats():
                 title_counts = Counter(titles).most_common(5)
                 top_industries = [{"name": t[0], "value": t[1]} for t in title_counts]
             except Exception as e:
-                print(f"Stats Aggregation Error (Industries): {e}")
+                logger.error(f"Stats Aggregation Error (Industries): {e}")
 
             return {
                 "weekly_goal_percent": weekly_goal,
@@ -65,7 +65,7 @@ def get_stats():
                 "top_industries": top_industries
             }
         except Exception as e:
-            print(f"Stats Error: {e}")
+            logger.error(f"Stats Error: {e}")
             return {
                 "weekly_goal_percent": 0,
                 "people_found": 0,
@@ -85,7 +85,7 @@ def get_stats():
 
 @router.get("/funnel")
 async def get_funnel_stats():
-    """Get funnel conversion metrics: Found → Contacted → Replied → Meeting Booked."""
+    """Get funnel conversion metrics: Found → Contacted → Replied."""
     supabase = get_supabase()
     if not supabase:
         return {"error": "Database not configured"}
@@ -94,9 +94,8 @@ async def get_funnel_stats():
     candidates = all_candidates.data if all_candidates.data else []
     
     total = len(candidates)
-    contacted = sum(1 for c in candidates if c.get("status") in ["contacted", "replied", "meeting"])
-    replied = sum(1 for c in candidates if c.get("status") in ["replied", "meeting"])
-    meeting = sum(1 for c in candidates if c.get("status") == "meeting")
+    contacted = sum(1 for c in candidates if c.get("status") in ["contacted", "replied"])
+    replied = sum(1 for c in candidates if c.get("status") == "replied")
     
     def safe_percent(num, denom):
         return round((num / denom) * 100, 1) if denom > 0 else 0
@@ -105,13 +104,11 @@ async def get_funnel_stats():
         "funnel": [
             {"stage": "Found", "count": total, "percent": 100},
             {"stage": "Contacted", "count": contacted, "percent": safe_percent(contacted, total)},
-            {"stage": "Replied", "count": replied, "percent": safe_percent(replied, total)},
-            {"stage": "Meeting Booked", "count": meeting, "percent": safe_percent(meeting, total)}
+            {"stage": "Replied", "count": replied, "percent": safe_percent(replied, total)}
         ],
         "conversions": {
             "found_to_contacted": safe_percent(contacted, total),
-            "contacted_to_replied": safe_percent(replied, contacted),
-            "replied_to_meeting": safe_percent(meeting, replied)
+            "contacted_to_replied": safe_percent(replied, contacted)
         },
         "total_candidates": total
     }

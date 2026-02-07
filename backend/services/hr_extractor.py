@@ -6,11 +6,15 @@ HR_KEYWORDS = {
     "high": [
         "talent acquisition", "recruiter", "people partner", "head of people", 
         "director of people", "hr manager", "hr director", "human resources", 
-        "hiring manager", "vp of people", "chief people officer", "people operations"
+        "hiring manager", "vp of people", "chief people officer", "people operations",
+        "technical recruiter", "it recruiter", "tech recruiter", "sourcing specialist",
+        "talent partner", "recruitment lead", "head of talent", "recruiting manager",
+        "we are hiring", "we're hiring", "join our team", "hiring for"
     ],
     "medium": [
         "hiring", "talent", "people", "culture", "recruiting", "staffing", 
-        "careers", "join us", "growth", "operations"
+        "careers", "join us", "growth", "operations", "open positions",
+        "job opening", "now hiring", "seeking"
     ],
     "low": [
         "manager", "lead", "director", "founder", "ceo", "cto", "co-founder" 

@@ -12,6 +12,9 @@ import asyncio
 from typing import Dict, Optional
 import httpx
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger("backend")
 
 load_dotenv()
 
@@ -110,17 +113,17 @@ class EmailVerifier:
                         }
                     }
                 elif response.status_code == 401:
-                    print("[WARN] Hunter.io API key invalid")
+                    logger.warning("[WARN] Hunter.io API key invalid")
                     return None
                 elif response.status_code == 429:
-                    print("[WARN] Hunter.io rate limit reached")
+                    logger.warning("[WARN] Hunter.io rate limit reached")
                     return None
                 else:
-                    print(f"[WARN] Hunter.io error: {response.status_code}")
+                    logger.warning(f"[WARN] Hunter.io error: {response.status_code}")
                     return None
                     
         except Exception as e:
-            print(f"[ERR] Hunter.io request failed: {e}")
+            logger.error(f"[ERR] Hunter.io request failed: {e}")
             return None
     
     async def _verify_with_mx(self, email: str) -> Dict:

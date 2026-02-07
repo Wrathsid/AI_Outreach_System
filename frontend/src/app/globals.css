@@ -11,7 +11,7 @@
   --accent-purple: #bf5af2;
   --accent-pink: #ff375f;
   --accent-green: #30d158;
-  
+
   /* Glass variables */
   --glass-bg: rgba(255, 255, 255, 0.03);
   --glass-bg-light: rgba(255, 255, 255, 0.06);
@@ -19,12 +19,12 @@
   --glass-border-light: rgba(255, 255, 255, 0.12);
   --glass-blur: 40px;
   --glass-blur-heavy: 80px;
-  
+
   /* Text colors */
   --text-primary: rgba(255, 255, 255, 0.95);
   --text-secondary: rgba(255, 255, 255, 0.65);
   --text-tertiary: rgba(255, 255, 255, 0.45);
-  
+
   /* Shadows */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -37,10 +37,12 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   body {
     @apply bg-black text-white font-sans overflow-hidden;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family:
+      -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+      "Helvetica Neue", Helvetica, Arial, sans-serif;
     background: linear-gradient(180deg, #000000 0%, #0a0a0f 100%);
   }
 
@@ -54,7 +56,7 @@
   /* =============================================
      APPLE-STYLE GLASSMORPHISM
      ============================================= */
-  
+
   /* Standard glass panel - like macOS windows */
   .glass-panel {
     background: linear-gradient(
@@ -65,7 +67,7 @@
     backdrop-filter: blur(var(--glass-blur)) saturate(180%);
     -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%);
     border: 1px solid var(--glass-border);
-    box-shadow: 
+    box-shadow:
       var(--shadow-md),
       inset 0 0.5px 0 0 rgba(255, 255, 255, 0.08);
   }
@@ -80,7 +82,7 @@
     backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
     -webkit-backdrop-filter: blur(var(--glass-blur-heavy)) saturate(200%);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 
+    box-shadow:
       0 24px 80px -12px rgba(0, 0, 0, 0.5),
       0 12px 30px -8px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
@@ -106,7 +108,7 @@
   }
 
   .glass-card-hero::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -140,7 +142,11 @@
      ============================================= */
 
   .btn-primary {
-    background: linear-gradient(180deg, var(--primary-hover) 0%, var(--primary) 100%);
+    background: linear-gradient(
+      180deg,
+      var(--primary-hover) 0%,
+      var(--primary) 100%
+    );
     color: white;
     font-weight: 500;
     border-radius: 980px;
@@ -148,14 +154,14 @@
     font-size: 0.9375rem;
     letter-spacing: -0.01em;
     transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    box-shadow: 
+    box-shadow:
       0 2px 8px rgba(0, 113, 227, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   .btn-primary:hover {
     transform: scale(1.02);
-    box-shadow: 
+    box-shadow:
       0 4px 16px rgba(0, 113, 227, 0.4),
       inset 0 1px 0 rgba(255, 255, 255, 0.25);
   }
@@ -190,7 +196,7 @@
   }
 
   .shadow-glow-intense {
-    box-shadow: 
+    box-shadow:
       0 0 80px -20px rgba(0, 113, 227, 0.5),
       0 0 40px -10px rgba(0, 113, 227, 0.3);
   }
@@ -214,7 +220,8 @@
       rgba(0, 0, 0, 0.8) 100%
     );
     backdrop-filter: blur(var(--glass-blur)) saturate(180%) brightness(0.9);
-    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) brightness(0.9);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%)
+      brightness(0.9);
   }
 
   .vibrancy-ultra-dark {
@@ -278,20 +285,30 @@
   }
 
   @keyframes fade-in {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
   }
 
   @keyframes pulse-glow {
-    0%, 100% { 
+    0%,
+    100% {
       box-shadow: 0 0 30px -10px rgba(0, 113, 227, 0.3);
     }
-    50% { 
+    50% {
       box-shadow: 0 0 50px -10px rgba(0, 113, 227, 0.5);
     }
   }
@@ -347,6 +364,29 @@
     scrollbar-width: none;
   }
 
+  /* Specific class for better usability in modals */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.35); /* Higher visibility */
+    border: 3px solid transparent;
+    border-radius: 9px;
+    background-clip: content-box;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
   /* =============================================
      UTILITY CLASSES
      ============================================= */
@@ -373,7 +413,7 @@
 
   /* Noise texture overlay for premium feel */
   .noise-overlay::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");

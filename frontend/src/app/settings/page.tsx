@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { 
-  Save, Loader2, User, Building, Mail, CheckCircle2, XCircle, ExternalLink
+  Save, Loader2, User, Building, Mail, CheckCircle2, XCircle, ExternalLink, Sliders, Zap
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
@@ -12,6 +12,11 @@ export default function Settings() {
   const [fullName, setFullName] = useState('');
   const [company, setCompany] = useState('');
   const [role, setRole] = useState('');
+
+  // Voice & Tone State
+  const [formality, setFormality] = useState(75);
+  const [length, setLength] = useState(30);
+  const [useEmoji, setUseEmoji] = useState(false);
   
   // Gmail state
   const [gmailConnected, setGmailConnected] = useState(false);
@@ -22,11 +27,22 @@ export default function Settings() {
 
   useEffect(() => {
     const loadSettings = async () => {
-      const data = await api.getSettings();
-      if (data) {
-        setFullName(data.full_name || '');
-        setCompany(data.company || '');
-        setRole(data.role || '');
+      // Parallel fetch
+      const [settingsData, brainData] = await Promise.all([
+        api.getSettings(),
+        api.getBrainContext()
+      ]);
+
+      if (settingsData) {
+        setFullName(settingsData.full_name || '');
+        setCompany(settingsData.company || '');
+        setRole(settingsData.role || '');
+      }
+
+      if (brainData) {
+        setFormality(brainData.formality);
+        setLength(brainData.detail_level);
+        setUseEmoji(brainData.use_emojis);
       }
     };
     loadSettings();
@@ -46,11 +62,16 @@ export default function Settings() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await api.updateSettings({
-      full_name: fullName,
-      company,
-      role
-    });
+    
+    await Promise.all([
+      api.updateSettings({
+        full_name: fullName,
+        company,
+        role
+      }),
+      api.updateBrainContext(formality, length, useEmoji)
+    ]);
+
     await new Promise(r => setTimeout(r, 800));
     setIsSaving(false);
     success("All settings saved successfully");
@@ -198,6 +219,80 @@ export default function Settings() {
                               onChange={(e) => setCompany(e.target.value)}
                             />
                         </div>
+                    </div>
+                </div>
+            </section>
+            
+            {/* AI Voice & Tone */}
+            <section className="glass-panel rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden animate-fade-in-up delay-200">
+                <div className="absolute top-0 right-0 p-6 opacity-5">
+                    <Sliders size={120} />
+                </div>
+                
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+                        <Zap size={20} />
+                    </div>
+                    <h2 className="text-xl font-semibold text-white">AI Voice & Tone</h2>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
+                    {/* Formality */}
+                    <div className="flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                            <label className="text-white font-medium">Formality</label>
+                            <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">{formality}%</span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <input 
+                                className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary" 
+                                max="100" 
+                                min="0" 
+                                type="range" 
+                                value={formality}
+                                onChange={(e) => setFormality(Number(e.target.value))}
+                            />
+                            <div className="flex justify-between text-xs font-medium text-gray-500">
+                                <span>Casual</span>
+                                <span>Formal</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Detail Level */}
+                    <div className="flex flex-col gap-4">
+                        <div className="flex justify-between items-center">
+                            <label className="text-white font-medium">Detail Level</label>
+                            <span className="text-xs text-primary bg-primary/10 px-2 py-1 rounded-full">{length}%</span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <input 
+                                className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary" 
+                                max="100" 
+                                min="0" 
+                                type="range" 
+                                value={length}
+                                onChange={(e) => setLength(Number(e.target.value))}
+                            />
+                            <div className="flex justify-between text-xs font-medium text-gray-500">
+                                <span>Concise</span>
+                                <span>Extensive</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Emoji Usage */}
+                    <div className="flex items-center justify-between md:col-span-2 pt-2">
+                        <div>
+                            <p className="text-white font-medium">Use Emojis</p>
+                            <p className="text-xs text-slate-500">Allow AI to use emojis in non-formal contexts</p>
+                        </div>
+                        <button
+                            onClick={() => setUseEmoji(!useEmoji)}
+                            className={`w-12 h-6 rounded-full transition-colors relative ${useEmoji ? 'bg-primary' : 'bg-gray-700'}`}
+                        >
+                            <div className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${useEmoji ? 'left-7' : 'left-1'}`} />
+                        </button>
                     </div>
                 </div>
             </section>

@@ -3,15 +3,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RefreshCw, Mail, UserSearch, MoreHorizontal, ArrowRight, X, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
+import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
 import { api, Draft, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
-import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, MagneticHover, BlurIn } from './Animations';
+import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn } from './Animations';
 import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import FunnelChart from './FunnelChart';
+
 
 
 const Dashboard = () => {
-  const [showDraftsModal, setShowDraftsModal] = useState(false);
+
+
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [activity, setActivity] = useState<ActivityLog[]>([]);
@@ -48,7 +49,8 @@ const Dashboard = () => {
     loadData();
   }, [loadData]);
 
-
+  // No need for body scroll lock since main container handles scrolling
+  // We will toggle overflow on main tag instead
 
   const formatTimeAgo = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -68,7 +70,7 @@ const Dashboard = () => {
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <main className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden p-4 md:p-8 relative">
+    <main className="flex-1 flex flex-col h-full overflow-x-hidden p-4 md:p-8 relative overflow-y-auto">
       <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-8 pb-10">
         
         {/* Page Heading with Text Reveal */}
@@ -88,123 +90,69 @@ const Dashboard = () => {
 
         </header>
 
-        {/* Hero Section */}
+        {/* Hero Section - Simplified */}
         <FadeUp delay={0.2}>
-          <section className="@container w-full">
-            <motion.div 
-              className="glass-card-hero rounded-3xl p-1 overflow-hidden relative group"
-              whileHover={{ scale: 1.005 }}
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-            >
-              <motion.div 
-                className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none"
-                animate={{ 
-                  scale: [1, 1.2, 1],
-                  opacity: [0.1, 0.2, 0.1]
-                }}
-                transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              />
+          <section className="w-full">
+            <div className="w-full bg-[#131326] border border-white/5 rounded-3xl p-12 flex flex-col items-center justify-center text-center relative overflow-hidden group">
               
-              <div className="flex flex-col md:flex-row h-full rounded-[20px] overflow-hidden bg-[#131326]/40">
-                <div className="w-full md:w-2/5 min-h-[240px] md:min-h-[320px] relative overflow-hidden">
-                  <motion.div 
-                    className="absolute inset-0 bg-cover bg-center" 
-                    style={{ backgroundImage: 'url("https://images.unsplash.com/photo-1551434678-e076c223a692?w=800")' }}
-                    whileHover={{ scale: 1.1 }}
-                    transition={{ duration: 0.7 }}
-                  />
-                  <div className="absolute inset-0 bg-linear-to-t from-[#131326] via-transparent to-transparent opacity-80 md:bg-linear-to-r"></div>
-                  
-                  <div className="absolute bottom-6 left-6 z-10">
-                    <motion.div 
-                      className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-black/40 backdrop-blur-md border border-white/10 mb-2"
-                      animate={{ opacity: [0.7, 1, 0.7] }}
-                      transition={{ duration: 2, repeat: Infinity }}
-                    >
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                      <span className="text-xs font-medium text-white">Active Task</span>
-                    </motion.div>
-                    <h2 className="text-white text-2xl font-bold leading-tight">
-                      {drafts.length > 0 ? 'Review Your Drafts' : 'Start Prospecting'}
+              {/* Subtle background glow */}
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-primary/10 transition-colors duration-700"></div>
+
+              <div className="relative z-10 max-w-2xl w-full">
+                {drafts.length > 0 ? (
+                   <>
+                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
+                      Review <span className="text-primary">{drafts.length}</span> Drafts
                     </h2>
-                  </div>
-                </div>
-
-                <div className="w-full md:w-3/5 p-6 md:p-10 flex flex-col justify-center relative z-10">
-                  <div className="flex justify-between items-start mb-6">
-                    <div>
-                      <p className="text-slate-400 text-sm font-medium mb-1">Status</p>
-                      <p className="text-white text-lg">
-                        {loading ? 'Loading...' : drafts.length > 0 ? `${drafts.length} drafts ready for review` : 'Add candidates to get started'}
-                      </p>
-                    </div>
-                    <motion.button 
-                      onClick={() => loadData(true)} 
-                      className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 hover:bg-white/10 transition-colors"
-                      whileHover={{ rotate: 180 }}
-                      whileTap={{ scale: 0.9 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <RefreshCw className={`text-white/80 ${loading ? 'animate-spin' : ''}`} size={24} />
-                    </motion.button>
-                  </div>
-
-                  <div className="flex flex-col gap-4 mb-8">
-                    <div className="flex justify-between text-sm text-slate-400">
-                      <span>Weekly Progress</span>
-                      <span className="text-white">{stats.weekly_goal_percent}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden">
-                      <motion.div 
-                        className="h-full bg-primary rounded-full shadow-[0_0_15px_rgba(25,25,230,0.5)]" 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${stats.weekly_goal_percent}%` }}
-                        transition={{ duration: 1.5, ease: [0.25, 0.4, 0.25, 1], delay: 0.5 }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 mt-auto">
-                    <MagneticHover className="flex-1">
-                      {drafts.length > 0 ? (
-                          <motion.button 
-                            onClick={() => setShowDraftsModal(true)}
-                            className="w-full cursor-pointer items-center justify-center rounded-xl h-12 px-6 bg-primary hover:bg-blue-600 transition-all text-white font-medium shadow-glow flex gap-2 group/btn"
-                            whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(25,25,230,0.4)' }}
-                            whileTap={{ scale: 0.98 }}
-                          >
-                            <span>Review {drafts.length} Drafts</span>
-                            <motion.div
-                              animate={{ x: [0, 5, 0] }}
-                              transition={{ duration: 1.5, repeat: Infinity }}
-                            >
-                              <ArrowRight size={20} />
-                            </motion.div>
-                          </motion.button>
-                      ) : (
-                          <Link href="/search" className="w-full">
-                            <motion.button 
-                              className="w-full cursor-pointer items-center justify-center rounded-xl h-12 px-6 bg-emerald-500 hover:bg-emerald-600 transition-all text-white font-medium shadow-[0_0_20px_rgba(16,185,129,0.4)] flex gap-2 group/btn"
-                              whileHover={{ scale: 1.02, boxShadow: '0 0 30px rgba(16,185,129,0.5)' }}
-                              whileTap={{ scale: 0.98 }}
-                            >
-                              <span>Find Leads</span>
-                              <UserSearch size={20} />
-                            </motion.button>
-                          </Link>
-                      )}
-                    </MagneticHover>
-                    <motion.button 
-                      className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 transition-colors text-white"
-                      whileHover={{ scale: 1.1, rotate: 90 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <MoreHorizontal size={24} />
-                    </motion.button>
-                  </div>
-                </div>
+                    <p className="text-slate-400 text-lg mb-8">
+                      {drafts.length} pending · Avg review time: 4 min
+                    </p>
+                    
+                    <Link href="/drafts">
+                      <motion.button 
+                        className="mx-auto w-64 h-14 rounded-2xl bg-primary hover:bg-blue-600 transition-all text-white font-medium text-lg shadow-[0_0_40px_-10px_rgba(37,99,235,0.5)] flex items-center justify-center gap-3 group/btn"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        Review Now
+                        <ArrowRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
+                      </motion.button>
+                    </Link>
+                   </>
+                ) : (
+                   <>
+                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+                      Ready to Prospect?
+                    </h2>
+                    <p className="text-slate-400 text-lg mb-8">
+                       Start your search to find new leads.
+                    </p>
+                    <Link href="/search">
+                      <motion.button 
+                        className="mx-auto w-64 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 transition-all text-white font-medium text-lg shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)] flex items-center justify-center gap-3 group/btn"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        Find Leads
+                        <UserSearch size={20} />
+                      </motion.button>
+                    </Link>
+                   </>
+                )}
               </div>
-            </motion.div>
+
+              {/* Refresh Button (Subtle, Top Right) */}
+              <div className="absolute top-6 right-6">
+                <button 
+                  onClick={() => loadData(true)} 
+                  className="p-3 rounded-xl hover:bg-white/5 text-slate-500 hover:text-white transition-colors"
+                  title="Refresh Data"
+                >
+                  <RefreshCw className={`${loading ? 'animate-spin' : ''}`} size={18} />
+                </button>
+              </div>
+
+            </div>
           </section>
         </FadeUp>
 
@@ -308,12 +256,7 @@ const Dashboard = () => {
           </StaggerItem>
         </StaggerContainer>
 
-        {/* Conversion Funnel */}
-        <FadeUp delay={0.25}>
-          <section className="mt-4">
-            <FunnelChart />
-          </section>
-        </FadeUp>
+
 
         {/* Recent Leads / Pipeline Preview */}
         {candidates.length > 0 && (
@@ -411,64 +354,6 @@ const Dashboard = () => {
         </FadeUp>
       </div>
 
-      {/* Drafts Modal */}
-      {showDraftsModal && (
-        <motion.div 
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <motion.div 
-            className="glass-panel rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col"
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-          >
-            <div className="flex justify-between items-center p-6 border-b border-white/10">
-              <h2 className="text-xl font-bold text-white">Review Drafts</h2>
-              <motion.button 
-                onClick={() => setShowDraftsModal(false)} 
-                className="text-slate-400 hover:text-white transition-colors"
-                whileHover={{ scale: 1.1, rotate: 90 }}
-                whileTap={{ scale: 0.9 }}
-              >
-                <X size={24} />
-              </motion.button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {drafts.length > 0 ? drafts.map((draft, index) => (
-                <motion.div
-                  key={draft.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
-                  <Link 
-                    href={`/candidates/${draft.candidate_id}`} 
-                    onClick={() => setShowDraftsModal(false)}
-                    className="block p-4 bg-white/5 hover:bg-white/10 rounded-xl transition-all border border-white/10 hover:border-primary/40 group"
-                  >
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <h3 className="text-white font-medium">{draft.candidate_name || 'Unknown'}</h3>
-                        <p className="text-slate-500 text-xs">{draft.candidate_company || 'Unknown Company'}</p>
-                      </div>
-                      <ArrowRight size={16} className="text-slate-500 group-hover:text-primary transition-colors" />
-                    </div>
-                    <p className="text-slate-300 text-sm font-medium">{draft.subject}</p>
-                    <p className="text-slate-500 text-sm mt-1 line-clamp-1">{draft.body}</p>
-                  </Link>
-                </motion.div>
-              )) : (
-                <div className="text-center p-8 text-slate-500">
-                  <p>No drafts yet. Generate drafts from candidate profiles!</p>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
 
 
     </main>

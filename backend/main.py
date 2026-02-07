@@ -2,10 +2,54 @@
 Cold Emailing Backend - FastAPI Application
 Main entry point with router registration.
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from time import time
+from collections import defaultdict
+from typing import Dict
 
-from config import setup_cors
-from routers import candidates, drafts, discovery, emails, stats, settings, auth, followups
+from backend.config import setup_cors
+from backend.routers import candidates, drafts, discovery, emails, stats, settings, auth, followups
+
+# ============================================================
+# RATE LIMITING (Priority 6)
+# ============================================================
+# Simple in-memory rate limiter (upgrade to Redis for multi-instance)
+rate_limit_storage: Dict[str, list] = defaultdict(list)
+
+async def rate_limit_middleware(request: Request, call_next):
+    """Rate limit sensitive endpoints (AI generation, discovery)."""
+    path = request.url.path
+    
+    # Only rate-limit specific endpoints
+    if not any(path.startswith(p) for p in ["/drafts/generate", "/discover/search", "/emails/verify"]):
+        return await call_next(request)
+    
+    # Get client identifier (IP address)
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Rate limit: 10 requests per minute per IP
+    current_time = time()
+    window = 60  # 1 minute window
+    max_requests = 10
+    
+    # Clean old entries
+    rate_limit_storage[client_ip] = [
+        timestamp for timestamp in rate_limit_storage[client_ip]
+        if current_time - timestamp < window
+    ]
+    
+    # Check if limit exceeded
+    if len(rate_limit_storage[client_ip]) >= max_requests:
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded. Try again in a minute."}
+        )
+    
+    # Record this request
+    rate_limit_storage[client_ip].append(current_time)
+    
+    return await call_next(request)
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -14,6 +58,9 @@ app = FastAPI(
     version="2.0.0"
 )
 
+# Add rate limiting middleware
+app.middleware("http")(rate_limit_middleware)
+
 # Setup CORS
 setup_cors(app)
 
@@ -21,11 +68,10 @@ setup_cors(app)
 @app.get("/", tags=["Health"])
 def read_root():
     """Health check and system status."""
-    from config import get_supabase, GROQ_API_KEY
+    from backend.config import get_supabase
     return {
         "status": "System Optimal",
-        "supabase": "connected" if get_supabase() else "not configured",
-        "groq": "connected" if GROQ_API_KEY else "not configured"
+        "supabase": "connected" if get_supabase() else "not configured"
     }
 
 # Register routers
@@ -37,50 +83,6 @@ app.include_router(stats.router, prefix="/stats", tags=["Stats"])
 app.include_router(settings.router, prefix="/settings", tags=["Settings"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(followups.router, prefix="/followups", tags=["Follow-ups"])
-
-# Legacy endpoints (for backwards compatibility)
-# These redirect to the new router paths
-@app.get("/activity")
-def get_activity_legacy():
-    """Legacy: Get activity (redirects to /stats/activity)."""
-    return stats.get_activity()
-
-@app.post("/send-email")
-def send_email_legacy(request):
-    """Legacy: Send email (use /emails/send-legacy instead)."""
-    from models.schemas import SendEmailRequest
-    return emails.send_email_legacy(request)
-
-@app.post("/generate-draft")
-async def generate_draft_legacy(candidate_id: int, context: str = ""):
-    """Legacy: Generate draft (use /drafts/generate/{id} instead)."""
-    return await drafts.generate_draft(candidate_id, context)
-
-@app.post("/polish-draft")
-async def polish_draft_legacy(request: dict):
-    """Legacy: Polish draft (use /drafts/polish instead)."""
-    return await drafts.polish_draft(request)
-
-@app.get("/drafts")
-def get_drafts_legacy():
-    """Legacy: Get drafts (use /drafts instead)."""
-    return drafts.get_all_drafts()
-
-@app.post("/extract-opportunity")
-def extract_legacy(request):
-    """Legacy: Extract opportunity (use /discover/extract-opportunity)."""
-    from models.schemas import ExtractionRequest
-    return discovery.extract_opportunity(request)
-
-@app.get("/discovery/hr-search")
-async def hr_search_legacy(role: str = "Recruiter", company: str = "", broad_mode: bool = False):
-    """Legacy: HR search (use /discover/hr-search)."""
-    return await discovery.discovery_hr_search(role, company, broad_mode)
-
-@app.get("/discover-stream")
-def discover_stream_legacy(role: str):
-    """Legacy: Discover stream (use /discover/stream)."""
-    return discovery.discover_candidates_stream(role)
 
 
 if __name__ == "__main__":

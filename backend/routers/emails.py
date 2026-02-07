@@ -5,15 +5,15 @@ from fastapi import APIRouter, HTTPException
 from datetime import datetime
 import re as regex
 
-from config import get_supabase
-from models.schemas import (
+from backend.config import get_supabase
+from backend.models.schemas import (
     SendEmailRequest, SendEmailDirectRequest, 
     EmailGuessRequest, EmailVerifyRequest, EmailVerifyBatchRequest
 )
-from services.email_guesser import guess_emails, guess_email_for_candidate
-from services.email_verifier import verify_email, verify_emails_batch
-from services.email_sender import EmailSender
-from services.followup_scheduler import FollowUpScheduler
+from backend.services.email_guesser import guess_emails, guess_email_for_candidate
+from backend.services.email_verifier import verify_email, verify_emails_batch
+from backend.services.email_sender import EmailSender
+from backend.services.followup_scheduler import FollowUpScheduler
 
 router = APIRouter(tags=["Emails"])
 

@@ -6,6 +6,7 @@ from .email_patterns import EmailPatterns
 from .verifier import verify_email_deep
 from .confidence import ConfidenceScorer
 from .hr_extractor import extract_context_info, extract_hr_score, parse_linkedin_title
+from .email_generator import EmailGenerator
 
 class DiscoveryOrchestrator:
     """
@@ -96,6 +97,31 @@ class DiscoveryOrchestrator:
             name = parsed["name"]
             role = parsed["role"]
             company = parsed["company"]
+        elif "linkedin.com/posts" in url or "linkedin.com/feed" in url:
+            # LinkedIn hiring post - extract from title and body
+            parsed = parse_linkedin_title(title)
+            name = parsed["name"]
+            role = parsed["role"]
+            company = parsed["company"]
+            
+            # If company still unknown, try to extract from body content
+            if company == "Unknown":
+                # Look for patterns like "at Company", "@ Company", "Company is hiring"
+                import re
+                company_patterns = [
+                    r'at\s+([A-Z][A-Za-z0-9\s&\.]+?)(?:\s+is|\s+are|\.|,|!)',
+                    r'@\s*([A-Z][A-Za-z0-9\s&\.]+?)(?:\s+is|\s+are|\.|,|!)',
+                    r'([A-Z][A-Za-z0-9\s&\.]+?)\s+is\s+hiring',
+                    r'Join\s+([A-Z][A-Za-z0-9\s&\.]+?)(?:\s+as|\s+team|\.|,|!)',
+                ]
+                for pattern in company_patterns:
+                    match = re.search(pattern, body)
+                    if match:
+                        potential_company = match.group(1).strip()
+                        # Filter out common noise words
+                        if len(potential_company) > 2 and potential_company.lower() not in ['the', 'our', 'we', 'this', 'that']:
+                            company = potential_company
+                            break
         elif "github.com" in url:
              # Basic GitHub title parsing
             parts = title.split("-")[0].strip()
@@ -114,29 +140,85 @@ class DiscoveryOrchestrator:
         hr_data = extract_hr_score(role)
             
         # E. Email Verification (if present)
+        generated_email = None
+        email_confidence = 0
+        
         if email:
             is_valid = verify_email_deep(email)
-            if not is_valid: email = None 
+            if not is_valid: 
+                email = None
+        
+        # F. Email Generation (if no valid email found)
+        # RELAXED: Generate even with "Candidate" if we have company
+        should_generate = (
+            not email and 
+            company and 
+            company not in ["Unknown", "N/A", ""] and
+            len(company) > 2
+        )
+        
+        if should_generate:
+            # If name is still "Candidate", try to extract from title
+            if name == "Candidate":
+                # Try to extract a real name from the title
+                import re
+                # Pattern: "Name - Role" or "Name | Role" or just a capitalized name
+                title_parts = re.split(r'[-|]', title)
+                if title_parts:
+                    potential_name = title_parts[0].strip()
+                    # Check if it looks like a real name (has at least 2 words or is capitalized)
+                    if ' ' in potential_name or (potential_name and potential_name[0].isupper()):
+                        name = potential_name
+            
+            # Generate email with whatever name we have
+            generated = EmailGenerator.get_best_guess(name, company)
+            if generated:
+                generated_email = generated["email"]
+                email_confidence = generated["confidence"]
 
-        # F. Acceptance Criteria (RELAXED - return everything)
+        # G. Acceptance Criteria (RELAXED - return everything)
         # Only reject if literally no name AND no valid info
+        # G. Acceptance Criteria - PRIORITIZE RECRUITERS & HIRING MANAGERS
+        # Reject if literally no name AND no valid info
         if not name and not url:
              return None
+        
+        # CRITICAL: Filter out non-HR people
+        # We want RECRUITERS and HIRING MANAGERS, not regular job seekers
+        # Accept only if:
+        # 1. High HR score (0.65+) - definitely a recruiter/HR
+        # 2. OR posting contains hiring keywords in title/body
+        
+        hr_score = hr_data.get("score", 0)
+        is_hr = hr_data.get("is_hr", False)
+        
+        # Check if this is a hiring post (not just a profile)
+        hiring_keywords = ["we are hiring", "we're hiring", "join our team", "hiring for", 
+                          "now hiring", "open position", "job opening", "looking for"]
+        is_hiring_post = any(keyword in title.lower() for keyword in hiring_keywords)
+        is_hiring_post = is_hiring_post or any(keyword in body.lower() for keyword in hiring_keywords)
+        
+        # FILTER: Reject if not HR and not a hiring post
+        if hr_score < 0.50 and not is_hiring_post:
+            # This is just a regular person's profile, not a recruiter
+            return None
 
-        # G. Construct Lead Object
+        # H. Construct Lead Object
         lead = {
             "name": name if name else "Unknown",
             "title": role if role else search_role,
             "company": company if company else "Unknown",
-            "email": email,
+            "email": email,  # Real email (verified)
+            "generated_email": generated_email,  # AI-generated email
+            "email_confidence": email_confidence,  # Confidence in generated email
             "linkedin_url": url,
             "source": "web_scan",
             "summary": body[:200] if body else "",
-            "is_hr": hr_data.get("is_hr", False),
-            "hr_score": hr_data.get("score", 0)
+            "is_hr": is_hr,
+            "hr_score": hr_score
         }
         
-        # H. Confidence Scoring
+        # I. Confidence Scoring
         lead = self.scorer.score(lead)
         
         return lead

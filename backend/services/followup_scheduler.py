@@ -12,10 +12,13 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger("backend")
 
 load_dotenv()
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+from backend.config import generate_with_openai, OPENAI_API_KEY
 
 # Follow-up timing configuration
 DEFAULT_FOLLOW_UP_DAYS = [3, 7, 14]  # Days after initial email to send follow-ups
@@ -27,7 +30,7 @@ class FollowUpScheduler:
     
     def __init__(self, supabase_client):
         self.supabase = supabase_client
-        self.groq_api_key = GROQ_API_KEY
+        self.openai_api_key = OPENAI_API_KEY
     
     async def schedule_follow_ups(self, candidate_id: int, initial_sent_at: datetime = None) -> List[Dict]:
         """
@@ -109,7 +112,7 @@ class FollowUpScheduler:
         Returns:
             {"subject": "...", "body": "..."}
         """
-        if not self.groq_api_key:
+        if not self.openai_api_key:
             # Fallback template
             return self._get_template_follow_up(candidate_name, original_subject, follow_up_number, user_name)
         
@@ -139,34 +142,29 @@ class FollowUpScheduler:
         """
         
         try:
-            from groq import Groq
-            client = Groq(api_key=self.groq_api_key)
-            
-            completion = client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "You write concise follow-up emails."},
-                    {"role": "user", "content": prompt}
-                ],
-                model="llama-3.3-70b-versatile",
+            content = await generate_with_openai(
+                prompt,
+                system_prompt="You write concise follow-up emails."
             )
             
-            content = completion.choices[0].message.content.strip()
-            
-            # Parse
-            lines = content.split('\n')
-            subject = f"Re: {original_subject}"
-            body = content
-            
-            for i, line in enumerate(lines):
-                if line.lower().startswith("subject:"):
-                    subject = line.replace("Subject:", "").strip()
-                    body = "\n".join(lines[i+1:]).strip()
-                    break
-            
-            return {"subject": subject, "body": body}
+            if content:
+                # Parse
+                lines = content.strip().split('\n')
+                subject = f"Re: {original_subject}"
+                body = content
+                
+                for i, line in enumerate(lines):
+                    if line.lower().startswith("subject:"):
+                        subject = line.replace("Subject:", "").strip()
+                        body = "\n".join(lines[i+1:]).strip()
+                        break
+                
+                return {"subject": subject, "body": body}
+            else:
+                return self._get_template_follow_up(candidate_name, original_subject, follow_up_number, user_name)
             
         except Exception as e:
-            print(f"AI Error: {e}")
+            logger.error(f"AI Error: {e}")
             return self._get_template_follow_up(candidate_name, original_subject, follow_up_number, user_name)
     
     def _get_template_follow_up(
@@ -213,7 +211,7 @@ async def process_pending_follow_ups(supabase_client, email_sender):
     scheduler = FollowUpScheduler(supabase_client)
     
     pending = await scheduler.get_pending_follow_ups()
-    print(f"[Follow-ups] Found {len(pending)} pending follow-ups")
+    logger.info(f"[Follow-ups] Found {len(pending)} pending follow-ups")
     
     for followup in pending:
         candidate = followup.get("candidates", {})
@@ -222,13 +220,13 @@ async def process_pending_follow_ups(supabase_client, email_sender):
         # Check if they replied
         was_cancelled = await scheduler.check_and_cancel_if_replied(candidate_id)
         if was_cancelled:
-            print(f"  [Cancelled] {candidate.get('name')} replied - skipping")
+            logger.info(f"  [Cancelled] {candidate.get('name')} replied - skipping")
             continue
         
         # Skip if no email
         email = candidate.get("email")
         if not email:
-            print(f"  [Skipped] {candidate.get('name')} - no email")
+            logger.info(f"  [Skipped] {candidate.get('name')} - no email")
             continue
         
         # Get original email subject
@@ -260,6 +258,6 @@ async def process_pending_follow_ups(supabase_client, email_sender):
         
         if result.get("success"):
             await scheduler.mark_sent(followup["id"])
-            print(f"  [Sent] Follow-up #{followup['follow_up_number']} to {candidate.get('name')}")
+            logger.info(f"  [Sent] Follow-up #{followup['follow_up_number']} to {candidate.get('name')}")
         else:
-            print(f"  [Failed] {candidate.get('name')}: {result.get('error')}")
+            logger.error(f"  [Failed] {candidate.get('name')}: {result.get('error')}")

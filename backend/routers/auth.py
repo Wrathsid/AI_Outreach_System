@@ -5,10 +5,10 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import RedirectResponse
 from datetime import datetime
 
-from config import get_supabase
-from models.schemas import GmailSendRequest
-from services.gmail_oauth import get_gmail_service
-from services.followup_scheduler import FollowUpScheduler
+from backend.config import get_supabase
+from backend.models.schemas import GmailSendRequest
+from backend.services.gmail_oauth import get_gmail_service
+from backend.services.followup_scheduler import FollowUpScheduler
 
 router = APIRouter(tags=["Authentication"])
 

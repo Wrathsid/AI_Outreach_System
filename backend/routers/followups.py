@@ -4,9 +4,9 @@ Follow-ups router - Follow-up scheduling and management.
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
 
-from config import get_supabase
-from services.email_sender import EmailSender
-from services.followup_scheduler import FollowUpScheduler, process_pending_follow_ups
+from backend.config import get_supabase
+from backend.services.email_sender import EmailSender
+from backend.services.followup_scheduler import FollowUpScheduler, process_pending_follow_ups
 
 router = APIRouter(tags=["Follow-ups"])
 

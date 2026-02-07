@@ -5,9 +5,9 @@ import json
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from config import get_groq_client, GROQ_API_KEY
-from models.schemas import ExtractionRequest
-from services.discovery_orchestrator import DiscoveryOrchestrator
+from backend.config import generate_with_openai, OPENAI_API_KEY, logger
+from backend.models.schemas import ExtractionRequest, CrawlRequest, PatternRequest
+from backend.services.discovery_orchestrator import DiscoveryOrchestrator
 
 router = APIRouter(tags=["Discovery"])
 
@@ -16,27 +16,71 @@ orchestrator = DiscoveryOrchestrator()
 
 
 @router.post("/extract-opportunity")
-def extract_opportunity(request: ExtractionRequest):
+async def extract_opportunity(request: ExtractionRequest):
     """Extract key info from job description text."""
-    client = get_groq_client()
-    if not GROQ_API_KEY or not client:
+    if not OPENAI_API_KEY:
         return {"opportunity": "AI not configured"}
         
     try:
-        completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Extract the core value proposition and key requirement from this text. Summarize it in one concise sentence starting with 'Opportunity to...' or 'Seeking...'"
-                },
-                {"role": "user", "content": request.text}
-            ],
-            model="llama3-8b-8192"
+        response = await generate_with_openai(
+            request.text, 
+            system_prompt="Extract the core value proposition and key requirement from this text. Summarize it in one concise sentence starting with 'Opportunity to...' or 'Seeking...'"
         )
-        return {"opportunity": completion.choices[0].message.content}
+        return {"opportunity": response if response else "Could not extract context"}
     except Exception as e:
-        print(f"Extraction Error: {e}")
+        logger.error(f"Extraction Error: {e}")
         return {"opportunity": "Could not extract context"}
+
+
+@router.post("/crawl")
+async def crawl_domain(request: CrawlRequest):
+    """Crawl a domain to extract text content."""
+    # Simple implementation using httpx for now
+    import httpx
+    from bs4 import BeautifulSoup
+    
+    try:
+        url = request.domain
+        if not url.startswith("http"):
+            url = f"https://{url}"
+            
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
+            resp = await client.get(url)
+            
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        
+        # Remove scripts and styles
+        for script in soup(["script", "style"]):
+            script.decompose()
+            
+        text = soup.get_text(separator=' ', strip=True)
+        # Limit text length
+        return {"text": text[:5000], "status": "success"}
+    except Exception as e:
+        return {"text": "", "status": "error", "message": str(e)}
+
+
+@router.post("/pattern")
+def predict_pattern(request: PatternRequest):
+    """Predict email pattern for a person."""
+    from backend.services.email_generator import EmailGenerator
+    
+    # Use EmailGenerator to guess pattern
+    # It takes name and company. Domain in request is often company domain.
+    # We can try to infer company from domain if pattern request has it.
+    
+    company = request.domain
+    if "." in company:
+        company = company.split(".")[0]
+        
+    name = f"{request.first_name} {request.last_name}".strip()
+    
+    guess = EmailGenerator.get_best_guess(name, company)
+    
+    if guess:
+        return {"pattern": guess["pattern"], "email": guess["email"], "confidence": guess["confidence"]}
+    else:
+        return {"pattern": None, "email": None, "confidence": 0}
 
 
 @router.get("/hr-search")
@@ -64,7 +108,7 @@ def discover_candidates(role: str):
 
 
 @router.get("/stream")
-def discover_candidates_stream(role: str):
+async def discover_candidates_stream(role: str):
     """Deep web scan with real-time updates."""
     return StreamingResponse(
         _search_leads_generator(role),
@@ -72,29 +116,23 @@ def discover_candidates_stream(role: str):
     )
 
 
-def _search_leads_generator(role: str):
+async def _search_leads_generator(role: str):
     """Wrapper to inject AI correction before streaming."""
     corrected_role = role
-    client = get_groq_client()
     
     try:
-        if GROQ_API_KEY and client:
+        if OPENAI_API_KEY:
             yield json.dumps({"type": "status", "data": "AI checking spelling..."}) + "\n"
-            completion = client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a spell checker. Correct the job title or search term. Return ONLY the corrected term. No quotes, no explanation. If correct, return original."
-                    },
-                    {"role": "user", "content": role}
-                ],
-                model="llama-3.3-70b-versatile",
+            suggestion = await generate_with_openai(
+                role,
+                system_prompt="You are a spell checker. Correct the job title or search term. Return ONLY the corrected term. No quotes, no explanation. If correct, return original."
             )
-            suggestion = completion.choices[0].message.content.strip()
-            if len(suggestion) < 50 and suggestion.lower() != role.lower():
+            
+            if suggestion and len(suggestion) < 50 and suggestion.lower() != role.lower():
                 yield json.dumps({"type": "status", "data": f"Auto-corrected: '{role}' -> '{suggestion}'"}) + "\n"
                 corrected_role = suggestion
     except Exception as e:
         yield json.dumps({"type": "error", "data": f"AI Error: {str(e)}"}) + "\n"
 
-    yield from orchestrator.discover_leads_stream(corrected_role)
+    for item in orchestrator.discover_leads_stream(corrected_role):
+        yield item

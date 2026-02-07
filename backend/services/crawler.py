@@ -18,44 +18,53 @@ class Crawler:
 
     def get_queries_for_role(self, role: str) -> List[str]:
         """
-        Generate specialized search queries based on the role category.
+        Generate specialized search queries targeting HR/recruiters hiring for this role.
+        Focus on people POSTING jobs, not people looking for jobs.
         """
         role_lower = role.lower()
         
-        # Tech Roles
+        # Tech Roles - Target tech recruiters and hiring managers
         tech_keywords = ['eng', 'dev', 'soft', 'data', 'cloud', 'security', 'full stack', 'qa', 'sre', 'devops', 'ml', 'ai']
         is_tech = any(k in role_lower for k in tech_keywords)
         
-        # Creative Roles
+        # Creative Roles - Target creative recruiters
         creative_keywords = ['writer', 'content', 'copy', 'design', 'art', 'creative', 'ux', 'ui']
         is_creative = any(k in role_lower for k in creative_keywords)
         
         if is_tech:
             return [
-                f'site:linkedin.com/in "{role}"',
-                f'site:github.com "{role}" email',
-                f'"{role}" hiring email contact',
+                # LinkedIn posts from recruiters hiring for this role
+                f'site:linkedin.com/posts \"hiring\" \"{role}\" recruiter',
+                f'site:linkedin.com \"we are hiring\" \"{role}\" HR',
+                f'site:linkedin.com \"looking for\" \"{role}\" talent acquisition',
+                # Recruiters specializing in tech
+                f'site:linkedin.com/in \"technical recruiter\" \"{role}\"',
+                f'site:linkedin.com/in \"talent acquisition\" \"technology\"',
             ]
         elif is_creative:
             return [
-                f'site:linkedin.com/in "{role}"',
-                f'site:behance.net "{role}"',
-                f'"{role}" portfolio contact',
+                f'site:linkedin.com/posts \"hiring\" \"{role}\" recruiter',
+                f'site:linkedin.com \"we are hiring\" \"{role}\" HR',
+                f'site:linkedin.com/in \"creative recruiter\" \"{role}\"',
             ]
         else:
             return [
-                f'site:linkedin.com/in "{role}"',
-                f'"{role}" professional email',
+                # General recruiters and hiring managers
+                f'site:linkedin.com/posts \"hiring\" \"{role}\"',
+                f'site:linkedin.com \"we are hiring\" \"{role}\"',
+                f'site:linkedin.com/in \"recruiter\" \"{role}\"',
             ]
 
     def get_broad_queries(self, role: str) -> List[str]:
         """
-        Broad Reach Mode: High volume queries.
+        Broad Reach Mode: High volume queries targeting hiring posts.
         """
         return [
-            f'"{role}" "@gmail.com"',
-            f'"{role}" email contact',
-            f'"{role}" hiring now',
+            f'site:linkedin.com/posts \"hiring {role}\"',
+            f'site:linkedin.com \"we\'re hiring\" \"{role}\"',
+            f'\"hiring manager\" \"{role}\" email',
+            f'\"talent acquisition\" \"{role}\" contact',
+            f'\"recruiter\" \"{role}\" hiring',
         ]
 
     async def crawl_stream(self, role: str, limit: int = 20, broad_mode: bool = False) -> Generator[Dict, None, None]:

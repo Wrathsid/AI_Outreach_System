@@ -4,395 +4,393 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   Briefcase, MapPin, Linkedin, 
-  TrendingUp, Brain, ChevronRight, History, 
-  Edit, Send, Copy,
-  CalendarClock, Loader2, Check, Trash2
+  Mail, ChevronDown, ChevronUp,
+  Copy, Send, ExternalLink, ArrowLeft, Trash2,
+  Loader2
 } from 'lucide-react';
 import { api, Candidate, Draft } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
-import { triggerConfetti, triggerFireworks } from '@/lib/confetti';
-import { useTemplates } from '@/context/TemplateContext';
+import { triggerConfetti } from '@/lib/confetti';
 
-export default function RecruiterProfile() {
+// --- Shared Components ---
+
+const MinimalCard = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
+  <div className={`bg-[#131326] border border-white/5 rounded-2xl ${className}`}>
+    {children}
+  </div>
+);
+
+export default function MinimalCandidatePage() {
   const router = useRouter();
   const params = useParams();
   const candidateId = Number(params.id);
   
-  const { templates } = useTemplates();
-
-  const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSending, setIsSending] = useState(false);
-  const [isSent, setIsSent] = useState(false);
-  const [isSnoozed, setIsSnoozed] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [notes, setNotes] = useState('');
-  const [editedSubject, setEditedSubject] = useState('');
-  const [editedBody, setEditedBody] = useState('');
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    const [candidateData, draftsData] = await Promise.all([
-      api.getCandidate(candidateId),
-      api.getDrafts()
-    ]);
-    
-    if (candidateData) {
-      setCandidate(candidateData);
-      const existingDraft = draftsData.find(d => d.candidate_id === candidateId);
-      if (existingDraft) {
-        setDraft(existingDraft);
-        setEditedSubject(existingDraft.subject);
-        setEditedBody(existingDraft.body);
-      }
-    }
-    setLoading(false);
-  }, [candidateId]);
-
   const { success, error } = useToast();
 
+  const [candidate, setCandidate] = useState<Candidate | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Editor State
+  // Multi-Channel State
+  const [activeTab, setActiveTab] = useState<'email' | 'linkedin'>('email');
+  const [emailDraft, setEmailDraft] = useState<Draft | null>(null);
+  const [linkedinDraft, setLinkedinDraft] = useState<Draft | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+
+  // Editor State (Derived from active tab, but we keep synced for rendering)
+  // We'll use refs or just simple state updates on tab switch
+  // Actually, let's keep one "edited" state that syncs when tabs change, or separate?
+  // Simpler: Keep separate edited states to persist changes when switching tabs.
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [linkedinBody, setLinkedinBody] = useState('');
+
+  // Context State
+  const [showContext, setShowContext] = useState(false);
+
+  const generateContent = useCallback((type: 'email' | 'linkedin') => {
+      setIsGenerating(true);
+      api.generateDraft(candidateId, '', type).then(newDraft => {
+          if (newDraft) {
+             const draftData: Draft = {
+                 id: newDraft.draft_id || 0,
+                 candidate_id: candidateId,
+                 subject: newDraft.subject || '',
+                 body: (newDraft.message || newDraft.body) || '',
+                 status: 'draft'
+             };
+
+             if (type === 'email') {
+                 setEmailDraft(draftData);
+                 setEmailSubject(draftData.subject);
+                 setEmailBody(draftData.body);
+             } else {
+                 setLinkedinDraft(draftData);
+                 setLinkedinBody(draftData.body);
+             }
+             success(`Generated ${type === 'email' ? 'email' : 'connection message'}`);
+          }
+          setIsGenerating(false);
+      }).catch(() => setIsGenerating(false));
+  }, [candidateId, success]);
+
   useEffect(() => {
-    const init = async () => {
-      await loadData();
+    let mounted = true;
+
+    const loadData = async () => {
+        setLoading(true);
+        try {
+            const [candidateData, draftsData] = await Promise.all([
+                api.getCandidate(candidateId),
+                api.getDrafts()
+            ]);
+            
+            if (mounted && candidateData) {
+                setCandidate(candidateData);
+                
+                const hasEmail = candidateData.email || candidateData.generated_email;
+                const initialTab = hasEmail ? 'email' : 'linkedin';
+                setActiveTab(initialTab);
+
+                const eDraft = draftsData.find((d: Draft) => d.candidate_id === candidateId && d.subject);
+                const lDraft = draftsData.find((d: Draft) => d.candidate_id === candidateId && !d.subject);
+                
+                if (eDraft) {
+                    setEmailDraft(eDraft);
+                    setEmailSubject(eDraft.subject);
+                    setEmailBody(eDraft.body);
+                }
+                if (lDraft) {
+                    setLinkedinDraft(lDraft);
+                    setLinkedinBody(lDraft.body);
+                }
+
+                // Auto-Generate if missing for INITIAL tab
+                // Note: We use the local vars eDraft/lDraft here
+                if (initialTab === 'email' && !eDraft) {
+                    generateContent('email');
+                } else if (initialTab === 'linkedin' && !lDraft) {
+                    generateContent('linkedin');
+                }
+            }
+        } catch (err) {
+            console.error(err);
+        } finally {
+            if (mounted) setLoading(false);
+        }
     };
-    init();
-  }, [loadData]);
 
-  const handleGenerateDraft = async () => {
-    if (!candidate) return;
-    setIsGenerating(true);
-    const result = await api.generateDraft(candidateId, notes);
-    if (result) {
-      setEditedSubject(result.subject);
-      setEditedBody(result.body);
-      setDraft({
-        id: result.draft_id || 0,
-        candidate_id: candidateId,
-        subject: result.subject,
-        body: result.body,
-        status: 'draft'
-      });
-      success("Draft generated by AI");
-    } else {
-      error("Failed to generate draft. Check Groq API Key.");
-    }
-    setIsGenerating(false);
-  };
+    loadData();
 
-  const handleFollowUp = async () => {
-    if (!candidate || !editedSubject || !editedBody) return;
-    setIsSending(true);
-    
-    // Simulate send (or real send if configured)
-    const successResult = await api.sendEmail(
-      candidate.email || `${candidate.name.toLowerCase().replace(' ', '.')}@${candidate.company?.toLowerCase() || 'company'}.com`,
-      editedSubject,
-      editedBody,
-      candidateId
-    );
-    
-    if (successResult) {
-      setIsSent(true);
-      triggerFireworks(); // GOD MODE EFFECT
-      success("Email sent successfully!");
-      setTimeout(() => {
-        router.push('/success');
-      }, 2500); // Longer delay to enjoy fireworks
-    } else {
-      error("Failed to send email");
-    }
-    setIsSending(false);
-  };
-
-  const handleSnooze = async () => {
-    await api.updateCandidateStatus(candidateId, 'snoozed');
-    setIsSnoozed(true);
-    triggerConfetti(); // Small win
-    setTimeout(() => {
-      router.push('/');
-    }, 1000);
-  };
+    return () => { mounted = false; };
+  }, [candidateId, generateContent]);
 
   const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this candidate?')) {
+    if (confirm('Delete this candidate?')) {
       await api.deleteCandidate(candidateId);
       router.push('/');
     }
   };
 
+  const handleAction = async () => {
+    if (!candidate) return;
+
+    if (activeTab === 'linkedin') {
+       navigator.clipboard.writeText(linkedinBody);
+       
+       // POST-SEND FEEDBACK (Priority 7)
+       success("✅ Copied to clipboard. Marked as contacted.");
+       
+       // UX Improvement: Track sent (for Sent page)
+       await api.markAsSent(candidateId);
+       
+       return;
+    }
+
+    // Email Mode
+    if (!emailBody) return error("Message is empty");
+    setIsSending(true);
+    const sent = await api.sendEmail(
+        candidate.email || candidate.generated_email || '', 
+        emailSubject, 
+        emailBody, 
+        candidate.id
+    );
+    
+    if (sent) {
+       // POST-SEND FEEDBACK (Priority 7)
+       success("✅ Email sent. Marked as contacted.");
+       triggerConfetti();
+       
+       // UX Improvement: Track sent (for Sent page)
+       await api.markAsSent(candidateId);
+    } else {
+       error("Failed to send");
+    }
+    setIsSending(false);
+  };
+  
+  const handleTabSwitch = (tab: 'email' | 'linkedin') => {
+      setActiveTab(tab);
+      // Auto-generate if switching to a tab that has no content
+      if (tab === 'email' && !emailBody && !emailDraft) {
+          generateContent('email');
+      } else if (tab === 'linkedin' && !linkedinBody && !linkedinDraft) {
+          generateContent('linkedin');
+      }
+  };
+
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-background-dark">
-        <Loader2 className="animate-spin text-primary" size={48} />
+      <div className="min-h-screen flex items-center justify-center bg-[#0B0B15]">
+        <Loader2 className="animate-spin text-slate-500" size={24} />
       </div>
     );
   }
 
-  if (!candidate) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-background-dark gap-4">
-        <p className="text-white text-xl">Candidate not found</p>
-        <button onClick={() => router.push('/')} className="text-primary hover:underline">
-          Return to Dashboard
-        </button>
-      </div>
-    );
-  }
+  if (!candidate) return null;
+
+  const hasEmail = candidate.email || candidate.generated_email;
 
   return (
-    <div className="flex-1 overflow-y-auto relative z-10 p-4 lg:p-8 bg-background-dark/50">
-      <div className="absolute top-0 left-0 w-full h-96 bg-linear-to-b from-[#1c1c2e] to-transparent pointer-events-none opacity-50"></div>
-      <div className="absolute top-[-10%] right-[-5%] w-96 h-96 bg-primary/20 rounded-full blur-[120px] pointer-events-none"></div>
-
-      <div className="max-w-5xl mx-auto space-y-6 relative z-10">
-        {/* Breadcrumbs */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <a className="hover:text-white transition-colors cursor-pointer" onClick={() => router.push('/')}>Dashboard</a>
-            <ChevronRight size={14} />
-            <span className="text-white font-medium">{candidate.name}</span>
-          </div>
-          <button onClick={handleDelete} className="text-red-400 hover:text-red-300 transition-colors p-2 rounded-lg hover:bg-red-500/10">
-            <Trash2 size={18} />
-          </button>
-        </div>
-
-        {/* Glass Profile Card */}
-        <div className="glass-panel rounded-2xl p-6 lg:p-8 relative overflow-hidden">
-          
-          {/* Header Section */}
-          <div className="flex flex-col md:flex-row gap-6 md:items-start justify-between border-b border-white/5 pb-8 mb-8">
-            <div className="flex gap-6 items-center md:items-start">
-              <div className="relative">
-                <div 
-                  className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-slate-800 bg-cover bg-center border-2 border-white/10 shadow-2xl flex items-center justify-center text-3xl font-bold text-white" 
-                  style={candidate.avatar_url ? { backgroundImage: `url('${candidate.avatar_url}')` } : {}}
-                >
-                  {!candidate.avatar_url && candidate.name.charAt(0)}
-                </div>
-                <div className="absolute bottom-1 right-1 bg-[#0f0f11] rounded-full p-1 border border-white/10">
-                  <div className={`w-4 h-4 rounded-full border-2 border-[#0f0f11] ${candidate.status === 'contacted' ? 'bg-blue-500' : candidate.status === 'snoozed' ? 'bg-yellow-500' : 'bg-emerald-500'}`}></div>
-                </div>
-              </div>
-              <div className="space-y-2 pt-1">
-                <div>
-                  <h1 className="text-3xl font-bold text-white tracking-tight">{candidate.name}</h1>
-                  {candidate.title && (
-                    <div className="flex flex-wrap items-center gap-2 text-slate-400 mt-1">
-                      <Briefcase size={18} />
-                      <span>{candidate.title} @ {candidate.company}</span>
-                    </div>
-                  )}
-                  {candidate.location && (
-                    <div className="flex flex-wrap items-center gap-2 text-slate-400 text-sm mt-1">
-                      <MapPin size={18} />
-                      <span>{candidate.location}</span>
-                    </div>
-                  )}
-                  {candidate.email && (
-                    <div className="text-slate-500 text-sm mt-2">{candidate.email}</div>
-                  )}
-                  {candidate.linkedin_url && (
-                    <div className="flex gap-3 mt-4 pt-2">
-                      <a aria-label="LinkedIn" className="flex items-center justify-center w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all" href={candidate.linkedin_url} target="_blank" rel="noopener noreferrer">
-                        <Linkedin size={14} />
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Key Stats */}
-            <div className="flex flex-row md:flex-col gap-3 min-w-[140px]">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-start backdrop-blur-sm">
-                <span className="text-3xl font-bold text-white">{candidate.match_score}%</span>
-                <div className="flex items-center gap-1 text-primary text-sm font-medium">
-                  <TrendingUp size={16} />
-                  <span>Match Score</span>
-                </div>
-              </div>
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col items-start backdrop-blur-sm">
-                <span className="text-lg font-bold text-slate-200 capitalize">{candidate.status || 'New'}</span>
-                <span className="text-slate-500 text-xs uppercase tracking-wider font-medium">Status</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Content Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column */}
-            <div className="lg:col-span-1 space-y-6">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Brain size={18} className="text-primary" />
-                  Context
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {candidate.tags?.map((tag, i) => (
-                    <div key={i} className={`px-3 py-1.5 rounded-full ${i === 0 ? 'bg-primary/20 border-primary/30 text-indigo-300' : 'bg-white/5 border-white/10 text-slate-300'} border text-xs font-medium`}>
-                      {tag}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {candidate.summary && (
-                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                  <p className="text-sm text-slate-300 leading-relaxed">{candidate.summary}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Right Column: Draft Editor */}
-            <div className="lg:col-span-2">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
-                  <History size={18} className="text-slate-400" />
-                  Email Draft
-                </h3>
-                <button 
-                  onClick={handleGenerateDraft}
-                  disabled={isGenerating}
-                  className="text-xs flex items-center gap-1 text-primary hover:text-white transition-colors bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-lg"
-                >
-                  {isGenerating && <Loader2 size={14} className="animate-spin" />}
-                  {draft ? 'Regenerate' : 'Generate'} with AI
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!editedBody) return;
-                    setIsGenerating(true);
-                    const polished = await api.polishDraft(editedBody);
-                    if (polished) setEditedBody(polished);
-                    setIsGenerating(false);
-                  }}
-                  disabled={isGenerating || !editedBody}
-                  className="ml-2 text-xs flex items-center gap-1 text-slate-300 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10"
-                >
-
-                  Polish Grammar
-                </button>
-              </div>
-              
-              <div className="mb-4">
-                 <select 
-                   onChange={(e) => {
-                     const t = templates.find(t => t.id === e.target.value);
-                     if (t && candidate) {
-                       // Replace variables
-                       const sub = t.subject.replace('{{name}}', candidate.name).replace('{{company}}', candidate.company || 'their company');
-                       const bod = t.body.replace('{{name}}', candidate.name).replace('{{company}}', candidate.company || 'their company');
-                       setEditedSubject(sub);
-                       setEditedBody(bod);
-                       triggerConfetti();
-                       success("Template loaded");
-                     }
-                     e.target.value = ""; // Reset
-                   }}
-                   className="w-full bg-[#111118] border border-white/10 rounded-lg px-4 py-2 text-xs text-slate-400 focus:outline-none focus:border-primary cursor-pointer hover:bg-white/5 transition-colors"
-                 >
-                   <option value="">Load a Template...</option>
-                   {templates.map(t => (
-                     <option key={t.id} value={t.id}>{t.name}</option>
-                   ))}
-                 </select>
-              </div>
-              
-              <div className="space-y-4">
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs text-slate-500">Subject</label>
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(editedSubject);
-                        triggerConfetti();
-                        success("Subject copied to clipboard");
-                      }}
-                      className="text-xs text-slate-500 hover:text-primary flex items-center gap-1 transition-colors"
-                    >
-                      <Copy size={12} /> Copy
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={editedSubject}
-                    onChange={(e) => setEditedSubject(e.target.value)}
-                    placeholder="Enter email subject..."
-                    className="w-full px-4 py-3 bg-[#111118] border border-white/10 rounded-xl text-white placeholder-slate-600 focus:border-primary focus:ring-1 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <label className="block text-xs text-slate-500">Body</label>
-                    <button 
-                      onClick={() => {
-                         navigator.clipboard.writeText(editedBody);
-                         triggerConfetti();
-                         success("Email body copied to clipboard");
-                      }}
-                      className="text-xs text-slate-500 hover:text-primary flex items-center gap-1 transition-colors"
-                    >
-                      <Copy size={12} /> Copy
-                    </button>
-                  </div>
-                  <textarea
-                    value={editedBody}
-                    onChange={(e) => setEditedBody(e.target.value)}
-                    placeholder="Write your email or click 'Generate with AI'..."
-                    rows={8}
-                    className="w-full px-4 py-3 bg-[#111118] border border-white/10 rounded-xl text-white placeholder-slate-600 focus:border-primary focus:ring-1 focus:ring-primary resize-none font-mono text-sm leading-relaxed"
-                  />
-                </div>
-              </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Footer */}
-          <div className="mt-8 pt-6 border-t border-white/5 flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
-            <div className="w-full md:w-auto flex-1 relative">
-              <div className="absolute left-3 top-3 text-slate-500">
-                <Edit size={20} />
-              </div>
-              <textarea 
-                className="w-full bg-[#0f0f11] border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none shadow-inner" 
-                placeholder="Notes for context..." 
-                rows={1}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              ></textarea>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <button 
-                onClick={handleSnooze}
-                disabled={isSnoozed}
-                className={`flex-1 md:flex-none px-4 py-2.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white text-sm font-medium transition-all flex items-center justify-center gap-2 ${isSnoozed ? 'opacity-50' : ''}`}
-              >
-                {isSnoozed ? <Check size={18} /> : <CalendarClock size={18} />}
-                {isSnoozed ? 'Snoozed!' : 'Snooze'}
-              </button>
-              <button 
-                onClick={handleFollowUp}
-                disabled={isSending || isSent || !editedSubject || !editedBody}
-                className={`flex-1 md:flex-none px-6 py-2.5 rounded-lg bg-primary hover:bg-blue-600 text-white text-sm font-medium shadow-[0_0_20px_rgba(25,25,230,0.3)] hover:shadow-[0_0_25px_rgba(25,25,230,0.5)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 ${isSent ? 'bg-emerald-600 hover:bg-emerald-600' : ''}`}
-              >
-                {isSending ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : isSent ? (
-                  <Check size={18} />
-                ) : (
-                  <Send size={18} />
-                )}
-                {isSent ? 'Sent!' : 'Send Email'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="flex-1 w-full min-h-screen bg-[#0B0B15] text-slate-300 font-sans selection:bg-white/10 selection:text-white">
       
-      <div className="h-12"></div>
+      {/* Minimal Header */}
+      <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <button 
+            onClick={() => router.push('/')} 
+            className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm"
+        >
+            <ArrowLeft size={16} />
+            <span className="font-medium">Candidates</span>
+        </button>
+        <button 
+            onClick={handleDelete}
+            className="text-slate-600 hover:text-red-400 transition-colors"
+        >
+            <Trash2 size={16} />
+        </button>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12">
+        
+        {/* Left Column: Context & Contact (4 Cols) */}
+        <div className="lg:col-span-4 space-y-8">
+            
+            {/* Profile Header */}
+            <div className="space-y-4">
+                <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">
+                    {candidate.name}
+                </h1>
+                <div className="space-y-1 text-sm text-slate-400">
+                    {candidate.title && (
+                        <div className="flex items-center gap-2">
+                            <Briefcase size={14} className="text-slate-500" />
+                            <span>{candidate.title}</span>
+                        </div>
+                    )}
+                    {candidate.company && (
+                        <div className="pl-6 text-slate-500">
+                             at {candidate.company}
+                        </div>
+                    )}
+                    {candidate.location && (
+                        <div className="flex items-center gap-2">
+                            <MapPin size={14} className="text-slate-500" />
+                            <span>{candidate.location}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Contact Actions */}
+            <div className="space-y-3 pt-4 border-t border-white/5">
+                <div className="flex items-center justify-between group">
+                    <div className="flex items-center gap-3 text-sm">
+                        <Mail size={16} className={hasEmail ? "text-slate-300" : "text-slate-600"} />
+                        <span className={hasEmail ? "text-slate-200" : "text-slate-600 italic"}>
+                            {hasEmail ? (candidate.email || candidate.generated_email) : 'No email found'}
+                        </span>
+                    </div>
+                </div>
+
+                {candidate.linkedin_url && (
+                    <a 
+                        href={candidate.linkedin_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 text-sm text-[#0077b5] hover:text-[#00669c] transition-colors"
+                    >
+                        <Linkedin size={16} />
+                        <span className="font-medium">Open LinkedIn Profile</span>
+                        <ExternalLink size={12} className="opacity-50" />
+                    </a>
+                )}
+            </div>
+
+            {/* Failure Visibility (UX Trust Pattern) */}
+            {candidate.status === 'contacted' && candidate.sent_at && (
+                (() => {
+                    const daysAgo = Math.floor((new Date().getTime() - new Date(candidate.sent_at).getTime()) / (1000 * 3600 * 24));
+                    if (daysAgo > 7) {
+                        return (
+                            <div className="bg-white/5 rounded-lg p-3 border border-white/5 flex gap-3 animate-in fade-in duration-500">
+                                <span className="text-xl">🤷‍♂️</span>
+                                <div>
+                                    <p className="text-xs font-semibold text-slate-300">No reply yet? That&apos;s normal.</p>
+                                    <p className="text-[11px] text-slate-500 leading-tight mt-0.5">
+                                        Most replies come from follow-ups. Try a &quot;lighter&quot; touch for the next one.
+                                    </p>
+                                </div>
+                            </div>
+                        );
+                    }
+                    return null;
+                })()
+            )}
+
+            {/* Collapsible Context */}
+            <div className="pt-4 border-t border-white/5">
+                <button 
+                    onClick={() => setShowContext(!showContext)}
+                    className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors"
+                >
+                    {showContext ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                    Context & Notes
+                </button>
+                
+                {showContext && (
+                    <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                        {candidate.summary ? (
+                            <p className="text-sm text-slate-400 leading-relaxed bg-[#131326] p-4 rounded-xl border border-white/5">
+                                {candidate.summary}
+                            </p>
+                        ) : (
+                            <p className="text-xs text-slate-600 italic">No context available.</p>
+                        )}
+                    </div>
+                )}
+            </div>
+        </div>
+
+        {/* Right Column: Writing Area (8 Cols) */}
+        <div className="lg:col-span-8 flex flex-col h-[calc(100vh-140px)] min-h-[500px]">
+            <MinimalCard className="flex-1 flex flex-col p-1 overflow-hidden bg-[#0f0f15]">
+                
+                {/* Editor Header & Tabs */}
+                <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between min-h-[70px]">
+                     {hasEmail && candidate.linkedin_url ? (
+                         <div className="flex items-center gap-1 bg-[#131326] p-1 rounded-lg border border-white/5">
+                             <button
+                                onClick={() => handleTabSwitch('email')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'email' ? 'bg-[#0f0f15] text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                             >
+                                Email
+                             </button>
+                             <button
+                                onClick={() => handleTabSwitch('linkedin')}
+                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'linkedin' ? 'bg-[#0077b5]/10 text-[#0077b5] shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
+                             >
+                                <Linkedin size={12} />
+                                LinkedIn
+                             </button>
+                         </div>
+                     ) : (
+                        <h2 className="font-medium text-white">
+                            {hasEmail ? 'Compose Email' : 'Connection Message'}
+                        </h2>
+                     )}
+                     
+                    {activeTab === 'email' && (
+                         <span className="text-xs text-slate-500">Draft saved locally</span>
+                    )}
+                </div>
+
+                {/* Subject Line (Email Only) */}
+                {activeTab === 'email' && (
+                    <input 
+                        className="w-full bg-transparent border-b border-white/5 px-6 py-4 text-slate-200 placeholder-slate-600 focus:outline-none focus:bg-white/5 transition-colors"
+                        placeholder="Subject"
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                    />
+                )}
+
+                {/* Main Textarea */}
+                <textarea
+                    className={`w-full bg-[#0f0f15] border border-white/5 focus:border-primary/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:outline-none transition-all leading-relaxed font-sans text-sm min-h-[400px] resize-y ${isGenerating ? 'animate-pulse opacity-50 cursor-wait' : ''}`}
+                    placeholder={isGenerating ? "AI is writing your message..." : (activeTab === 'email' ? "Hi [Name], I noticed..." : "Hi [Name], I'd like to connect...")}
+                    value={activeTab === 'email' ? emailBody : linkedinBody}
+                    onChange={(e) => activeTab === 'email' ? setEmailBody(e.target.value) : setLinkedinBody(e.target.value)}
+                    disabled={isGenerating}
+                />
+
+                {/* Footer Actions */}
+                <div className="px-6 py-4 border-t border-white/5 bg-[#131326]/50 flex items-center justify-between">
+                     <span className="text-xs text-slate-600">
+                        {(activeTab === 'email' ? emailBody : linkedinBody).length} characters
+                     </span>
+
+                     <button
+                        onClick={handleAction}
+                        disabled={isSending}
+                        className="px-6 py-2 rounded-lg bg-white text-black hover:bg-slate-200 font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+                     >
+                        {isSending ? (
+                            <Loader2 size={16} className="animate-spin" />
+                        ) : activeTab === 'email' ? (
+                            <Send size={16} />
+                        ) : (
+                            <Copy size={16} />
+                        )}
+                        {activeTab === 'email' ? 'Send Email' : 'Copy for LinkedIn'}
+                     </button>
+                </div>
+            </MinimalCard>
+        </div>
+
+      </div>
     </div>
   );
 }

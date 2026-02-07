@@ -4,6 +4,16 @@ All request/response models are defined here for centralized management.
 """
 from pydantic import BaseModel
 from typing import List, Optional
+from enum import Enum
+
+
+class IntentType(str, Enum):
+    """Intent buckets for outreach categorization."""
+    CURIOUS = "curious"  # Default for LinkedIn
+    PEER = "peer"        # Default for Email
+    SOFT = "soft"        # Opportunity hint
+    DIRECT = "direct"    # Direct ask (rare)
+
 
 
 # ==================== CANDIDATE MODELS ====================
@@ -16,12 +26,16 @@ class Candidate(BaseModel):
     company: Optional[str] = None
     location: Optional[str] = None
     email: Optional[str] = None
+    generated_email: Optional[str] = None
+    email_confidence: Optional[int] = None
     linkedin_url: Optional[str] = None
     avatar_url: Optional[str] = None
     match_score: int = 0
     summary: Optional[str] = None
     tags: Optional[List[str]] = []
+    tags: Optional[List[str]] = []
     status: Optional[str] = "new"
+    email_source: Optional[str] = "none"
 
 
 class CandidateCreate(BaseModel):
@@ -31,12 +45,19 @@ class CandidateCreate(BaseModel):
     company: Optional[str] = None
     location: Optional[str] = None
     email: Optional[str] = None
+    generated_email: Optional[str] = None
+    email_confidence: Optional[int] = None
     linkedin_url: Optional[str] = None
     avatar_url: Optional[str] = None
     match_score: int = 0
     summary: Optional[str] = None
     tags: Optional[List[str]] = []
     status: Optional[str] = "new"
+
+
+class BulkAddRequest(BaseModel):
+    """Model for bulk adding candidates to pipeline (UX Improvement)."""
+    candidate_ids: List[int]
 
 
 # ==================== DRAFT MODELS ====================
@@ -50,6 +71,12 @@ class Draft(BaseModel):
     status: str = "draft"
     candidate_name: Optional[str] = None
     candidate_company: Optional[str] = None
+    # Learning Loop Fields
+    intent: Optional[str] = None
+    temperature: Optional[float] = None
+    signal_used: Optional[str] = None
+    # Optimization Fields
+    time_to_read: Optional[int] = 0
 
 
 class DraftCreate(BaseModel):
@@ -57,6 +84,10 @@ class DraftCreate(BaseModel):
     candidate_id: int
     subject: str
     body: str
+    # Learning Loop Fields
+    intent: Optional[str] = None
+    temperature: Optional[float] = None
+    signal_used: Optional[str] = None
 
 
 # ==================== EMAIL MODELS ====================

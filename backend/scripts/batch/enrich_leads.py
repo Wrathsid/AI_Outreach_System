@@ -4,24 +4,22 @@ import asyncio
 import json
 from dotenv import load_dotenv
 
-# Add current directory to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add project root to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 # Load env variables
 load_dotenv(dotenv_path=".env")
 
-# Initialize Supabase & Groq
+# Initialize Supabase & OpenAI
 try:
     from supabase import create_client
-    from groq import Groq
-    from services.crawler import Crawler # Reuse the crawler for search
+    from backend.config import generate_with_openai, OPENAI_API_KEY
+    from backend.services.crawler import Crawler # Reuse the crawler for search
     
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    groq_client = Groq(api_key=GROQ_API_KEY)
     crawler = Crawler()
     
 except Exception as e:
@@ -42,7 +40,7 @@ async def search_google_snippet(query):
         print(f"Search error: {e}")
     return "\n---\n".join(snippets[:3])
 
-def extract_company_with_ai(name, title, search_context):
+async def extract_company_with_ai(name, title, search_context):
     prompt = f"""
     Find the current company for this person based on the search results.
     Person: {name}
@@ -56,14 +54,10 @@ def extract_company_with_ai(name, title, search_context):
     """
     
     try:
-        chat_completion = groq_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a data extractor. Return pure company name or 'Unknown'."},
-                {"role": "user", "content": prompt}
-            ],
-            model="llama-3.3-70b-versatile",
-        )
-        return chat_completion.choices[0].message.content.strip()
+        return await generate_with_openai(
+            prompt,
+            system_prompt="You are a data extractor. Return pure company name or 'Unknown'."
+        ) or "Unknown"
     except Exception as e:
         print(f"AI Error: {e}")
         return "Unknown"

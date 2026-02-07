@@ -16,6 +16,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from dotenv import load_dotenv
 import httpx
+import logging
+
+logger = logging.getLogger("backend")
 
 load_dotenv()
 
@@ -161,7 +164,7 @@ class GmailOAuthService:
                 return result.data[0]
             return None
         except Exception as e:
-            print(f"Error getting user tokens: {e}")
+            logger.error(f"Error getting user tokens: {e}")
             return None
     
     async def send_email(

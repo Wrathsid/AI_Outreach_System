@@ -3,23 +3,21 @@ import sys
 import asyncio
 from dotenv import load_dotenv
 
-# Add current directory to path
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# Add project root to path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..')))
 
 # Load env variables
 load_dotenv(dotenv_path=".env")
 
-# Initialize Supabase & Groq
+# Initialize Supabase & OpenAI
 try:
     from supabase import create_client
-    from groq import Groq
+    from backend.config import generate_with_openai, OPENAI_API_KEY
     
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
     
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    groq_client = Groq(api_key=GROQ_API_KEY)
     
 except Exception as e:
     print(f"Failed to init dependencies: {e}")
@@ -27,7 +25,7 @@ except Exception as e:
 
 async def generate_draft_content(candidate, user_settings):
     """
-    Generates subject and body using Groq
+    Generates subject and body using OpenAI
     """
     prompt = f"""
     You are {user_settings['full_name']}, {user_settings['role']} at {user_settings['company']}.
@@ -49,28 +47,26 @@ async def generate_draft_content(candidate, user_settings):
     """
     
     try:
-        completion = groq_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are an expert copywriter."},
-                {"role": "user", "content": prompt}
-            ],
-            model="llama-3.3-70b-versatile",
+        content = await generate_with_openai(
+            prompt,
+            system_prompt="You are an expert copywriter."
         )
-        content = completion.choices[0].message.content.strip()
         
-        # Parse Subject
-        lines = content.split('\n')
-        subject = "Quick Question"
-        body_start = 0
-        
-        for i, line in enumerate(lines):
-            if line.lower().startswith("subject:"):
-                subject = line.replace("Subject:", "").strip().replace("*", "")
-                body_start = i + 1
-                break
-                
-        body = "\n".join(lines[body_start:]).strip()
-        return subject, body
+        if content:
+            # Parse Subject
+            lines = content.strip().split('\n')
+            subject = "Quick Question"
+            body_start = 0
+            
+            for i, line in enumerate(lines):
+                if line.lower().startswith("subject:"):
+                    subject = line.replace("Subject:", "").strip().replace("*", "")
+                    body_start = i + 1
+                    break
+                    
+            body = "\n".join(lines[body_start:]).strip()
+            return subject, body
+        return None, None
         
     except Exception as e:
         print(f"  ! Gen Error: {e}")

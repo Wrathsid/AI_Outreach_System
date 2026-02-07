@@ -5,6 +5,9 @@ import dns.resolver
 import time
 import random
 from typing import Dict, Optional, Tuple
+import logging
+
+logger = logging.getLogger("backend")
 
 class TripleVerifier:
     """
@@ -30,7 +33,7 @@ class TripleVerifier:
         """
         # Level 1: Syntax
         if not self._check_syntax(email):
-            print(f"[Verify] Syntax/Junk failed: {email}")
+            logger.info(f"[Verify] Syntax/Junk failed: {email}")
             return False
 
         domain = email.split('@')[1]
@@ -38,7 +41,7 @@ class TripleVerifier:
         # Level 2: DNS MX
         mx_record = self._get_mx_record(domain)
         if not mx_record:
-            print(f"[Verify] MX failed: {domain}")
+            logger.info(f"[Verify] MX failed: {domain}")
             return False
 
         # Level 3: SMTP Handshake
@@ -46,7 +49,7 @@ class TripleVerifier:
         # We try to be strict but safe.
         is_valid_smtp = self._check_smtp(mx_record, email)
         if not is_valid_smtp:
-            print(f"[Verify] SMTP failed: {email}")
+            logger.info(f"[Verify] SMTP failed: {email}")
             return False
 
         return True
@@ -123,7 +126,7 @@ class TripleVerifier:
 
         except Exception as e:
             # Network issue or timeout
-            print(f"SMTP Ex: {e}")
+            logger.error(f"SMTP Ex: {e}")
             return False # Conservative: If we can't Verify, it's not "Verified".
 
 # Singleton

@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Search, Globe, Loader2, Mail, User, Briefcase, Check } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Loader2, Mail, Check, Github, Linkedin, Settings2, Sparkles, Building2 } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
-import { FadeUp, BlurIn } from '@/components/Animations';
+import { useRouter } from 'next/navigation';
+import { FadeUp } from '@/components/Animations';
 import { useToast } from '@/context/ToastContext';
-import Link from 'next/link';
 
 // Reuse ScanResult type or similar
 interface ScanResult {
@@ -13,6 +13,8 @@ interface ScanResult {
     title: string;
     company: string;
     email?: string;
+    generated_email?: string;  // AI-generated email guess
+    email_confidence?: number;  // Confidence score 0-100
     linkedin_url: string;
     summary?: string;
     is_hr?: boolean;
@@ -21,30 +23,135 @@ interface ScanResult {
 
 // Common roles for auto-complete
 const ROLE_SUGGESTIONS = [
+    // Web Development
+    "Web Developer",
+    "Web Dev",
+    "Frontend Developer",
+    "Frontend Engineer",
+    "Backend Developer",
+    "Backend Engineer",
+    "Full Stack Developer",
+    "Full Stack Engineer",
+    
+    // Software Engineering
     "Software Engineer",
-    "Product Manager",
-    "Data Scientist",
+    "Software Developer",
+    "Senior Software Engineer",
+    "Lead Software Engineer",
+    "Principal Engineer",
+    
+    // Mobile & Platform
+    "Mobile Developer",
+    "iOS Developer",
+    "Android Developer",
+    "React Native Developer",
+    "Flutter Developer",
+    
+    // DevOps & Infrastructure
     "DevOps Engineer",
+    "Site Reliability Engineer",
+    "SRE",
+    "Cloud Engineer",
+    "Infrastructure Engineer",
+    "Platform Engineer",
+    
+    // Data & AI
+    "Data Scientist",
+    "Data Engineer",
+    "Machine Learning Engineer",
+    "ML Engineer",
+    "AI Engineer",
+    "Data Analyst",
+    
+    // Design & UX
+    "UI/UX Designer",
+    "Product Designer",
+    "UX Designer",
+    "UI Designer",
+    "Graphic Designer",
+    
+    // Product & Management
+    "Product Manager",
+    "Technical Product Manager",
+    "Project Manager",
+    "Engineering Manager",
+    "CTO",
+    "VP of Engineering",
+    
+    // QA & Testing
+    "QA Engineer",
+    "Test Engineer",
+    "Automation Engineer",
+    
+    // Security
+    "Security Engineer",
+    "Cybersecurity Analyst",
+    
+    // Sales & Marketing
     "Sales Representative",
+    "Account Executive",
+    "Sales Engineer",
     "Marketing Manager",
+    "Growth Marketer",
+    "Digital Marketing Manager",
+    
+    // HR & Recruitment
     "Technical Recruiter",
     "HR Manager",
-    "Account Executive",
-    "Frontend Developer",
-    "Backend Developer",
-    "Full Stack Developer",
-    "Growth Marketer",
-    "Customer Success Manager"
+    "Talent Acquisition",
+    
+    // Customer Success
+    "Customer Success Manager",
+    "Support Engineer"
 ];
 
+const PLACEHOLDERS = [
+    "Search roles like 'Frontend Engineer'...",
+    "Search roles like 'Startup CTO'...",
+    "Search roles like 'DevOps Manager'...",
+    "Search roles like 'Technical Recruiter'...",
+    "Search roles like 'Product Owner'..."
+];
+
+const EXAMPLE_CHIPS = [
+    "Web Developer",
+    "Product Manager",
+    "DevOps",
+    "AI Engineer"
+];
+
+// Email Status Badge Component (UX Improvement)
+const EmailBadge = ({ confidence }: { confidence?: number }) => {
+    if (!confidence) return <span className="text-[10px] text-slate-600">❓ Unknown</span>;
+    
+    if (confidence >= 80) {
+        return <span className="text-[10px] text-green-500 flex items-center gap-0.5">✅ Verified</span>;
+    } else if (confidence >= 50) {
+        return <span className="text-[10px] text-yellow-500 flex items-center gap-0.5">⚠️ Risky</span>;
+    } else {
+        return <span className="text-[10px] text-red-500 flex items-center gap-0.5">❌ Invalid</span>;
+    }
+};
+
 const SearchPage = () => {
-    // const router = useRouter(); // Unused after removing View Results toast
+    const router = useRouter(); // Auto-redirect after adding leads
     const [role, setRole] = useState('');
     const [isScanning, setIsScanning] = useState(false);
     const [results, setResults] = useState<ScanResult[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [isAdding, setIsAdding] = useState(false);
+    
+    // Rotating Placeholder Logic
+    const [placeholderIndex, setPlaceholderIndex] = useState(0);
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setPlaceholderIndex((prev) => (prev + 1) % PLACEHOLDERS.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
 
     const [broadMode, setBroadMode] = useState(false);
+    const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
     const { success } = useToast();
 
@@ -72,6 +179,13 @@ const SearchPage = () => {
     // Derived state for Select All checkbox
     const isAllSelected = results.length > 0 && selectedEmails.size === results.length;
     
+    // Auto-enable select mode if items are selected
+    useEffect(() => {
+        if (selectedEmails.size > 0 && !isSelectMode) {
+            setIsSelectMode(true);
+        }
+    }, [selectedEmails, isSelectMode]);
+    
     const [statusMessage, setStatusMessage] = useState('');
 
     // Filter suggestions based on input
@@ -93,7 +207,7 @@ const SearchPage = () => {
                 role,
                 broad_mode: broadMode.toString()
             });
-            const response = await fetch(`${API_BASE}/discovery/hr-search?${queryParams.toString()}`);
+            const response = await fetch(`${API_BASE}/discover/hr-search?${queryParams.toString()}`);
             
             if (!response.body) throw new Error("No response body");
             
@@ -144,32 +258,27 @@ const SearchPage = () => {
 
             <div className={`z-10 w-full max-w-2xl mx-auto flex flex-col items-center transition-all duration-500 ${results.length > 0 ? 'mt-10 mb-8' : 'my-auto mt-[15vh]'}`}>
                 
-                {/* Header Pills */}
-                <BlurIn delay={0}>
-                    <div className="inline-flex items-center gap-1 bg-white/5 border border-white/10 rounded-full px-1 py-1 mb-8">
-                        <Link href="/candidates" className="px-4 py-1.5 rounded-full text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer">Pipeline</Link>
-                        <span className="px-4 py-1.5 rounded-full text-xs font-medium bg-primary text-white shadow-lg shadow-blue-500/20 cursor-default">Discovery</span>
-                    </div>
-                </BlurIn>
+                {/* Header Pills Removed for Simplicity */}
+                <div className="h-20"></div> {/* Spacer */}
 
-                <BlurIn delay={0.1}>
-                    <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-                        Scan the deep web.
-                    </h1>
-                </BlurIn>
-                
-                <BlurIn delay={0.2}>
-                    <p className="text-lg text-slate-400 mb-10">
-                        Find new leads across LinkedIn, GitHub, and the web.
-                    </p>
-                </BlurIn>
+                {/* Zero-State Intent (Only show when empty) */}
+                {results.length === 0 && !isScanning && (
+                    <FadeUp delay={0.2} className="mb-8 text-center">
+                        <h2 className="text-2xl font-medium text-white mb-2">
+                           Find hiring managers, recruiters, or teams by role
+                        </h2>
+                        <p className="text-slate-400 text-sm">
+                            Scans LinkedIn, GitHub, and public hiring posts
+                        </p>
+                    </FadeUp>
+                )}
 
                 {/* Search Input */}
-                <FadeUp delay={0.3} className="w-full relative group">
+                <FadeUp delay={0.3} className="w-full relative group z-50 pointer-events-none">
                     <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                    <div className="relative z-20">
-                        <div className="relative flex items-center bg-black/40 border border-white/10 rounded-full p-2 pl-6 backdrop-blur-xl shadow-2xl ring-1 ring-white/5 focus-within:ring-primary/50 transition-all">
-                            <Search className="text-slate-500" size={24} />
+                    <div className="relative z-20 pointer-events-auto">
+                        <div className="relative flex items-center bg-black/40 border border-white/10 rounded-full p-2 pl-6 backdrop-blur-xl shadow-2xl ring-1 ring-white/5 focus-within:ring-primary/50 focus-within:shadow-glow transition-all duration-300">
+                            <Search className={`text-slate-500 transition-colors duration-300 ${role ? 'text-primary' : ''}`} size={24} />
                             <input 
                                 type="text" 
                                 value={role}
@@ -179,28 +288,46 @@ const SearchPage = () => {
                                 }}
                                 onFocus={() => setShowSuggestions(true)}
                                 onKeyDown={(e) => e.key === 'Enter' && handleScan()}
-                                className="flex-1 bg-transparent border-none outline-none text-white px-4 py-4 text-lg placeholder-slate-600"
-                                placeholder="Enter role (e.g. 'DevOps Engineer')"
+                                className="flex-1 bg-transparent border-none outline-none text-white px-4 py-4 text-lg placeholder-slate-500"
+                                placeholder={PLACEHOLDERS[placeholderIndex]}
+                                spellCheck={false}
+                                autoCorrect="off"
+                                autoComplete="off"
+                                autoCapitalize="off"
                             />
-                            <div className="flex items-center gap-2 mr-2">
-                                <button 
-                                    onClick={() => setBroadMode(!broadMode)}
-                                    className={`text-xs font-medium px-3 py-1.5 rounded-full transition-all border ${
-                                        broadMode 
-                                            ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' 
-                                            : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
-                                    }`}
-                                >
-                                    {broadMode ? 'Broad Mode' : 'Precision'}
-                                </button>
-                            </div>
-                            <button 
-                                onClick={handleScan}
-                                disabled={isScanning || !role}
-                                className="bg-primary hover:bg-blue-600 text-white rounded-full px-8 py-4 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
-                            >
-                                {isScanning ? <Loader2 className="animate-spin" /> : 'Scan'}
-                            </button>
+                            
+                            {role && (
+                                <div className="flex items-center gap-2 mr-2 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <button 
+                                        onClick={() => setBroadMode(!broadMode)}
+                                        title={broadMode ? "Broad Match" : "Precision Match"}
+                                        className={`p-2 rounded-full transition-all border ${
+                                            broadMode 
+                                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' 
+                                                : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <Settings2 size={16} />
+                                    </button>
+                                    
+                                    {(role.length > 2) && (
+                                        <button 
+                                            onClick={handleScan}
+                                            disabled={isScanning || !role}
+                                            className="bg-primary hover:bg-blue-600 text-white rounded-full px-5 py-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 flex items-center gap-2"
+                                        >
+                                            {isScanning ? (
+                                                <Loader2 className="animate-spin" size={16} />
+                                            ) : (
+                                                <>
+                                                    <span>Scan</span>
+                                                    <Sparkles size={14} className="opacity-70" />
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         
                         {/* Status Message */}
@@ -212,7 +339,7 @@ const SearchPage = () => {
 
                         {/* Dropdown Suggestions */}
                         {showSuggestions && role && filteredSuggestions.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
                                 {filteredSuggestions.map((suggestion, index) => (
                                     <button
                                         key={index}
@@ -229,52 +356,130 @@ const SearchPage = () => {
                             </div>
                         )}
                     </div>
+                    
+                    {/* Invisible Spacer to allow scrolling to dropdown */}
+                    {showSuggestions && role && filteredSuggestions.length > 0 && (
+                        <div className="h-64 w-full invisible pointer-events-none" aria-hidden="true" />
+                    )}
+                    
+                    {/* Example Chips (Zero State) */}
+                    {!role && results.length === 0 && !isScanning && (
+                        <div className="flex flex-wrap items-center justify-center gap-3 mt-6 animate-in fade-in slide-in-from-top-2 duration-700 delay-150">
+                            <span className="text-slate-600 text-sm mr-1">Try:</span>
+                            {EXAMPLE_CHIPS.map((chip, i) => (
+                                <button
+                                    key={i}
+                                    onClick={() => { setRole(chip); handleScan(); }}
+                                    className="text-sm text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1 rounded-full transition-colors border border-white/5 hover:border-white/20"
+                                >
+                                    {chip}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </FadeUp>
 
                 {/* Real-time Results Stack */}
                 {results.length > 0 ? (
                     <div className="w-full mt-8 space-y-4 pb-20 override-scroll">
                         
-                        {/* Bulk Action Bar */}
-                        <div className="flex items-center justify-between px-2 mb-2 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="relative z-10 flex items-center justify-between px-2 mb-2 animate-in fade-in slide-in-from-bottom-2 h-10">
                              <div className="flex items-center gap-3">
-                                <button 
-                                    onClick={toggleSelectAll}
-                                    className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors group"
-                                >
-                                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isAllSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-600 group-hover:border-slate-400'}`}>
-                                        {isAllSelected && <Check size={10} className="text-white" strokeWidth={3} />}
-                                    </div>
-                                    <span>Select All ({results.length})</span>
-                                </button>
+                                {!isSelectMode ? (
+                                    <button 
+                                        onClick={() => setIsSelectMode(true)}
+                                        className="text-xs font-medium text-slate-400 hover:text-white transition-colors"
+                                    >
+                                        Select...
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={toggleSelectAll}
+                                        className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors group animate-in slide-in-from-left-2"
+                                    >
+                                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-all ${isAllSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-600 group-hover:border-slate-400'}`}>
+                                            {isAllSelected && <Check size={10} className="text-white" strokeWidth={3} />}
+                                        </div>
+                                        <span>All ({results.length})</span>
+                                    </button>
+                                )}
                              </div>
                              
                              {selectedEmails.size > 0 && (
                                 <button 
                                     onClick={async () => {
-                                        let count = 0;
-                                        for (const r of results) {
-                                            const id = r.email || r.linkedin_url;
-                                            if (selectedEmails.has(id)) {
-                                                const res = await api.createCandidate({
-                                                    name: r.name,
-                                                    title: r.title,
-                                                    company: r.company,
-                                                    linkedin_url: r.linkedin_url,
-                                                    email: r.email,
-                                                    summary: r.summary,
-                                                    match_score: r.hr_score || 50,
-                                                    status: 'new'
-                                                });
-                                                if (res) count++;
+                                        setIsAdding(true);
+                                        try {
+                                            // 1. Filter selected results first
+                                            const selectedResults = results.filter(r => {
+                                                const id = r.email || r.linkedin_url;
+                                                return selectedEmails.has(id);
+                                            });
+
+                                            // 2. Create candidates and generate drafts in PARALLEL
+                                            const creationPromises = selectedResults.map(async (r) => {
+                                                try {
+                                                    const res = await api.createCandidate({
+                                                        name: r.name,
+                                                        title: r.title,
+                                                        company: r.company,
+                                                        linkedin_url: r.linkedin_url,
+                                                        email: r.email,
+                                                        generated_email: r.generated_email,
+                                                        email_confidence: r.email_confidence,
+                                                        summary: r.summary,
+                                                        match_score: r.hr_score ? Math.round(r.hr_score * 100) : 50,
+                                                        status: 'new'
+                                                    });
+                                                    
+                                                    if (res?.id) {
+                                                        // Fire and forget draft generation to speed up UI
+                                                        api.generateDraft(res.id, "").catch(console.error);
+                                                        return res.id;
+                                                    }
+                                                } catch (err) {
+                                                    console.error(`Failed to create candidate ${r.name}`, err);
+                                                    return null;
+                                                }
+                                                return null;
+                                            });
+
+                                            const createdIds = (await Promise.all(creationPromises)).filter(id => id !== null) as number[];
+                                            
+                                            // 3. Bulk pipeline update
+                                            if (createdIds.length > 0) {
+                                                await api.bulkAddToPipeline(createdIds);
+                                                success(`Added ${createdIds.length} leads to pipeline`);
+                                                
+                                                // Remove added candidates from search results
+                                                setResults(prev => prev.filter(r => {
+                                                    const id = r.email || r.linkedin_url;
+                                                    return !selectedEmails.has(id);
+                                                }));
+                                                
+                                                setSelectedEmails(new Set());
+                                                
+                                                // Redirect to Pipeline (Dashboard)
+                                                router.push('/');
+                                            } else {
+                                                setIsAdding(false);
                                             }
+                                        } catch (e) {
+                                            console.error(e);
+                                            setIsAdding(false);
                                         }
-                                        success(`Added ${count} leads to pipeline`);
-                                        setSelectedEmails(new Set());
                                     }}
-                                    className="bg-white text-black text-xs font-bold px-4 py-1.5 rounded-full hover:bg-slate-200 transition-colors shadow-lg shadow-white/10 animate-in zoom-in-50"
+                                    disabled={isAdding}
+                                    className="bg-white text-black text-xs font-bold px-4 py-1.5 rounded-full hover:bg-slate-200 transition-colors shadow-lg shadow-white/10 animate-in zoom-in-50 disabled:opacity-70 disabled:cursor-wait flex items-center gap-2"
                                 >
-                                    Add to Pipeline ({selectedEmails.size})
+                                    {isAdding ? (
+                                        <>
+                                            <Loader2 className="animate-spin" size={12} />
+                                            <span>Adding...</span>
+                                        </>
+                                    ) : (
+                                        <span>Add to Pipeline ({selectedEmails.size})</span>
+                                    )}
                                 </button>
                              )}
                         </div>
@@ -283,74 +488,89 @@ const SearchPage = () => {
                             const id = r.email || r.linkedin_url;
                             const isSelected = selectedEmails.has(id);
                             return (
-                                <FadeUp key={i} delay={0.1 * (i % 5)}>
+                                <FadeUp key={i} delay={0.05 * (i % 5)}>
                                     <div 
                                         onClick={() => toggleSelection(id)}
-                                        className={`group border backdrop-blur-md rounded-xl p-5 transition-all w-full text-left relative overflow-hidden cursor-pointer ${isSelected ? 'bg-blue-500/10 border-blue-500/30' : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-white/20'}`}
+                                        className={`group relative flex items-start gap-4 p-5 rounded-2xl border transition-all ${
+                                            isSelected 
+                                                ? 'bg-blue-500/5 border-blue-500/20' 
+                                                : 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                                        }`}
                                     >
-                                        <div className={`absolute inset-0 bg-linear-to-r from-blue-500/5 to-purple-500/5 transition-opacity ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
-                                        
-                                        <div className="relative z-10 flex gap-4">
-                                            {/* Checkbox */}
-                                            <div className="pt-1">
-                                                <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-600 group-hover:border-slate-400'}`}>
-                                                    {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
+                                        {/* Checkbox (Animated) */}
+                                        <div className={`shrink-0 pt-1 transition-all duration-300 ${isSelectMode ? 'w-5 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+                                             <div 
+                                                onClick={(e) => { e.stopPropagation(); toggleSelection(id); }}
+                                                className={`w-5 h-5 rounded border flex items-center justify-center cursor-pointer ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-600 hover:border-slate-500'}`}
+                                             >
+                                                {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
+                                            </div>
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex-1 min-w-0 flex flex-col gap-2">
+                                            {/* Header: Name + Metadata */}
+                                            <div>
+                                                <div className="flex items-baseline justify-between">
+                                                    <h3 className="text-lg font-medium text-white truncate pr-4">
+                                                        {r.name}
+                                                    </h3>
+                                                    {/* Source Badge (Subtle) */}
+                                                    <div className="shrink-0 flex items-center gap-1.5 text-[10px] text-slate-500 opacity-60">
+                                                        {r.linkedin_url.includes('github') ? <Github size={10} /> : <Linkedin size={10} />}
+                                                    </div>
+                                                </div>
+                                                <div className="text-sm text-slate-400 truncate flex items-center gap-2">
+                                                    <span className="text-slate-300">{r.title}</span>
+                                                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                                                    <span className="flex items-center gap-1">
+                                                        <Building2 size={10} className="opacity-70" />
+                                                        {r.company}
+                                                    </span>
                                                 </div>
                                             </div>
 
-                                            <div className="flex-1">
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-10 w-10 rounded-full bg-linear-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-white/5 shadow-inner shadow-white/5">
-                                                            <User size={18} className="text-blue-300" />
-                                                        </div>
-                                                        <div>
-                                                            <h3 className="text-white font-medium text-lg leading-tight tracking-tight">{r.name}</h3>
-                                                            <div className="flex items-center gap-2 text-slate-400 text-sm mt-0.5">
-                                                                <Briefcase size={12} />
-                                                                <span className="font-medium text-slate-300">{r.title}</span>
-                                                                {r.company && <span className="text-slate-500">• {r.company}</span>}
-                                                            </div>
-                                                        </div>
+                                            {/* Context / Intent (1 Line Max) */}
+                                            {r.summary && (
+                                                <p className="text-xs text-slate-500 line-clamp-1 leading-relaxed">
+                                                    {r.summary.replace(/• Unknown|Unknown/g, '').trim()}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        {/* Actions (Vertical Alignment) */}
+                                        <div className="flex flex-col items-end gap-2 shrink-0 pl-4 border-l border-white/5 ml-2 min-w-[100px]">
+                                             <button 
+                                                onClick={() => window.open(r.linkedin_url, '_blank')}
+                                                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors shadow-lg shadow-blue-500/10"
+                                             >
+                                                <Linkedin size={12} />
+                                                <span>LinkedIn</span>
+                                             </button>
+                                             
+                                             {r.email && (
+                                                <>
+                                                    <button 
+                                                        className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700/50 hover:bg-white/5 text-slate-400 hover:text-white text-xs transition-colors"
+                                                        title={r.email}
+                                                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(r.email!); success('Email copied'); }}
+                                                    >
+                                                        <Mail size={12} />
+                                                        <span>Email</span>
+                                                    </button>
+                                                    {/* Email Status Badge (UX Improvement) */}
+                                                    <div className="text-center -mt-1">
+                                                        <EmailBadge confidence={r.email_confidence} />
                                                     </div>
-                                                    {r.email && (
-                                                        <div 
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                navigator.clipboard.writeText(r.email!);
-                                                                success(`Copied ${r.email}`);
-                                                            }} 
-                                                            className="bg-green-500/10 border border-green-500/20 text-green-400 text-xs px-2.5 py-1.5 rounded-md font-mono flex items-center gap-1.5 shadow-sm shadow-green-900/20 hover:bg-green-500/20 transition-colors cursor-copy" 
-                                                            title="Copy Email"
-                                                        >
-                                                            <Mail size={11} />
-                                                            {r.email}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                
-                                                {r.summary && (
-                                                    <div className="mt-2 pl-13 relative z-10">
-                                                        <p className="text-slate-500 text-sm leading-relaxed line-clamp-2">
-                                                            {r.summary.length > 140 ? r.summary.substring(0, 140) + "..." : r.summary}
-                                                        </p>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                </>
+                                             )}
                                         </div>
                                     </div>
                                 </FadeUp>
                             );
                         })}
                     </div>
-                ) : (
-                    !isScanning && (
-                        <FadeUp delay={0.4} className="mt-12 flex flex-col items-center justify-center gap-4 opacity-50">
-                            <Globe size={48} className="text-slate-600" strokeWidth={1} />
-                            <p className="text-sm text-slate-600 font-medium tracking-wide">Enter a role to scan the deep web.</p>
-                        </FadeUp>
-                    )
-                )}
+                ) : null}
 
             </div>
 
