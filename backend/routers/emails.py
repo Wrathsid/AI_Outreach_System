@@ -246,7 +246,7 @@ async def send_draft(draft_id: int):
         supabase.table("drafts").update({"status": "sent"}).eq("id", draft_id).execute()
         supabase.table("candidates").update({
             "status": "contacted",
-            "contacted_at": datetime.now().isoformat()
+            "sent_at": datetime.now().isoformat()
         }).eq("id", candidate.get("id")).execute()
         
         scheduler = FollowUpScheduler(supabase)

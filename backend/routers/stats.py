@@ -90,7 +90,7 @@ async def get_funnel_stats():
     if not supabase:
         return {"error": "Database not configured"}
     
-    all_candidates = supabase.table("candidates").select("id, status, contacted_at, replied_at, meeting_booked_at").execute()
+    all_candidates = supabase.table("candidates").select("id, status, sent_at, reply_at, meeting_booked_at").execute()
     candidates = all_candidates.data if all_candidates.data else []
     
     total = len(candidates)

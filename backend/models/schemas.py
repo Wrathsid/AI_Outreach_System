@@ -36,6 +36,9 @@ class Candidate(BaseModel):
     tags: Optional[List[str]] = []
     status: Optional[str] = "new"
     email_source: Optional[str] = "none"
+    sent_at: Optional[str] = None
+    reply_received: Optional[bool] = False
+    reply_at: Optional[str] = None
 
 
 class CandidateCreate(BaseModel):

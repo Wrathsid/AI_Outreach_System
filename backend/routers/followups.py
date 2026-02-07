@@ -72,7 +72,7 @@ async def mark_candidate_replied(candidate_id: int):
     
     supabase.table("candidates").update({
         "status": "replied",
-        "replied_at": datetime.now().isoformat()
+        "reply_at": datetime.now().isoformat()
     }).eq("id", candidate_id).execute()
     
     scheduler = FollowUpScheduler(supabase)

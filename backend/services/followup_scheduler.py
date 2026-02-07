@@ -71,7 +71,7 @@ class FollowUpScheduler:
             True if follow-ups were cancelled
         """
         # Check candidate status
-        candidate = self.supabase.table("candidates").select("status, replied_at").eq("id", candidate_id).single().execute()
+        candidate = self.supabase.table("candidates").select("status, reply_at").eq("id", candidate_id).single().execute()
         
         if candidate.data and candidate.data.get("status") == "replied":
             # Cancel all pending follow-ups
