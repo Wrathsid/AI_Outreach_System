@@ -9,6 +9,7 @@ Handles:
 
 import os
 import asyncio
+import random
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 from dotenv import load_dotenv
@@ -50,9 +51,29 @@ class FollowUpScheduler:
         
         scheduled = []
         
+        # [Phase 3] Asymmetric Scheduling with Jitter
+        # We don't want to send at the exact same time every day
+        
+        start_hour, end_hour = throttle_service.SAFE_HOURS
+        
         for i, days in enumerate(DEFAULT_FOLLOW_UP_DAYS, start=1):
-            scheduled_for = initial_sent_at + timedelta(days=days)
+            # 1. Base Logic
+            base_time = initial_sent_at + timedelta(days=days)
             
+            # 2. Add Jitter (-4 hours to +6 hours) to look human
+            # This ensures we don't send at exactly 9:00 AM every time
+            jitter_hours = random.uniform(-4.0, 6.0)
+            scheduled_for = base_time + timedelta(hours=jitter_hours)
+            
+            # 3. Enforce Safe Hours (9 AM - 6 PM)
+            # If outside window, move to next valid window
+            if scheduled_for.hour < start_hour:
+                # Too early? Move to start_hour + random offset
+                scheduled_for = scheduled_for.replace(hour=start_hour, minute=0) + timedelta(minutes=random.randint(5, 45))
+            elif scheduled_for.hour >= end_hour:
+                # Too late? Move to tomorrow morning
+                scheduled_for = scheduled_for.replace(hour=start_hour, minute=0) + timedelta(days=1, minutes=random.randint(5, 45))
+                
             # Insert into follow_ups table
             result = self.supabase.table("follow_ups").insert({
                 "candidate_id": candidate_id,

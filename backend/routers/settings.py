@@ -92,6 +92,24 @@ def update_brain_context(formality: int = 75, detail_level: int = 30, use_emojis
     return {"status": "not persisted"}
 
 
+@router.put("/brain/skills")
+async def update_skills(skills: List[str]):
+    """Update user skills directly. AI adapts its context based on these."""
+    supabase = get_supabase()
+    if supabase:
+        try:
+            supabase.table("brain_context").upsert({
+                "id": 1,
+                "extracted_skills": skills,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
+            return {"status": "updated", "skills_count": len(skills)}
+        except Exception as e:
+            logger.error(f"Skills update failed: {e}")
+            return {"status": "error", "message": str(e)}
+    return {"status": "not persisted"}
+
+
 @router.post("/brain/upload")
 async def upload_file(file: UploadFile = File(...)):
     """Upload resume/CV and extract text."""

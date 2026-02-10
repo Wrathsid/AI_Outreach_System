@@ -42,6 +42,13 @@ export interface Draft {
   email_source?: 'verified' | 'generated' | 'none';
   match_score?: number;
   created_at?: string;
+  generation_params?: {
+    fingerprint?: string;
+    prompt_version?: string;
+    reason?: string;
+    skill_count?: number;
+    [key: string]: unknown;
+  };
 }
 
 export interface ActivityLog {
@@ -53,11 +60,20 @@ export interface ActivityLog {
   candidate_id?: number;
 }
 
+export interface FunnelStats {
+  funnel: { stage: string; count: number; percent: number }[];
+  conversions: { found_to_contacted: number; contacted_to_replied: number };
+  total_candidates: number;
+}
+
 export interface DashboardStats {
   weekly_goal_percent: number;
   people_found: number;
   emails_sent: number;
   replies_received: number;
+  account_health: number;
+  is_safe: boolean;
+  safety_reason?: string;
   recent_leads: { date: string; count: number }[];
   top_industries: { name: string; value: number }[];
 }
@@ -329,23 +345,31 @@ export const api = {
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
-      return { weekly_goal_percent: 0, people_found: 0, emails_sent: 0, replies_received: 0, recent_leads: [], top_industries: [] };
+      return { weekly_goal_percent: 0, people_found: 0, emails_sent: 0, replies_received: 0, account_health: 100, is_safe: true, recent_leads: [], top_industries: [] };
     }
   },
 
-  // Brain Context
-  async uploadResume(file: File): Promise<{ filename: string; status: string; extracted_skills: string[]; warning?: string } | null> {
+  async getFunnelStats(): Promise<FunnelStats | null> {
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch(`${API_BASE}/brain/upload`, {
-        method: 'POST',
-        body: formData,
-      });
+      const res = await fetch(`${API_BASE}/stats/funnel`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
       return null;
+    }
+  },
+
+  // Brain Context
+  async updateSkills(skills: string[]): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/brain/skills`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(skills),
+      });
+      return res.ok;
+    } catch {
+      return false;
     }
   },
 

@@ -15,6 +15,14 @@ class IntentType(str, Enum):
     DIRECT = "direct"    # Direct ask (rare)
     OPPORTUNITY = "opportunity" # For Recruiters
 
+class GenerationReason(str, Enum):
+    """H5: Reason codes for draft generation source."""
+    FRESH_GENERATION = "FRESH_GENERATION"
+    IDEMPOTENT_RETURN = "IDEMPOTENT_RETURN"
+    RETRY_GENERATION = "RETRY_GENERATION"
+    FALLBACK_TEMPLATE = "FALLBACK_TEMPLATE"
+    FAILED_PRECONDITION = "FAILED_PRECONDITION"
+
 
 
 # ==================== CANDIDATE MODELS ====================
@@ -159,6 +167,9 @@ class DashboardStats(BaseModel):
     people_found: int
     emails_sent: int
     replies_received: int
+    account_health: int = 100
+    is_safe: bool = True
+    safety_reason: Optional[str] = None
     recent_leads: List[dict] = []
     top_industries: List[dict] = []
 
@@ -189,3 +200,38 @@ class PatternRequest(BaseModel):
     first_name: str
     last_name: Optional[str] = ""
     domain: str
+
+
+# ==================== PROMPT CONTRACT TYPING (D1) ====================
+
+class PromptSection(BaseModel):
+    """Typed prompt section for deterministic assembly (D1)."""
+    system_identity: str
+    user_bio: str
+    candidate_context: str
+    signal: Optional[str] = None
+    memory_constraint: Optional[str] = None
+    skills_grounding: Optional[str] = None
+    structural_rules: str
+    negative_constraints: str
+    task_instruction: str
+
+
+class GenerationParams(BaseModel):
+    """Typed generation parameters for audit trail (D1)."""
+    variant_id: str
+    score: float
+    opener_hash: Optional[str] = None
+    embedding: Optional[list] = None
+    model: str = "gemini-2.0-flash"
+    temperature: float = 0.4
+    context_band: str = "LOW"
+    signal_type: Optional[str] = None
+    is_fallback: Optional[bool] = False
+    data_quality: Optional[int] = None
+    # H1/H2/H5 Hardening Fields
+    fingerprint: Optional[str] = None
+    prompt_version: Optional[str] = None
+    reason: Optional[GenerationReason] = None
+    skill_count: Optional[int] = None
+

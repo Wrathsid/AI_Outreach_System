@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3, ShieldCheck, Moon, Trash2 } from 'lucide-react';
+import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3, Trash2 } from 'lucide-react';
 import { api, Draft, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
 import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
 import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn } from './Animations';
@@ -22,6 +22,8 @@ const Dashboard = () => {
     people_found: 0, 
     emails_sent: 0, 
     replies_received: 0,
+    account_health: 100,
+    is_safe: true,
     recent_leads: [],
     top_industries: []
   });
@@ -102,24 +104,7 @@ const Dashboard = () => {
             <BlurIn delay={0}>
               <div className="flex items-center gap-3 mb-1">
                 <p className="text-slate-400 font-medium text-sm tracking-wider uppercase">{dateStr}</p>
-                {/* Reliability Status Indicator */}
-                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                  hour >= 9 && hour < 18 
-                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
-                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                }`}>
-                  {hour >= 9 && hour < 18 ? (
-                    <>
-                      <ShieldCheck size={10} />
-                      <span>SAFE TO SEND</span>
-                    </>
-                  ) : (
-                    <>
-                      <Moon size={10} />
-                      <span>THROTTLING</span>
-                    </>
-                  )}
-                </div>
+
               </div>
             </BlurIn>
             <TextReveal 

@@ -197,7 +197,9 @@ const CandidatesPage = () => {
 
   // Group candidates by status
   const columns = React.useMemo(() => ({
-    new: candidates.filter(c => c.status === 'new' || !c.status),
+    new: candidates
+      .filter(c => c.status === 'new' || !c.status)
+      .sort((a, b) => (b.match_score || 0) - (a.match_score || 0)),
     contacted: candidates.filter(c => c.status === 'contacted'),
     replied: candidates.filter(c => c.status === 'replied'),
     snoozed: candidates.filter(c => c.status === 'snoozed'),

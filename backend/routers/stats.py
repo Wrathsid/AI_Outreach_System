@@ -57,11 +57,17 @@ def get_stats():
             except Exception as e:
                 logger.error(f"Stats Aggregation Error (Industries): {e}")
 
+            # Get account health and safety status
+            safety_status = throttle_service.is_safe_to_send(supabase)
+            
             return {
                 "weekly_goal_percent": weekly_goal,
                 "people_found": people_found,
                 "emails_sent": emails_sent,
                 "replies_received": 0,
+                "account_health": safety_status.get("health_score", 100),
+                "is_safe": safety_status.get("allowed", True),
+                "safety_reason": safety_status.get("reason"),
                 "recent_leads": recent_leads,
                 "top_industries": top_industries
             }

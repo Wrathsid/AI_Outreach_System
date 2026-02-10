@@ -1,17 +1,18 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   Briefcase, MapPin, Linkedin, 
   Mail, ChevronDown, ChevronUp,
   Copy, Send, ExternalLink, ArrowLeft, Trash2,
-  Loader2
+  Loader2, Check, Sparkles
 } from 'lucide-react';
 import { api, Candidate, Draft } from '@/lib/api';
 import { cleanDisplayName } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
 import { triggerConfetti } from '@/lib/confetti';
+import { computeDraftDiff, renderDiffAsHtml } from '@/lib/diffUtil';
 
 // --- Shared Components ---
 
@@ -38,6 +39,16 @@ export default function MinimalCandidatePage() {
   const [linkedinDraft, setLinkedinDraft] = useState<Draft | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  // P3: Debounce guard for generation
+  const lastGenerateRef = useRef<number>(0);
+  // U2: Cursor preservation ref
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // U4: Draft Diff State
+  const [previousDraft, setPreviousDraft] = useState<string | null>(null);
+  const [showDiff, setShowDiff] = useState(false);
 
   // Editor State (Derived from active tab, but we keep synced for rendering)
   // We'll use refs or just simple state updates on tab switch
@@ -51,6 +62,20 @@ export default function MinimalCandidatePage() {
   const [showContext, setShowContext] = useState(false);
 
   const generateContent = useCallback((type: 'email' | 'linkedin') => {
+      // P3: Debounce — ignore if triggered within 2s of last call
+      const now = Date.now();
+      if (now - lastGenerateRef.current < 2000) return;
+      lastGenerateRef.current = now;
+
+
+
+      // U4: Capture current text before regenerating
+      const currentText = type === 'email' ? emailBody : linkedinBody;
+      if (currentText.trim()) {
+          setPreviousDraft(currentText);
+          setShowDiff(false); // Reset diff view on new generation
+      }
+
       setIsGenerating(true);
       api.generateDraft(candidateId, '', type).then(newDraft => {
           if (newDraft) {
@@ -74,7 +99,7 @@ export default function MinimalCandidatePage() {
           }
           setIsGenerating(false);
       }).catch(() => setIsGenerating(false));
-  }, [candidateId, success]);
+  }, [candidateId, success, emailBody, linkedinBody]);
 
   useEffect(() => {
     let mounted = true;
@@ -140,14 +165,16 @@ export default function MinimalCandidatePage() {
     if (activeTab === 'linkedin') {
        navigator.clipboard.writeText(linkedinBody);
        
+       // U3: Copy feedback — icon swap for 2s
+       setCopied(true);
+       setTimeout(() => setCopied(false), 2000);
+       
        // POST-SEND FEEDBACK (Priority 7)
        success("✅ Copied to clipboard. Marked as contacted.");
        
        // UX Improvement: Track sent (for Sent page)
        await api.markAsSent(candidateId);
 
-       // OPTIONAL: Launch Automation
-       // We could auto-launch here, but let's keep it manual via the button for now.
        return;
     }
 
@@ -176,7 +203,8 @@ export default function MinimalCandidatePage() {
     setIsSending(false);
   };
 
-  const handleLaunchAutomation = async () => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _handleLaunchAutomation = async () => {
       if (!linkedinBody) return error("Generate a draft first");
       
       const confirmLaunch = window.confirm("🚀 Launch Browser Automation?\n\nThis will:\n1. Open Chrome (using your profile)\n2. Go to LinkedIn\n3. Click Connect\n4. Paste the message\n\nIt will STOP before sending so you can review.");
@@ -194,7 +222,7 @@ export default function MinimalCandidatePage() {
                   error("Automation finished with warnings. Check logs.");
               }
           }
-      } catch (err) {
+      } catch {
           error("Failed to launch automation");
       }
   };
@@ -409,18 +437,68 @@ export default function MinimalCandidatePage() {
 
                 {/* Main Textarea */}
                 <textarea
+                    ref={textareaRef}
                     className={`w-full bg-[#0f0f15] border border-white/5 focus:border-primary/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:outline-none transition-all leading-relaxed font-sans text-sm min-h-[400px] resize-y ${isGenerating ? 'animate-pulse opacity-50 cursor-wait' : ''}`}
                     placeholder={isGenerating ? "AI is writing your message..." : (activeTab === 'email' ? "Hi [Name], I noticed..." : "Hi [Name], I'd like to connect...")}
                     value={activeTab === 'email' ? emailBody : linkedinBody}
-                    onChange={(e) => activeTab === 'email' ? setEmailBody(e.target.value) : setLinkedinBody(e.target.value)}
-                    disabled={isGenerating}
+                    onChange={(e) => {
+                      const pos = e.target.selectionStart;
+                      if (activeTab === 'email') { setEmailBody(e.target.value); } else { setLinkedinBody(e.target.value); }
+                      // U2: Restore cursor position after React re-render
+                      requestAnimationFrame(() => {
+                        if (textareaRef.current) {
+                          textareaRef.current.selectionStart = pos;
+                          textareaRef.current.selectionEnd = pos;
+                        }
+                      });
+                    }}
+                    disabled={isGenerating || showDiff}
                 />
+                
+                {/* U4: Diff Overlay */}
+                {showDiff && previousDraft && (
+                    <div 
+                        className="absolute inset-x-5 top-[84px] bottom-16 bg-[#0f0f15]/95 backdrop-blur-sm z-10 overflow-y-auto custom-scrollbar p-4 rounded-xl border border-white/10"
+                        dangerouslySetInnerHTML={{ 
+                            __html: renderDiffAsHtml(computeDraftDiff(previousDraft, activeTab === 'email' ? emailBody : linkedinBody)) 
+                        }} 
+                    />
+                )}
 
                 {/* Footer Actions */}
                 <div className="px-6 py-4 border-t border-white/5 bg-[#131326]/50 flex items-center justify-between">
-                     <span className="text-xs text-slate-600">
-                        {(activeTab === 'email' ? emailBody : linkedinBody).length} characters
-                     </span>
+                     {/* U1: Draft stability indicator */}
+                     {(() => {
+                       const text = activeTab === 'email' ? emailBody : linkedinBody;
+                       const len = text.length;
+                       const limit = activeTab === 'linkedin' ? 300 : 600;
+                       const ratio = len / limit;
+                       const color = ratio <= 0.85 ? 'bg-green-400' : ratio <= 1.0 ? 'bg-yellow-400' : 'bg-red-400';
+                       return (
+                         <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-2 text-xs text-slate-600">
+                                <span className={`w-1.5 h-1.5 rounded-full ${color} inline-block`} />
+                                {len} / {limit} chars
+                            </span>
+                            {(() => {
+                                const currentDraft = activeTab === 'email' ? emailDraft : linkedinDraft;
+                                const skillCount = currentDraft?.generation_params?.skill_count;
+                                if (skillCount !== undefined) {
+                                    return (
+                                        <div 
+                                            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-medium text-blue-400 cursor-help transition-colors hover:bg-blue-500/20"
+                                            title={`Generated using AI analysis of resume + ${skillCount} matching skills to ensure relevance.`}
+                                        >
+                                            <Sparkles size={10} />
+                                            <span>{skillCount} Skills</span>
+                                        </div>
+                                    );
+                                }
+                                return null;
+                            })()}
+                         </div>
+                       );
+                     })()}
 
                      <button
                         onClick={handleAction}
@@ -431,11 +509,23 @@ export default function MinimalCandidatePage() {
                             <Loader2 size={16} className="animate-spin" />
                         ) : activeTab === 'email' ? (
                             <Send size={16} />
+                        ) : copied ? (
+                            <Check size={16} className="text-green-400" />
                         ) : (
                             <Copy size={16} />
                         )}
                         {activeTab === 'email' ? 'Send Email' : 'Copy for LinkedIn'}
                      </button>
+
+                     {/* U4: Diff Toggle */}
+                     {previousDraft && !isGenerating && (
+                         <button
+                            onClick={() => setShowDiff(!showDiff)}
+                            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors border ${showDiff ? 'bg-primary/20 text-primary border-primary/30' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
+                         >
+                            {showDiff ? 'Hide Changes' : 'Show Changes'}
+                         </button>
+                     )}
 
                      {/* Automation Button */}
                      {/* Automation Button - MASKED per user request (Feb 10) */}

@@ -91,11 +91,23 @@ async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens
             
             for attempt in range(max_retries):
                 try:
-                    response = await current_model.generate_content_async(
-                        full_prompt,
-                        generation_config=generation_config
+                    # R4: Wrap in timeout to prevent hanging requests
+                    response = await asyncio.wait_for(
+                        current_model.generate_content_async(
+                            full_prompt,
+                            generation_config=generation_config
+                        ),
+                        timeout=15.0
                     )
                     return response.text
+                
+                except asyncio.TimeoutError:
+                    print(f"[WARN] Gemini {model_name} timed out on attempt {attempt+1}")
+                    if attempt < max_retries - 1:
+                        sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                        await asyncio.sleep(sleep_time)
+                        continue
+                    break  # Try next model
                     
                 except Exception as e:
                     error_str = str(e)

@@ -1,9 +1,8 @@
-'use client';
-
 import { useState, useEffect } from 'react';
 import { 
-  Save, Loader2, User, Building, Mail, CheckCircle2, XCircle, ExternalLink, Sliders, Zap
+  Save, Loader2, User, Building, Mail, CheckCircle2, XCircle, ExternalLink, Sliders, Zap, Brain
 } from 'lucide-react';
+import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
 
@@ -17,6 +16,9 @@ export default function Settings() {
   const [formality, setFormality] = useState(75);
   const [length, setLength] = useState(30);
   const [useEmoji, setUseEmoji] = useState(false);
+  
+  // Brain Context State
+  const [skillsCount, setSkillsCount] = useState(0);
   
   // Gmail state
   const [gmailConnected, setGmailConnected] = useState(false);
@@ -43,6 +45,9 @@ export default function Settings() {
         setFormality(brainData.formality);
         setLength(brainData.detail_level);
         setUseEmoji(brainData.use_emojis);
+        if (brainData.extracted_skills) {
+          setSkillsCount(brainData.extracted_skills.length);
+        }
       }
     };
     loadSettings();
@@ -84,6 +89,8 @@ export default function Settings() {
     }
   };
 
+
+
   return (
     <div className="flex-1 h-full overflow-y-auto relative scroll-smooth bg-background-dark/50">
       <div className="fixed inset-0 bg-[#0F0F12] -z-20"></div>
@@ -110,8 +117,39 @@ export default function Settings() {
 
         <div className="max-w-3xl mx-auto flex flex-col gap-8">
 
-            {/* Email Integration */}
+            {/* Skills & Context */}
             <section className="glass-panel rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden animate-fade-in-up">
+                <div className="absolute top-0 right-0 p-6 opacity-5">
+                    <Brain size={120} />
+                </div>
+                
+                <div className="flex items-center gap-3 mb-2">
+                    <div className="p-2 bg-pink-500/10 rounded-lg text-pink-400">
+                        <Brain size={20} />
+                    </div>
+                    <h2 className="text-xl font-semibold text-white">Skills & Context</h2>
+                </div>
+                
+                <p className="text-sm text-gray-400 -mt-2">
+                    Your skills are managed in The Cortex. The AI personalizes outreach based on the skills you define there.
+                </p>
+
+                <div className="relative z-10 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-gray-300">
+                        <Zap size={14} className="text-cyan-400" />
+                        <span>{skillsCount > 0 ? `${skillsCount} skills mapped` : 'No skills mapped yet'}</span>
+                    </div>
+                    <Link 
+                        href="/brain"
+                        className="px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 rounded-lg text-sm font-medium border border-cyan-500/20 hover:border-cyan-500/40 transition-all flex items-center gap-2"
+                    >
+                        <Brain size={14} /> Manage in Cortex
+                    </Link>
+                </div>
+            </section>
+
+            {/* Email Integration */}
+            <section className="glass-panel rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden animate-fade-in-up delay-100">
                 <div className="absolute top-0 right-0 p-6 opacity-5">
                     <Mail size={120} />
                 </div>
@@ -174,7 +212,7 @@ export default function Settings() {
             </section>
             
             {/* Personal Profile */}
-            <section className="glass-panel rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden animate-fade-in-up delay-100">
+            <section className="glass-panel rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden animate-fade-in-up delay-200">
                 <div className="absolute top-0 right-0 p-6 opacity-5">
                     <User size={120} />
                 </div>
@@ -224,7 +262,7 @@ export default function Settings() {
             </section>
             
             {/* AI Voice & Tone */}
-            <section className="glass-panel rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden animate-fade-in-up delay-200">
+            <section className="glass-panel rounded-2xl p-8 flex flex-col gap-6 relative overflow-hidden animate-fade-in-up delay-300">
                 <div className="absolute top-0 right-0 p-6 opacity-5">
                     <Sliders size={120} />
                 </div>

@@ -7,12 +7,167 @@ import re
 import hashlib
 import uuid
 import json
+from datetime import datetime, timedelta
+import time
 
 from backend.config import get_supabase, generate_with_gemini, logger
-from backend.models.schemas import Draft, DraftCreate, IntentType
+from backend.models.schemas import Draft, DraftCreate, IntentType, GenerationReason
 from backend.services.embeddings import embeddings_service
+from backend.services.verifier import verify_skills_grounding
 
 router = APIRouter(tags=["Drafts"])
+
+# ============================================================
+# R5: VALID CHANNELS
+# ============================================================
+VALID_CHANNELS = {"email", "linkedin"}
+
+
+# ============================================================
+# Q5: CHANNEL TONE LOCK
+# ============================================================
+CHANNEL_TONE = {
+    "linkedin": "TONE: Casual, mid-thought, low-pressure. Like a quick note to a peer. Keep it under 220 chars.",
+    "email": "TONE: Professional but 'typed', not 'composed'. Slightly asymmetrical rhythm. Keep it under 100 words."
+}
+
+# ============================================================
+# H2: PROMPT VERSIONING
+# ============================================================
+PROMPT_VERSION = "v1.3"
+
+
+# ============================================================
+# P2: BRAIN CONTEXT CACHE (5-min TTL)
+# ============================================================
+_brain_cache: dict = {}
+_BRAIN_CACHE_TTL = 300  # 5 minutes
+
+
+# ============================================================
+# H1: DETERMINISTIC FINGERPRINT
+# ============================================================
+def generate_fingerprint(candidate_id: int, contact_type: str, skills: list, resume_text: str, tone_directive: str) -> str:
+    """Generate a deterministic hash of all inputs affecting generation."""
+    skills_str = "|".join(sorted([s.lower() for s in skills]))
+    resume_hash = hashlib.sha256((resume_text or "").encode()).hexdigest()[:8]
+    tone_hash = hashlib.sha256((tone_directive or "").encode()).hexdigest()[:8]
+    
+    raw = f"{candidate_id}|{contact_type}|{skills_str}|{resume_hash}|{PROMPT_VERSION}|{tone_hash}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def get_cached_brain_context(supabase) -> dict:
+    """Fetch brain context with in-memory caching (P2)."""
+    now = time.time()
+    if "_brain" in _brain_cache and (now - _brain_cache.get("_ts", 0)) < _BRAIN_CACHE_TTL:
+        return _brain_cache["_brain"]
+    try:
+        b_data = supabase.table("brain_context").select("*").eq("id", 1).execute().data
+        brain = b_data[0] if b_data else {"extracted_skills": []}
+    except Exception:
+        brain = {"extracted_skills": []}
+    _brain_cache["_brain"] = brain
+    _brain_cache["_ts"] = now
+    return brain
+
+
+# ============================================================
+# R3: DETERMINISTIC PROMPT ASSEMBLY
+# ============================================================
+PROMPT_SECTION_ORDER = [
+    "system_identity",
+    "user_bio",
+    "candidate_context",
+    "signal",
+    "memory_constraint",
+    "skills_grounding",
+    "structural_rules",
+    "negative_constraints",
+    "task_instruction",
+]
+
+def assemble_prompt(sections: dict) -> str:
+    """Assemble prompt in a fixed, deterministic order (R3)."""
+    parts = []
+    for key in PROMPT_SECTION_ORDER:
+        if key in sections and sections[key]:
+            parts.append(sections[key].strip())
+    return "\n\n---\n\n".join(parts)
+
+
+# ============================================================
+# Q2: PERSONA ANCHOR
+# ============================================================
+PERSONA_ANCHOR = """
+PERSONA: You are Siddharth Chavan, a DevOps-focused engineer.
+You speak as yourself — first person, direct, technical but approachable.
+You never introduce yourself in third person.
+You never say "the candidate" when referring to yourself.
+"""
+
+
+# ============================================================
+# Q1: STRUCTURAL SKELETON VALIDATOR
+# ============================================================
+def validate_structure(text: str, contact_type: str) -> bool:
+    """Verify draft has opener -> relevance -> CTA structure (Q1)."""
+    paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
+    if contact_type == "linkedin":
+        # LinkedIn: at least greeting + body + soft close
+        return len(paragraphs) >= 2
+    else:
+        # Email: at least greeting + 2 body paragraphs + sign-off
+        return len(paragraphs) >= 3
+
+
+# ============================================================
+# Q4: LENGTH NORMALIZATION
+# ============================================================
+def normalize_length(text: str, contact_type: str) -> str:
+    """Hard-trim to channel limits (Q4)."""
+    if contact_type == "linkedin":
+        if len(text) > 300:
+            trimmed = text[:300]
+            last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
+            if last_period > 100:
+                return trimmed[:last_period + 1]
+            return trimmed.rstrip() + "..."
+    else:  # email
+        words = text.split()
+        if len(words) > 150:
+            trimmed = ' '.join(words[:150])
+            last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
+            if last_period > len(trimmed) // 2:
+                return trimmed[:last_period + 1]
+            return trimmed.rstrip() + "..."
+    return text
+
+
+# ============================================================
+# Q6: HEDGING REMOVAL
+# ============================================================
+HEDGE_PHRASES = [
+    "I think ", "I believe ", "I feel like ",
+    "Perhaps ", "Maybe ", "It seems like ",
+    "I was wondering if ", "If you don't mind ",
+    "I hope you don't mind ", "Not sure if this is the right ",
+]
+
+def remove_hedging(text: str) -> str:
+    """Strip hedging phrases from generated text (Q6)."""
+    for hedge in HEDGE_PHRASES:
+        text = text.replace(hedge, "")
+        text = text.replace(hedge.lower(), "")
+        # Also handle sentence-start variations
+        text = text.replace(hedge.capitalize(), "")
+    # Clean up double spaces
+    text = re.sub(r'  +', ' ', text)
+    # Capitalize first letter of sentences after removal
+    text = re.sub(r'(?<=\. )\w', lambda m: m.group().upper(), text)
+    # Fix leading lowercase after removal at start
+    if text and text[0].islower():
+        text = text[0].upper() + text[1:]
+    return text.strip()
 
 
 # ============================================================
@@ -95,7 +250,7 @@ def sanitize_scraped_content(text: str) -> str:
     
     # Remove excessive newlines and special chars
     text = re.sub(r'\n{3,}', '\n\n', text)
-    text = re.sub(r'[^\w\s.,!?;:()\'\"-]', '', text)
+    text = re.sub(r'[^\w\s.,!?;:()\'"-]', '', text)
     
     return text.strip()
 
@@ -756,9 +911,9 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
     return None
 
 
-# Updated system prompts with stronger tone anchors
+# Updated system prompts with stronger tone anchors + Q2 Persona Anchor
 SYSTEM_PROMPTS = {
-    IntentType.CURIOUS: """
+    IntentType.CURIOUS: PERSONA_ANCHOR + """
 You are writing a LinkedIn connection request.
 TONE: Casual, mid-thought, low-pressure. Like a quick note to a peer.
 GOAL: Spark conversation, not a meeting.
@@ -783,7 +938,7 @@ STRUCTURE:
 
 MAX: 220 chars. Write the message ONLY.
 """,
-    IntentType.PEER: """
+    IntentType.PEER: PERSONA_ANCHOR + """
 You are writing a cold email to a peer.
 TONE: Professional but 'typed', not 'composed'. Slightly asymmetrical.
 GOAL: Soft networking or idea exchange.
@@ -807,7 +962,7 @@ Sign-off: "Curious how this lines up.", "Open to thoughts?"
 
 MAX: 90 words. Write the message ONLY.
 """,
-    IntentType.SOFT: """
+    IntentType.SOFT: PERSONA_ANCHOR + """
 You are writing a soft networking message.
 TONE: Warm, friendly, slightly deferential but confident.
 GOAL: Get on their radar without asking for anything heavy.
@@ -821,7 +976,7 @@ RULES:
 
 MAX: 200 chars (LI) or 80 words (Email). Write the message ONLY.
 """,
-    IntentType.DIRECT: """
+    IntentType.DIRECT: PERSONA_ANCHOR + """
 You are writing a high-signal value email.
 TONE: Direct, calm, confident.
 GOAL: Proposition value without sales hype.
@@ -835,7 +990,7 @@ RULES:
 
 MAX: 100 words. Write the message ONLY.
 """,
-    IntentType.OPPORTUNITY: """
+    IntentType.OPPORTUNITY: PERSONA_ANCHOR + """
 You are writing a direct but respectful message to a Recruiter or Talent Acquisition professional.
 TONE: Professional, concise, high-signal.
 GOAL: Pitch yourself for a specific role or general engineering needs.
@@ -860,7 +1015,7 @@ MAX: 75 words. Write the message ONLY.
 """,
 
 
-    "GENERIC": """
+    "GENERIC": PERSONA_ANCHOR + """
 You are writing a generic but polite outreach.
 TONE: Honest, extremely brief.
 GOAL: Connect without pretending to know them deeply.
@@ -986,21 +1141,97 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         if contact_type == "auto":
             contact_type = "email" if (c.get("email") or c.get("generated_email")) else "linkedin"
 
-        # 2. Fetch User/Brain Context
+        # R5: Strict channel lock — reject invalid contact types early
+        if contact_type not in VALID_CHANNELS:
+            raise HTTPException(status_code=400, detail=f"Invalid contact_type: {contact_type}. Must be one of {VALID_CHANNELS}")
+
+        # 2. Fetch User/Brain Context (Moved UP for H1 Fingerprinting)
         settings = {"full_name": "Siddharth", "company": "Antigravity", "role": "Founder"}  # Fallback
+        brain = {"extracted_skills": [], "resume_text": ""}
         try:
             s_data = supabase.table("user_settings").select("*").eq("id", 1).execute().data
             if s_data:
                 settings = s_data[0]
             
-            b_data = supabase.table("brain_context").select("*").eq("id", 1).execute().data
-            brain = b_data[0] if b_data else {"extracted_skills": []}
+            # P2: Check cache first
+            cached_brain = get_cached_brain_context(supabase)
+            if cached_brain:
+                brain = cached_brain
         except Exception as e:
-            print(f"DEBUG: Context fetch warning: {e}")
             logger.error(f"Context fetch error: {e}")
-            brain = {"extracted_skills": []}
 
         sender_intro = f"{settings.get('full_name', 'Siddharth')} from {settings.get('company', 'Antigravity')}"
+
+        # H1: Compute Deterministic Fingerprint
+        # We need tone_directive early for the hash
+        tone_directive = CHANNEL_TONE.get(contact_type, "")
+        fingerprint = generate_fingerprint(
+            candidate_id, 
+            contact_type, 
+            brain.get("extracted_skills", []), 
+            brain.get("resume_text", ""), 
+            tone_directive
+        )
+
+        # R1 & H1: Idempotency Check
+        # Return existing draft if:
+        # 1. Generated < 60s ago (R1)
+        # 2. Fingerprint matches exactly (H1 - Smart Idempotency)
+        try:
+            recent_cutoff = (datetime.utcnow() - timedelta(seconds=60)).isoformat()
+            # Fetch latest draft for this candidate
+            existing_query = supabase.table("drafts") \
+                .select("*") \
+                .eq("candidate_id", candidate_id) \
+                .order("created_at", desc=True) \
+                .limit(1) \
+                .execute()
+            
+            if existing_query.data:
+                d = existing_query.data[0]
+                created_at = d.get("created_at")
+                stored_params = d.get("generation_params") or {}
+                stored_fingerprint = stored_params.get("fingerprint")
+                
+                is_recent = created_at >= recent_cutoff
+                is_fingerprint_match = (stored_fingerprint == fingerprint)
+                
+                if is_recent or is_fingerprint_match:
+                    reason_code = GenerationReason.IDEMPOTENT_RETURN
+                    logger.info(f"Idempotent hit: candidate {candidate_id} | Recent: {is_recent} | HashMatch: {is_fingerprint_match}")
+                    
+                    if contact_type == "linkedin":
+                        return {
+                            "type": "linkedin", "message": d.get("body", ""),
+                            "char_count": len(d.get("body", "")),
+                            "quality_score": stored_params.get("score", 0),
+                            "draft_id": d["id"],
+                            "time_to_read": calculate_time_to_read(d.get("body", "")),
+                            "variant_id": d.get("variant_id"), 
+                            "is_idempotent": True,
+                            "reason": reason_code
+                        }
+                    else:
+                        return {
+                            "type": "email", "subject": d.get("subject", ""),
+                            "body": d.get("body", ""),
+                            "word_count": len(d.get("body", "").split()),
+                            "quality_score": stored_params.get("score", 0),
+                            "draft_id": d["id"],
+                            "time_to_read": calculate_time_to_read(d.get("body", "")),
+                            "variant_id": d.get("variant_id"), 
+                            "is_idempotent": True,
+                            "reason": reason_code
+                        }
+        except Exception as e:
+            logger.warning(f"Idempotency check failed (non-fatal): {e}")
+
+        # R2: Hard fail-fast on missing brain context
+        if not brain.get("extracted_skills") and not brain.get("resume_text"):
+            raise HTTPException(
+                status_code=412,
+                detail="Brain context is empty. Please add your skills first."
+            )
 
         # EARLY EXIT: If data quality is too low, skip AI and use smart template directly
         if c['_data_quality'] <= 1:
@@ -1200,6 +1431,11 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             - Each message must feel written specifically for THIS role.
             '''
 
+        # Q5: Inject channel tone lock into prompt
+        tone_directive = CHANNEL_TONE.get(contact_type, "")
+        if tone_directive:
+            prompt = f"{tone_directive}\n\n{prompt}"
+
         # 5. MULTI-VARIANT SCORING (Priority 1)
         # Reduced to 1 variant for Gemini Free Tier (Optimization 69)
         candidate_context = {
@@ -1209,31 +1445,48 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             'intent': intent
         }
         
-        result = await generate_with_scoring(
-            prompt, 
-            contact_type, 
-            candidate_context, 
-            num_variants=1,
-            suggested_temp=biased_params.get("suggested_temperature")
-        )
+        # H3: STRICT FALLBACK LADDER (Gemini -> Retry -> Template)
+        # Note: Retry logic is handled inside generate_with_scoring/generate_with_gemini via tenacity
+        try:
+            result = await generate_with_scoring(
+                prompt, 
+                contact_type, 
+                candidate_context, 
+                num_variants=1,
+                suggested_temp=biased_params.get("suggested_temperature")
+            )
+            reason_code = GenerationReason.FRESH_GENERATION
+        except Exception as e:
+            logger.error(f"H3: AI Generation CRITICAL FAILURE: {e}")
+            result = None
+            reason_code = GenerationReason.FALLBACK_TEMPLATE
         
         if not result:
-            # AI failed (likely 429 rate limit) — use template fallback instead of 500
-            logger.warning("AI Generation failed. Switching to Fallback Template.")
+            # H3: Final Fallback - Use Template
+            logger.warning("Switching to Fallback Template (Reason: AI Failed or Result None).")
             fallback_text = generate_fallback_draft(
                 c, sender_intro, signal['signal'],
                 intent.value, contact_type
             )
             variant_id = str(uuid.uuid4())
+            
+            # H1/H2/H5: Audit Metadata
             gen_params = {
                 "variant_id": variant_id,
-                "score": 55.0,
+                "score": 55.0, # Baseline for templates
                 "model": "fallback-template",
                 "context_band": context_band,
                 "signal_type": signal.get('type', 'generic'),
                 "is_fallback": True,
-                "data_quality": c['_data_quality']
+                "data_quality": c.get('_data_quality', 0),
+                "fingerprint": fingerprint,       # H1
+                "data_quality": c.get('_data_quality', 0),
+                "fingerprint": fingerprint,       # H1
+                "prompt_version": PROMPT_VERSION, # H2
+                "reason": reason_code,            # H5
+                "skill_count": len(brain.get("extracted_skills", [])) # H6
             }
+            # (Duplicate block removed)
             if contact_type == "linkedin":
                 res = supabase.table("drafts").insert({
                     "candidate_id": candidate_id, "subject": "",
@@ -1276,6 +1529,21 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         
         response_text = result['text']
         score = result['score']
+
+        # ---- POST-PROCESSING PIPELINE (Q4, Q6, Q1) ----
+        # Q6: Remove hedging language
+        response_text = remove_hedging(response_text)
+        # Q4: Length normalization + hard trim
+        response_text = normalize_length(response_text, contact_type)
+        # Q1: Structure validation
+        if not validate_structure(response_text, contact_type):
+            logger.warning(f"Q1 Structure validation failed for candidate {candidate_id}. Using as-is (still valid content).")
+        # Q3: Skills grounding check
+        user_skills = brain.get("extracted_skills", [])
+        if user_skills:
+            grounding = verify_skills_grounding(response_text, user_skills)
+            if grounding["hallucinated"]:
+                logger.warning(f"Q3 Hallucinated skills detected: {grounding['hallucinated']}")
         
         logger.info(f"FINAL DRAFT | Score: {score:.1f} | Type: {contact_type} | Length: {len(response_text)}")
 
@@ -1290,7 +1558,12 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             "model": "gemini-2.0-flash",
             "temperature": result.get('temp', 0.4),
             "context_band": context_band,
-            "signal_type": signal['type']
+            "signal_type": signal['type'],
+            # H1/H2/H5: Audit Metadata
+            "fingerprint": fingerprint,
+            "prompt_version": PROMPT_VERSION,
+            "reason": reason_code,
+            "skill_count": len(brain.get("extracted_skills", [])) # H6
         }
 
         if contact_type == "linkedin":

@@ -230,7 +230,10 @@ const SearchPage = () => {
                     try {
                         const msg = JSON.parse(line);
                         if (msg.type === 'result') {
-                            setResults(prev => [...prev, msg.data]);
+                            setResults(prev => {
+                                const newResults = [...prev, msg.data];
+                                return newResults.sort((a, b) => (b.resonance_score || 0) - (a.resonance_score || 0));
+                            });
                         } else if (msg.type === 'status') {
                             setStatusMessage(msg.data);
                         } else if (msg.type === 'done') {
@@ -384,6 +387,14 @@ const SearchPage = () => {
                 {/* Real-time Results Stack */}
                 {results.length > 0 ? (
                     <div className="w-full mt-8 space-y-4 pb-20 override-scroll">
+                        {/* Sort info / Action Bar */}
+                        <div className="flex justify-between items-center mb-2 px-2 text-[10px] text-slate-500 font-medium uppercase tracking-widest animate-in fade-in">
+                            <span>{results.length} Leads found</span>
+                            <span className="flex items-center gap-1.5 text-primary">
+                                <Sparkles size={10} />
+                                sorted by resonance
+                            </span>
+                        </div>
                         
                         <div className="relative z-10 flex items-center justify-between px-2 mb-2 animate-in fade-in slide-in-from-bottom-2 h-10">
                              <div className="flex items-center gap-3">
@@ -430,7 +441,7 @@ const SearchPage = () => {
                                                         generated_email: r.generated_email,
                                                         email_confidence: r.email_confidence,
                                                         summary: r.summary,
-                                                        match_score: r.hr_score ? Math.round(r.hr_score * 100) : 50,
+                                                        match_score: r.resonance_score !== undefined ? Math.round(r.resonance_score * 100) : (r.hr_score ? Math.round(r.hr_score * 100) : 50),
                                                         status: 'new'
                                                     });
                                                     

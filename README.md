@@ -6,7 +6,7 @@
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Frontend](https://img.shields.io/badge/frontend-Next.js_14-black)
 ![Backend](https://img.shields.io/badge/backend-FastAPI-teal)
-![AI](https://img.shields.io/badge/AI-Llama_3-purple)
+![AI](https://img.shields.io/badge/AI-Gemini_Flash-purple)
 
 ---
 
@@ -32,8 +32,14 @@ Stop bouncing. Every email goes through a rigorous **Zero False Positive** check
 
 Don't just say "Hi". The engine analyzes the lead's summary, company, and role to:
 
-- **Draft Personalized Openers**: Uses Llama-3 to write human-like intros.
-- **Match Scoring**: Auto-calculates how well a candidate fits your goals.
+- **Draft Personalized Openers**: Uses **Gemini 1.5 Flash** for high-speed, human-like intros.
+- **Match Scoring**: Auto-calculates fit based on resume analysis.
+
+### 🛡️ Hardened & Trustworthy (Phase 4)
+
+- **Deterministic Fingerprinting**: Prevents duplicate generation costs for the same input.
+- **Strict Fallback Ladder**: AI Failure $\rightarrow$ Retry $\rightarrow$ High-quality Template.
+- **Trust Signals**: UI badges show exactly how many skills were matched in the generated draft.
 
 ### 📋 Kanban Pipeline
 
@@ -50,7 +56,7 @@ Manage your outreach without the spreadsheet chaos.
 - **Frontend**: Next.js 14, Tailwind CSS, Framer Motion (Glassmorphism & Micro-interactions).
 - **Backend**: FastAPI (Python), Asyncio, SSE (Server-Sent Events).
 - **Database**: Supabase (PostgreSQL).
-- **AI**: Groq API (Llama-3-70b).
+- **AI**: Google Gemini API (1.5 Flash / 2.0 Flash).
 
 ---
 
@@ -88,7 +94,7 @@ Create a `.env` file in `backend/` with:
 ```env
 SUPABASE_URL=your_url
 SUPABASE_KEY=your_key
-GROQ_API_KEY=your_groq_key
+GEMINI_API_KEY=your_gemini_key
 ```
 
 ---
