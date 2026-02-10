@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
-import SmoothScroll from "@/components/SmoothScroll";
 import { ToastProvider } from "@/context/ToastContext";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TemplateProvider } from "@/context/TemplateContext";
@@ -10,7 +9,7 @@ import { TemplateProvider } from "@/context/TemplateContext";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Cold Emailing - Calm Command Center",
+  title: "Intelligent Outreach - Calm Command Center",
   description: "AI-powered cold outreach with a calm, focused interface.",
 };
 
@@ -25,12 +24,14 @@ export default function RootLayout({
         <ToastProvider>
           <TemplateProvider>
             <CommandPalette />
-            <SmoothScroll>
-              <div className="relative flex min-h-screen bg-background-dark">
-                <Sidebar />
-                {children}
-              </div>
-            </SmoothScroll>
+            {/* SmoothScroll removed to support fixed app-layout with internal scrolling */}
+            <div className="relative flex h-screen bg-background-dark overflow-hidden">
+              {/* Global Noise Texture */}
+              <div className="noise-overlay fixed inset-0 z-50 pointer-events-none opacity-[0.03]"></div>
+              
+              <Sidebar />
+              {children}
+            </div>
           </TemplateProvider>
         </ToastProvider>
       </body>

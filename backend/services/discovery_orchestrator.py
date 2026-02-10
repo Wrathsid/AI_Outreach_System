@@ -3,10 +3,11 @@ import logging
 from typing import Generator, List, Dict
 from .crawler import Crawler
 from .email_patterns import EmailPatterns
-from .verifier import verify_email_deep
+from .email_verifier import verify_email
 from .confidence import ConfidenceScorer
 from .hr_extractor import extract_context_info, extract_hr_score, parse_linkedin_title
 from .email_generator import EmailGenerator
+from .embeddings import embeddings_service
 
 class DiscoveryOrchestrator:
     """
@@ -18,7 +19,7 @@ class DiscoveryOrchestrator:
         self.crawler = Crawler()
         self.scorer = ConfidenceScorer()
 
-    async def discover_leads_stream(self, role: str, limit: int = 20, broad_mode: bool = False) -> Generator[str, None, None]:
+    async def discover_leads_stream(self, role: str, limit: int = 20, broad_mode: bool = False, icp_context: str = None) -> Generator[str, None, None]:
         """
         Async Stream with Parallel Verification.
         Crawl runs -> Queue -> Workers (Threaded Verification) -> Output
@@ -31,6 +32,16 @@ class DiscoveryOrchestrator:
         
         mode_text = "Broad Mode" if broad_mode else "Precision Mode"
         yield json.dumps({"type": "status", "data": f"Starting Parallel Discovery ({mode_text})..."}) + "\n"
+
+        # Pre-calculate ICP embedding if context provided (Optimization)
+        icp_emb = None
+        if icp_context:
+            try:
+                icp_emb = embeddings_service.generate_embedding(icp_context)
+                yield json.dumps({"type": "status", "data": "ICP Context Analyzed & Embedded."}) + "\n"
+            except Exception as e:
+                logging.error(f"ICP Embedding Error: {e}")
+
 
         # Background Manager to drive the process
         async def _manager():
@@ -58,9 +69,8 @@ class DiscoveryOrchestrator:
         async def _worker(data):
             async with verify_permits:
                 try:
-                    # Run CPU/Network heavy 'process_raw_result' in thread
-                    # self._process_raw_result contains the Blocking Verifier
-                    lead = await asyncio.to_thread(self._process_raw_result, data, role)
+                    # Run async 'process_raw_result' 
+                    lead = await self._process_raw_result(data, role, icp_emb=icp_emb)
                     if lead:
                          await result_queue.put(json.dumps({"type": "result", "data": lead}) + "\n")
                 except Exception as e:
@@ -79,7 +89,7 @@ class DiscoveryOrchestrator:
         yield json.dumps({"type": "done", "data": "Discovery Complete."}) + "\n"
 
 
-    def _process_raw_result(self, data: Dict, search_role: str) -> Dict:
+    async def _process_raw_result(self, data: Dict, search_role: str, icp_emb: List[float] = None) -> Dict:
         """
         Core logic: Extract -> Verify -> Score
         """
@@ -98,15 +108,33 @@ class DiscoveryOrchestrator:
             role = parsed["role"]
             company = parsed["company"]
         elif "linkedin.com/posts" in url or "linkedin.com/feed" in url:
-            # LinkedIn hiring post - extract from title and body
-            parsed = parse_linkedin_title(title)
-            name = parsed["name"]
-            role = parsed["role"]
-            company = parsed["company"]
+            # LinkedIn post — extract poster name from URL slug, NOT the title
+            from backend.services.hr_extractor import (
+                parse_linkedin_post_url, extract_poster_info_from_snippet, 
+                extract_role_from_post_body
+            )
             
-            # If company still unknown, try to extract from body content
+            # Layer 1: Extract name from URL slug (most reliable)
+            url_info = parse_linkedin_post_url(url)
+            if url_info.get("name"):
+                name = url_info["name"]
+            
+            # Layer 2: Extract name/title/company from Google snippet
+            snippet_info = extract_poster_info_from_snippet(title, body)
+            if snippet_info.get("name"):
+                name = snippet_info["name"]  # Override with full name from snippet
+            if snippet_info.get("company"):
+                company = snippet_info["company"]
+            if snippet_info.get("title"):
+                role = snippet_info["title"]
+            
+            # Layer 3: Extract role being hired for from body
+            post_role = extract_role_from_post_body(body)
+            if post_role and role == search_role:
+                role = post_role
+            
+            # Layer 4: Company extraction from body (fallback)
             if company == "Unknown":
-                # Look for patterns like "at Company", "@ Company", "Company is hiring"
                 import re
                 company_patterns = [
                     r'at\s+([A-Z][A-Za-z0-9\s&\.]+?)(?:\s+is|\s+are|\.|,|!)',
@@ -118,7 +146,6 @@ class DiscoveryOrchestrator:
                     match = re.search(pattern, body)
                     if match:
                         potential_company = match.group(1).strip()
-                        # Filter out common noise words
                         if len(potential_company) > 2 and potential_company.lower() not in ['the', 'our', 'we', 'this', 'that']:
                             company = potential_company
                             break
@@ -128,7 +155,46 @@ class DiscoveryOrchestrator:
             name = parts.split("(")[0].strip() or "GitHub User"
             company = "GitHub"
 
-        # B. Email Extraction (Strict Regex)
+        # B. Entity Classification & Swap
+        # "EXPANSIA" check - sometimes the "name" extracted is actually a company
+        from backend.services.hr_extractor import classify_entity
+        
+        entity_type = classify_entity(name)
+        if entity_type == "COMPANY":
+            # The extracted 'name' is actually a company
+            if company == "Unknown":
+                company = name
+            
+            # We need to find the real person's name from the body using AI
+            # The user specifically requested "AI should understand"
+            try:
+                from backend.config import generate_with_gemini
+                
+                prompt = (
+                    f"Analyze this LinkedIn post/profile. The apparent author is '{name}', which looks like a company.\n"
+                    f"Find the Name of the actual hiring manager or recruiter mentioned in the text.\n"
+                    f"If no specific person is named, return 'Hiring Team'.\n"
+                    f"Return ONLY the name. No quotes.\n\n"
+                    f"Title: {title}\n"
+                    f"Body: {body[:1000]}"
+                )
+                
+                ai_name = await generate_with_gemini(prompt)
+                if ai_name:
+                    cleaned_name = ai_name.strip().strip('"').strip("'")
+                    # If AI just returns the company name again, use Hiring Team
+                    if cleaned_name.lower() == name.lower() or len(cleaned_name) < 2:
+                        name = "Hiring Team"
+                    else:
+                        name = cleaned_name
+                else:
+                    name = "Hiring Team"
+                    
+            except Exception as e:
+                logging.error(f"AI Name Extraction Failed: {e}")
+                name = "Hiring Team"
+
+        # C. Email Extraction (Strict Regex)
         email = EmailPatterns.extract(body) or EmailPatterns.extract(title)
         
         # C. Context Enrichment
@@ -144,37 +210,37 @@ class DiscoveryOrchestrator:
         email_confidence = 0
         
         if email:
-            is_valid = verify_email_deep(email)
-            if not is_valid: 
+            verify_res = await verify_email(email)
+            if verify_res.get("status") == "invalid": 
                 email = None
         
-        # F. Email Generation (if no valid email found)
+        # F. Email Generation (DISABLED PER USER REQUEST - Feb 10)
         # RELAXED: Generate even with "Candidate" if we have company
-        should_generate = (
-            not email and 
-            company and 
-            company not in ["Unknown", "N/A", ""] and
-            len(company) > 2
-        )
+        # should_generate = (
+        #     not email and 
+        #     company and 
+        #     company not in ["Unknown", "N/A", ""] and
+        #     len(company) > 2
+        # )
         
-        if should_generate:
-            # If name is still "Candidate", try to extract from title
-            if name == "Candidate":
-                # Try to extract a real name from the title
-                import re
-                # Pattern: "Name - Role" or "Name | Role" or just a capitalized name
-                title_parts = re.split(r'[-|]', title)
-                if title_parts:
-                    potential_name = title_parts[0].strip()
-                    # Check if it looks like a real name (has at least 2 words or is capitalized)
-                    if ' ' in potential_name or (potential_name and potential_name[0].isupper()):
-                        name = potential_name
+        # if should_generate:
+        #     # If name is still "Candidate", try to extract from title
+        #     if name == "Candidate":
+        #         # Try to extract a real name from the title
+        #         import re
+        #         # Pattern: "Name - Role" or "Name | Role" or just a capitalized name
+        #         title_parts = re.split(r'[-|]', title)
+        #         if title_parts:
+        #             potential_name = title_parts[0].strip()
+        #             # Check if it looks like a real name (has at least 2 words or is capitalized)
+        #             if ' ' in potential_name or (potential_name and potential_name[0].isupper()):
+        #                 name = potential_name
             
-            # Generate email with whatever name we have
-            generated = EmailGenerator.get_best_guess(name, company)
-            if generated:
-                generated_email = generated["email"]
-                email_confidence = generated["confidence"]
+        #     # Generate email with whatever name we have
+        #     generated = EmailGenerator.get_best_guess(name, company)
+        #     if generated:
+        #         generated_email = generated["email"]
+        #         email_confidence = generated["confidence"]
 
         # G. Acceptance Criteria (RELAXED - return everything)
         # Only reject if literally no name AND no valid info
@@ -213,12 +279,24 @@ class DiscoveryOrchestrator:
             "email_confidence": email_confidence,  # Confidence in generated email
             "linkedin_url": url,
             "source": "web_scan",
-            "summary": body[:200] if body else "",
+            "summary": body[:1000] if body else "",
             "is_hr": is_hr,
-            "hr_score": hr_score
+            "hr_score": hr_score,
+            "resonance_score": 0.0
         }
         
-        # I. Confidence Scoring
+        # I. Resonance Ranking (Phase 3)
+        if icp_emb and body:
+            try:
+                lead_text = f"{title} {body[:500]}"
+                lead_emb = embeddings_service.generate_embedding(lead_text)
+                # icp_emb is already computed
+                similarity = embeddings_service.calculate_similarity(lead_emb, icp_emb)
+                lead["resonance_score"] = round(float(similarity), 3)
+            except Exception as e:
+                logging.error(f"Resonance calculation failed: {e}")
+        
+        # J. Confidence Scoring
         lead = self.scorer.score(lead)
         
         return lead

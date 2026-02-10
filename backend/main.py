@@ -9,7 +9,7 @@ from collections import defaultdict
 from typing import Dict
 
 from backend.config import setup_cors
-from backend.routers import candidates, drafts, discovery, emails, stats, settings, auth, followups
+from backend.routers import candidates, drafts, discovery, emails, stats, settings, auth, followups, automation
 
 # ============================================================
 # RATE LIMITING (Priority 6)
@@ -53,8 +53,8 @@ async def rate_limit_middleware(request: Request, call_next):
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="Cold Emailing Backend",
-    description="API for cold emailing automation with AI-powered drafting",
+    title="Intelligent Outreach Backend",
+    description="API for intelligent outreach with AI-powered discovery and drafting",
     version="2.0.0"
 )
 
@@ -83,8 +83,10 @@ app.include_router(stats.router, prefix="/stats", tags=["Stats"])
 app.include_router(settings.router, prefix="/settings", tags=["Settings"])
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(followups.router, prefix="/followups", tags=["Follow-ups"])
+app.include_router(automation.router, prefix="/automation", tags=["Automation"])
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Use 127.0.0.1 to avoid localhost resolution issues
+    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)

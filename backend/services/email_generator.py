@@ -28,6 +28,7 @@ class EmailGenerator:
         """Extract first and last name components."""
         # Remove titles, suffixes, special characters
         name = re.sub(r'\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|III|II|IV)\b\.?', '', name, flags=re.IGNORECASE)
+        name = re.sub(r'\(.*?\)', '', name)  # Remove content in parentheses (e.g. pronouns)
         name = re.sub(r'[^\w\s-]', '', name).strip()
         
         parts = name.split()

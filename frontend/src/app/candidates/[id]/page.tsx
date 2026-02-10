@@ -9,6 +9,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { api, Candidate, Draft } from '@/lib/api';
+import { cleanDisplayName } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
 import { triggerConfetti } from '@/lib/confetti';
 
@@ -144,9 +145,13 @@ export default function MinimalCandidatePage() {
        
        // UX Improvement: Track sent (for Sent page)
        await api.markAsSent(candidateId);
-       
+
+       // OPTIONAL: Launch Automation
+       // We could auto-launch here, but let's keep it manual via the button for now.
        return;
     }
+
+
 
     // Email Mode
     if (!emailBody) return error("Message is empty");
@@ -169,6 +174,29 @@ export default function MinimalCandidatePage() {
        error("Failed to send");
     }
     setIsSending(false);
+  };
+
+  const handleLaunchAutomation = async () => {
+      if (!linkedinBody) return error("Generate a draft first");
+      
+      const confirmLaunch = window.confirm("🚀 Launch Browser Automation?\n\nThis will:\n1. Open Chrome (using your profile)\n2. Go to LinkedIn\n3. Click Connect\n4. Paste the message\n\nIt will STOP before sending so you can review.");
+      if (!confirmLaunch) return;
+
+      success("Launching Automation...");
+      try {
+          const res = await api.launchAutomation(candidateId);
+          if (res.status === 'success') {
+              success("✅ Automation Complete! Check the Chrome window.");
+          } else {
+              if (res.status === 'pending') {
+                  success("⚠️ Connection already pending.");
+              } else {
+                  error("Automation finished with warnings. Check logs.");
+              }
+          }
+      } catch (err) {
+          error("Failed to launch automation");
+      }
   };
   
   const handleTabSwitch = (tab: 'email' | 'linkedin') => {
@@ -221,7 +249,7 @@ export default function MinimalCandidatePage() {
             {/* Profile Header */}
             <div className="space-y-4">
                 <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">
-                    {candidate.name}
+                    {cleanDisplayName(candidate.name)}
                 </h1>
                 <div className="space-y-1 text-sm text-slate-400">
                     {candidate.title && (
@@ -262,8 +290,17 @@ export default function MinimalCandidatePage() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 text-sm text-[#0077b5] hover:text-[#00669c] transition-colors"
                     >
-                        <Linkedin size={16} />
-                        <span className="font-medium">Open LinkedIn Profile</span>
+                        {candidate.linkedin_url.includes('/posts/') || candidate.linkedin_url.includes('/feed/') || candidate.linkedin_url.includes('/activity/') ? (
+                             <>
+                                <ExternalLink size={16} />
+                                <span className="font-medium">View Post</span>
+                             </>
+                        ) : (
+                             <>
+                                <Linkedin size={16} />
+                                <span className="font-medium">Open LinkedIn Profile</span>
+                             </>
+                        )}
                         <ExternalLink size={12} className="opacity-50" />
                     </a>
                 )}
@@ -345,6 +382,19 @@ export default function MinimalCandidatePage() {
                     {activeTab === 'email' && (
                          <span className="text-xs text-slate-500">Draft saved locally</span>
                     )}
+
+                    {/* View Post Button (Contextual) */}
+                    {(candidate.linkedin_url?.includes('/posts/') || candidate.linkedin_url?.includes('/feed/') || candidate.linkedin_url?.includes('/activity/')) && (
+                       <a 
+                           href={candidate.linkedin_url}
+                           target="_blank" 
+                           rel="noopener noreferrer"
+                           className="ml-auto flex items-center gap-2 text-xs bg-[#131326] hover:bg-[#1c1c36] text-[#0077b5] px-3 py-1.5 rounded-lg border border-white/5 transition-colors"
+                       >
+                           <ExternalLink size={12} />
+                           View Post
+                       </a>
+                    )}
                 </div>
 
                 {/* Subject Line (Email Only) */}
@@ -386,6 +436,21 @@ export default function MinimalCandidatePage() {
                         )}
                         {activeTab === 'email' ? 'Send Email' : 'Copy for LinkedIn'}
                      </button>
+
+                     {/* Automation Button */}
+                     {/* Automation Button - MASKED per user request (Feb 10) */}
+                     {/* 
+                     {activeTab === 'linkedin' && (
+                         <button
+                            onClick={handleLaunchAutomation}
+                            className="px-4 py-2 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 font-semibold text-sm transition-colors flex items-center gap-2 border border-blue-600/30"
+                            title="Auto-open LinkedIn and paste message"
+                         >
+                            <Send size={16} />
+                            <span>Auto-Fill</span>
+                         </button>
+                     )}
+                     */}
                 </div>
             </MinimalCard>
         </div>

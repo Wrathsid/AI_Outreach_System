@@ -10,8 +10,66 @@ import json
 
 from backend.config import get_supabase, generate_with_gemini, logger
 from backend.models.schemas import Draft, DraftCreate, IntentType
+from backend.services.embeddings import embeddings_service
 
 router = APIRouter(tags=["Drafts"])
+
+
+# ============================================================
+# DATA QUALITY VALIDATION
+# ============================================================
+
+def clean_candidate_data(candidate: dict) -> dict:
+    """Validate and clean candidate data before it touches any prompt.
+    
+    Handles garbage scraped data like hashtag-only names, 'Unknown' placeholders,
+    and empty fields. Returns a cleaned copy with usable values or None.
+    """
+    cleaned = dict(candidate)  # Don't mutate original
+    
+    # --- Clean Name ---
+    raw_name = cleaned.get('name', '') or ''
+    # Strip hashtags and clean up
+    name_cleaned = re.sub(r'#\w+', '', raw_name).strip()
+    # Remove excess whitespace and special chars
+    name_cleaned = re.sub(r'[^a-zA-Z\s\-\'.]+', '', name_cleaned).strip()
+    # Remove 'Unknown' placeholder
+    if not name_cleaned or name_cleaned.lower() in ('unknown', 'n/a', 'none', 'hiring team'):
+        name_cleaned = None
+    cleaned['name'] = name_cleaned
+    
+    # --- Clean Title ---
+    raw_title = cleaned.get('title', '') or ''
+    title_cleaned = raw_title.strip()
+    if not title_cleaned or title_cleaned.lower() in ('unknown', 'n/a', 'none', ''):
+        title_cleaned = None
+    # Strip if it's just hashtags
+    if title_cleaned and title_cleaned.startswith('#'):
+        title_cleaned = re.sub(r'#\w+\s*', '', title_cleaned).strip() or None
+    cleaned['title'] = title_cleaned
+    
+    # --- Clean Company ---
+    raw_company = cleaned.get('company', '') or ''
+    company_cleaned = raw_company.strip()
+    if not company_cleaned or company_cleaned.lower() in ('unknown', 'n/a', 'none', ''):
+        company_cleaned = None
+    cleaned['company'] = company_cleaned
+    
+    # --- Clean Summary ---
+    raw_summary = cleaned.get('summary', '') or ''
+    if raw_summary.lower().strip() in ('unknown', 'n/a', 'none', ''):
+        cleaned['summary'] = None
+    
+    # --- Data Quality Score ---
+    quality = 0
+    if cleaned['name']: quality += 1
+    if cleaned['title']: quality += 1
+    if cleaned['company']: quality += 1
+    if cleaned.get('summary'): quality += 1
+    cleaned['_data_quality'] = quality  # 0-4 scale
+    
+    return cleaned
+
 
 # ============================================================
 # REPLY-RATE OPTIMIZATION FUNCTIONS
@@ -52,6 +110,20 @@ def get_recent_opener_hashes(supabase, limit: int = 50) -> List[str]:
         return []
 
 
+def get_semantically_similar_openers(supabase, embedding: List[float], threshold: float = 0.85) -> List[Dict]:
+    """Search for semantically similar openers in Supabase (Optimization Phase 2)."""
+    try:
+        res = supabase.rpc("match_sent_openers", {
+            "query_embedding": embedding,
+            "match_threshold": threshold,
+            "match_count": 5
+        }).execute()
+        return res.data
+    except Exception as e:
+        logger.error(f"Semantic memory fetch failed: {e}")
+        return []
+
+
 def get_recent_openers(supabase, limit: int = 5) -> List[str]:
     """Fetch recent openers for the prompt to avoid repetition (Optimization 13)."""
     try:
@@ -73,6 +145,42 @@ def get_recent_openers(supabase, limit: int = 5) -> List[str]:
     except Exception as e:
         logger.error(f"Memory fetch failed: {e}")
         return []
+
+
+def get_biased_parameters(supabase) -> Dict:
+    """Analyze which parameters led to replies (Optimization Phase 2)."""
+    try:
+        # Fetch up to 100 recent replied drafts
+        res = supabase.table("drafts").select("generation_params").eq("reply_status", "replied").limit(100).execute()
+        if not res.data:
+            return {}
+        
+        params_list = [d["generation_params"] for d in res.data if d.get("generation_params")]
+        if not params_list:
+            return {}
+        
+        # Calculate heuristics
+        # 1. Average temperature
+        temps = [p.get("temperature") for p in params_list if p.get("temperature")]
+        avg_temp = sum(temps) / len(temps) if temps else None
+        
+        # 2. Most successful intent
+        intents = [p.get("intent") for p in params_list if p.get("intent")]
+        p_intent = max(set(intents), key=intents.count) if intents else None
+        
+        # 3. Successful Signal Types
+        signals = [p.get("signal_type") for p in params_list if p.get("signal_type")]
+        p_signal = max(set(signals), key=signals.count) if signals else None
+
+        return {
+            "suggested_temperature": round(avg_temp, 2) if avg_temp else None,
+            "best_intent": p_intent,
+            "best_signal_type": p_signal,
+            "sample_size": len(params_list)
+        }
+    except Exception as e:
+        logger.error(f"Parameter biasing retrieval failed: {e}")
+        return {}
 
 
 def score_draft(text: str, contact_type: str, candidate_context: dict = None) -> float:
@@ -208,6 +316,10 @@ def score_draft(text: str, contact_type: str, candidate_context: dict = None) ->
         score += 10  # Excellent glance-ability
     elif ttr > 45:
         score -= 10  # Too long for mobile
+    
+    # Phase 2: Paragraph Asymmetry Guard (Heuristic for Humanness)
+    asymmetry_score = calculate_asymmetry_score(text)
+    score += asymmetry_score
     
     return max(0, score)
 
@@ -359,6 +471,36 @@ def check_mobile_readability(text: str, contact_type: str) -> float:
             score -= 5
     
     return score
+def calculate_asymmetry_score(text: str) -> float:
+    """Penalize drafts with perfectly symmetrical paragraph lengths (Phase 2).
+    
+    Humans write with variance. Robots write in blocks.
+    Ideal: 1:2 or 2:1 length ratios between consecutive paragraphs.
+    """
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+    if len(paragraphs) < 2:
+        return 0
+    
+    score = 0
+    lengths = [len(p) for p in paragraphs]
+    
+    for i in range(len(lengths) - 1):
+        len1 = lengths[i]
+        len2 = lengths[i+1]
+        
+        if len1 == 0 or len2 == 0:
+            continue
+            
+        # Calculate ratio (larger / smaller)
+        ratio = max(len1, len2) / min(len1, len2)
+        
+        if ratio < 1.15: # Too symmetrical (within 15%)
+            score -= 20
+        elif 1.5 <= ratio <= 3.0: # Good variance
+            score += 10
+            
+    return score
+
 
 
 
@@ -366,13 +508,13 @@ def extract_primary_signal(candidate: dict) -> Dict[str, str]:
     """Extract ONE strong signal from candidate context.
     
     Prevents over-stuffed, unnatural personalization.
-    Returns: {'signal': str, 'avoid': str}
+    Returns: {'signal': str, 'type': str, 'avoid': str, 'is_generic': bool}
     """
     signals = []
     
-    title = candidate.get('title', '')
-    company = candidate.get('company', '')
-    summary = candidate.get('summary', '')
+    title = candidate.get('title') or ''  # None-safe
+    company = candidate.get('company') or ''  # None-safe
+    summary = candidate.get('summary') or ''  # None-safe
     
     # Priority 3: Hiring/recruiting focus
     if title and any(word in title.lower() for word in ['recruit', 'talent', 'hiring']):
@@ -409,18 +551,123 @@ def extract_primary_signal(candidate: dict) -> Dict[str, str]:
         best_signal = max(signals, key=lambda s: s['priority'])
         return {
             'signal': best_signal['value'],
+            'type': best_signal['type'],
             'avoid': 'generic experience, achievements not mentioned, overly detailed background',
             'is_generic': False
         }
     
+    # IMPROVED FALLBACK: Don't say "Professional at Unknown"
+    if company:
+        return {
+            'signal': f"the work at {company}",
+            'type': 'company_only',
+            'avoid': 'making assumptions about their work',
+            'is_generic': True
+        }
+    
     return {
-        'signal': f"Professional at {company}" if company else "Professional in their field",
+        'signal': 'DevOps and cloud infrastructure',
+        'type': 'user_interest',
         'avoid': 'making assumptions about their work',
         'is_generic': True
     }
 
 
-async def generate_with_scoring(prompt: str, contact_type: str, candidate_context: dict, num_variants: int = 3) -> Dict:
+def generate_fallback_draft(candidate: dict, sender_intro: str, signal: str, intent: str, contact_type: str) -> str:
+    """Generate a template-based draft when AI fails (Resilience).
+    
+    IMPORTANT: All templates must produce human-quality output even with
+    minimal/missing data. Never output 'Unknown' or hashtags.
+    """
+    import random
+    
+    # Clean inputs — never let garbage through
+    raw_name = candidate.get('name') or ''
+    first_name = raw_name.split()[0] if raw_name and not raw_name.startswith('#') else None
+    company = candidate.get('company') or None
+    title = candidate.get('title') or None
+    sender_first = sender_intro.split()[0] if sender_intro else 'Siddharth'
+    
+    # Determine what info we actually have
+    has_name = first_name is not None and first_name.lower() not in ('unknown', 'n/a')
+    has_company = company is not None and company.lower() not in ('unknown', 'n/a')
+    has_title = title is not None and title.lower() not in ('unknown', 'n/a')
+    
+    # Build greeting
+    greeting = f"Hi {first_name}" if has_name else "Hi there"
+    
+    # ============ LINKEDIN TEMPLATES (with data-quality awareness) ============
+    if contact_type == "linkedin":
+        # BEST: Have name + company/title
+        # BEST: Have name + company/title
+        if has_name and has_company:
+            if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
+                # OPPORTUNITY TEMPLATES (Direct Hiring Ask)
+                options = [
+                    f"{greeting}, noticed you're recruiting at {company}. I'm a DevOps engineer with strong cloud/infrastructure experience — are you open to reviewing my profile for any relevant roles?",
+                    f"{greeting}, saw {company} is hiring. I specialize in DevOps and site reliability — would you be open to a brief chat about your engineering needs?",
+                    f"{greeting}, verified your role at {company}. I'm looking for DevOps/SRE opportunities — are you hiring or open to reviewing my profile? Worth a quick look?"
+                ]
+            else:
+                # STANDARD CONNECTION TEMPLATES
+                options = [
+                    f"{greeting}, saw your profile at {company}. I work in DevOps and cloud infrastructure — would love to connect and exchange notes.",
+                    f"{greeting}, noticed you're at {company}. I'm exploring opportunities in {signal} and your background caught my eye. Open to connecting?",
+                    f"{greeting}, came across your profile while researching {company}. I have a background in cloud ops and automation — curious to connect.",
+                ]
+        elif has_name and has_title:
+            if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
+                options = [
+                    f"{greeting}, saw your work as {title}. I'm a DevOps engineer looking for new challenges — are you currently hiring for infrastructure roles?",
+                    f"{greeting}, noticed you're a {title}. I have a background in SRE and cloud automation — would you be open to reviewing my resume for potential fits?",
+                ]
+            else:
+                options = [
+                    f"{greeting}, your work as {title} caught my attention. I'm building experience in DevOps and cloud — would love to connect.",
+                    f"{greeting}, saw your role as {title}. I work in infrastructure and automation — curious to exchange perspectives.",
+                ]
+        elif has_name:
+            if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
+                options = [
+                    f"{greeting}, came across your profile. I'm a DevOps engineer actively looking for new roles in cloud infrastructure. Are you hiring for any relevant positions?",
+                    f"{greeting}, I'm an infrastructure engineer with cloud/automation experience. Are you open to reviewing profiles for potential DevOps openings?",
+                ]
+            else:
+                options = [
+                    f"{greeting}, came across your profile and your background resonated with the work I do in DevOps and cloud infrastructure. Open to connecting?",
+                    f"{greeting}, I'm building my network in the infrastructure and cloud space. Your profile stood out — would love to stay in touch.",
+                ]
+        else:
+            # MINIMAL DATA: Don't pretend we know them
+            if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
+                options = [
+                    f"Hi, I'm a DevOps engineer exploring new opportunities. Are you currently hiring for any cloud infrastructure or SRE roles?",
+                    f"Hi, I specialize in cloud operations and automation. If you're recruiting for DevOps roles, would you be open to a brief chat?",
+                ]
+            else:
+                options = [
+                    f"Hi, came across your profile while exploring roles in DevOps and cloud infrastructure. Would love to connect and learn more about your work.",
+                    f"Hi, I'm a DevOps-focused engineer exploring opportunities in cloud operations and automation. Would love to connect.",
+                    f"Hi, your profile came up while I was researching infrastructure roles. I work in DevOps and cloud — curious to connect.",
+                ]
+        return random.choice(options)
+    
+    # ============ EMAIL TEMPLATES ============
+    else:
+        subject = f"{company}" if has_company else "Quick intro"
+        body_greeting = f"Hi {first_name}," if has_name else "Hi,"
+        
+        if has_name and has_company:
+            body = f"{body_greeting}\n\nCame across your profile at {company}. I work in DevOps, cloud infrastructure, and automation — and your background resonated with the kind of work I enjoy.\n\nWould you be open to a brief exchange?\n\n{sender_first}"
+        elif has_name:
+            body = f"{body_greeting}\n\nI found your profile while exploring opportunities in {signal}. I work in cloud ops and systems engineering — your background caught my eye.\n\nOpen to connecting?\n\n{sender_first}"
+        else:
+            body = f"{body_greeting}\n\nI came across your profile while researching infrastructure and DevOps roles. I have hands-on experience in cloud operations and automation.\n\nWould love to connect if there's a fit.\n\n{sender_first}"
+        
+        return f"Subject: {subject}\n\n{body}"
+
+
+async def generate_with_scoring(prompt: str, contact_type: str, candidate_context: dict, num_variants: int = 3, suggested_temp: float = None) -> Dict:
     """Generate multiple variants and return the highest scoring one.
     
     This is the SECRET SAUCE for reply-rate optimization.
@@ -428,10 +675,13 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
     """
     import asyncio
     
+    # Initialize Supabase client for memory features
+    sb_client = get_supabase()
+
     # Generate variants with CHANNEL-SPECIFIC temperatures (Gemini Tuning)
     # LinkedIn: 0.35 - 0.45 (Strict control)
     # Email: 0.45 - 0.55 (Slight flow)
-    base_temp = 0.35 if contact_type == "linkedin" else 0.45
+    base_temp = suggested_temp if suggested_temp else (0.35 if contact_type == "linkedin" else 0.45)
     
     # Prepare tasks for parallel execution
     tasks = []
@@ -441,6 +691,10 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
         
         # Use intent-based system prompt
         intent_value = candidate_context.get('intent', IntentType.CURIOUS)
+        # Handle case where intent is passed as Enum vs string
+        if hasattr(intent_value, 'value'):
+             intent_value = intent_value.value
+        
         system_prompt = SYSTEM_PROMPTS.get(intent_value, SYSTEM_PROMPTS[IntentType.CURIOUS])
         
         # Create a coroutine for each generation task
@@ -454,7 +708,7 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
     responses = await asyncio.gather(*tasks)
     
     # Fetch recent sent hashes for deduplication
-    sent_hashes = get_recent_opener_hashes(supabase)
+    sent_hashes = get_recent_opener_hashes(sb_client)
     
     variants = []
     for i, response_text in enumerate(responses):
@@ -471,12 +725,26 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
             # Base score
             score = score_draft(response_text, contact_type, candidate_context)
             
-            # Anti-Repetition Penalty (Optimization 13)
+            # Anti-Repetition Penalty (Optimization 13 + Phase 2 Semantic)
             if opener_hash in sent_hashes:
                 logger.warning(f"Repeated opener detected (hash: {opener_hash[:8]}). Penalizing variant {i+1}.")
-                score -= 80  # Heavy penalty for repetition
+                score -= 80  # Heavy penalty for exact repetition
             
-            variants.append({"text": response_text, "score": score, "temp": temp, "opener_hash": opener_hash})
+            # Semantic Deduplication
+            embedding = embeddings_service.generate_embedding(opener)
+            similar = get_semantically_similar_openers(sb_client, embedding)
+            if similar:
+                max_sim = max([s['similarity'] for s in similar])
+                logger.warning(f"Semantically similar opener detected (sim: {max_sim:.2f}). Penalizing variant {i+1}.")
+                score -= 40 * max_sim # Dynamic penalty based on similarity
+            
+            variants.append({
+                "text": response_text, 
+                "score": score, 
+                "temp": temp, 
+                "opener_hash": opener_hash,
+                "embedding": embedding
+            })
             logger.info(f"Variant {i+1}: score={score:.1f}, temp={temp}, hash={opener_hash[:8]}")
     
     # Return the best one
@@ -567,6 +835,31 @@ RULES:
 
 MAX: 100 words. Write the message ONLY.
 """,
+    IntentType.OPPORTUNITY: """
+You are writing a direct but respectful message to a Recruiter or Talent Acquisition professional.
+TONE: Professional, concise, high-signal.
+GOAL: Pitch yourself for a specific role or general engineering needs.
+NEGATIVE CONSTRAINTS (CRITICAL):
+- Do NOT use "Open to connecting" or "I'd like to join your network".
+- Do NOT be vague ("I'm looking for opportunities").
+- Do NOT ask "how are you?".
+- Do NOT use "I hope this email finds you well".
+
+RULES:
+- State clearly that you are an experienced engineer (DevOps/SRE focus).
+- Mention 2-3 key hard skills (e.g., AWS, Linux, Terraform).
+- Direct Ask: "Are you hiring for relevant roles?" or "Open to reviewing my profile?" or "Do you have any open searches?"
+
+STRUCTURE:
+1. Hi [Name]
+2. "I'm a DevOps engineer with experience in [Skill 1], [Skill 2], and [Skill 3]."
+3. "Saw you're hiring for [Role] / recruiting for technical roles."
+4. Direct Ask (Review profile / hiring status).
+
+MAX: 75 words. Write the message ONLY.
+""",
+
+
     "GENERIC": """
 You are writing a generic but polite outreach.
 TONE: Honest, extremely brief.
@@ -681,9 +974,13 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
     
     try:
         # 1. Fetch Candidate Data
-        c = supabase.table("candidates").select("*").eq("id", candidate_id).single().execute().data
-        if not c:
+        raw_candidate = supabase.table("candidates").select("*").eq("id", candidate_id).single().execute().data
+        if not raw_candidate:
             raise HTTPException(status_code=404, detail="Candidate not found")
+        
+        # 1.5 CRITICAL: Clean candidate data before it touches any prompt
+        c = clean_candidate_data(raw_candidate)
+        logger.info(f"Data quality for candidate {candidate_id}: {c['_data_quality']}/4 | Name: {c.get('name')} | Title: {c.get('title')} | Company: {c.get('company')}")
             
         # Auto-detect contact type
         if contact_type == "auto":
@@ -699,8 +996,70 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             b_data = supabase.table("brain_context").select("*").eq("id", 1).execute().data
             brain = b_data[0] if b_data else {"extracted_skills": []}
         except Exception as e:
+            print(f"DEBUG: Context fetch warning: {e}")
             logger.error(f"Context fetch error: {e}")
             brain = {"extracted_skills": []}
+
+        sender_intro = f"{settings.get('full_name', 'Siddharth')} from {settings.get('company', 'Antigravity')}"
+
+        # EARLY EXIT: If data quality is too low, skip AI and use smart template directly
+        if c['_data_quality'] <= 1:
+            logger.warning(f"Low data quality ({c['_data_quality']}/4) for candidate {candidate_id}. Using smart template.")
+            signal = extract_primary_signal(c)
+            intent = IntentType.DIRECT
+            fallback_text = generate_fallback_draft(
+                c, sender_intro, signal['signal'],
+                intent.value, contact_type
+            )
+            variant_id = str(uuid.uuid4())
+            gen_params = {
+                "variant_id": variant_id,
+                "score": 60.0,
+                "model": "smart-template-low-data",
+                "context_band": "LOW",
+                "signal_type": signal.get('type', 'generic'),
+                "is_fallback": True,
+                "data_quality": c['_data_quality']
+            }
+            if contact_type == "linkedin":
+                res = supabase.table("drafts").insert({
+                    "candidate_id": candidate_id, "subject": "",
+                    "body": fallback_text, "intent": intent,
+                    "temperature": 0.0, "signal_used": signal['signal'],
+                    "variant_id": variant_id, "generation_params": gen_params
+                }).execute()
+                return {
+                    "type": "linkedin", "message": fallback_text,
+                    "char_count": len(fallback_text),
+                    "quality_score": 60.0,
+                    "draft_id": res.data[0]["id"],
+                    "time_to_read": calculate_time_to_read(fallback_text),
+                    "variant_id": variant_id, "is_fallback": True
+                }
+            else:
+                lines = fallback_text.strip().split('\n')
+                subject = "Quick intro"
+                body_lines = []
+                for line in lines:
+                    if "Subject:" in line:
+                        subject = line.replace("Subject:", "").strip()
+                    elif line.strip():
+                        body_lines.append(line)
+                final_body = "\n".join(body_lines).strip()
+                res = supabase.table("drafts").insert({
+                    "candidate_id": candidate_id, "subject": subject,
+                    "body": final_body, "intent": intent,
+                    "temperature": 0.0, "signal_used": signal['signal'],
+                    "variant_id": variant_id, "generation_params": gen_params
+                }).execute()
+                return {
+                    "type": "email", "subject": subject, "body": final_body,
+                    "word_count": len(final_body.split()),
+                    "quality_score": 60.0,
+                    "draft_id": res.data[0]["id"],
+                    "time_to_read": calculate_time_to_read(final_body),
+                    "variant_id": variant_id, "is_fallback": True
+                }
 
         skills = ", ".join(brain.get("extracted_skills", [])) or "Technical Hiring"
 
@@ -717,22 +1076,15 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         logger.info(f"Primary signal: {signal['signal']} | Avoid: {signal['avoid']}")
 
         # 4. Build Prompt (Optimization 11, 12, 17)
-        # Simplify sender intro — focus on curiosity, not credentials
-        sender_intro = f"{settings['full_name']} (curious about {skills.split(',')[0].strip()})"
-        
-        # Determine Intent (with Surgical Override - Refinement 73)
-        if contact_type == "linkedin":
-            intent = IntentType.CURIOUS
-        else:
-            intent = IntentType.PEER
-            
-        # Intent Override Rules
-        title_lower = c.get('title', '').lower()
-        high_value_roles = ["director", "head of", "vp", "chief", "lead", "founder", "owner"]
-        if any(role in title_lower for role in high_value_roles):
-            intent = IntentType.CURIOUS # Always be curious with leaders
-            logger.info(f"Intent Override: {c.get('title')} -> CURIOUS")
+        # Fetch biased parameters from history (Learning Loop - Phase 2)
+        biased_params = get_biased_parameters(supabase)
+        logger.info(f"Biasing suggestions: {biased_params}")
 
+        # Determine if Recipient is Company (Hiring Team) or Person
+        is_company_recipient = False
+        if c.get('name') == "Hiring Team" or (c.get('company') and c.get('name') and c.get('company').lower() in c.get('name').lower()):
+             is_company_recipient = True
+        
         # Context Bands (Refinement 74)
         # Simplify context for cleaner prompting
         context_band = "LOW"
@@ -741,39 +1093,112 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         if signal.get('signal') and not signal.get('is_generic'):
             context_band = "HIGH"
 
-        # Check Fallback (Optimization 12: Nothing to Say)
-        if signal.get('is_generic', False) or context_band == "LOW":
-            intent = "GENERIC"
-            prompt = f"""
-            Sender: {settings['full_name']}
-            Recipient: {c['name']}
-            
-            Intent: GENERIC / FALLBACK
-            Reason: Profile context is weak (Band: {context_band}).
-            
-            Write a very polite, honest generic opener. 
-            Admit you found them via search/network but don't fake specific knowledge.
-            Keep it under 2 sentences.
-            """
+        # User Bio & Context
+        user_bio = """
+        Name: Siddharth Chavan
+        Role: DevOps-focused engineer
+        Key Skills: Cloud operations, Linux systems, automation, sustaining production environments.
+        Value Prop: I enjoy working close to infrastructure and ensuring systems remain stable, secure, and scalable.
+        Current Status: Applying skills through hands-on projects, upskilling in DevOps/Cloud.
+        """
+
+        if is_company_recipient:
+             intent = IntentType.SOFT # Company page DMs should be soft
+             role_context = c.get('title') or 'DevOps / SRE Role'
+             task_instruction = "Generate Message 1: Company Page DM (120-160 words). Exploratory, context-aware, slightly descriptive."
+        elif (c.get('title') and ("recruiter" in c.get('title').lower() or "talent" in c.get('title').lower())):
+             intent = IntentType.OPPORTUNITY # Recruiters get the new Opportunity intent
+             role_context = "DevOps / Site Reliability Engineer" # Force specific context
+             task_instruction = "Generate Message 2: Recruiter DM. Follow STRICT rules."
         else:
-            # Standard High-Context Prompt
-            prompt = f"""
-            Sender: {sender_intro}
-            Recipient: {c['name']}, {c.get('title', 'Professional')}
-            Intent: {intent.value.upper() if hasattr(intent, 'value') else str(intent).upper()}
-            Context Strength: {context_band}
+             intent = IntentType.DIRECT # Default for specific people / hiring managers
+             # If title is generic recruiter, assume DevOps role
+             candidate_title = (c.get('title') or '').lower()
+             role_context = "DevOps / Site Reliability Engineer"
+             if candidate_title and "recruiter" not in candidate_title and "talent" not in candidate_title:
+                 role_context = c.get('title') or 'DevOps / SRE Role'
+             task_instruction = "Generate Message 2: Recruiter DM (100-120 words). Direct, respectful, and concise."
+
+        # SELECT PROMPT BASED ON INTENT
+        if intent == IntentType.OPPORTUNITY:
+            # USER PROMPT FOR RECRUITERS
+            prompt = f'''
+            You are an AI assistant inside an "AI Outreach System".
+
+            Your role is STRICTLY LIMITED to generating LinkedIn outreach messages.
+            Do NOT invent features, steps, or data that are not explicitly provided.
             
-            Primary signal: {signal['signal']}
-            AVOID: {signal['avoid']}
+            INPUT PROVIDED TO YOU:
+            - Job role: {role_context}
+            - Recipient: {c.get('name') or 'Recruiter'}
+            - Company: {c.get('company') or 'Unknown Company'}
             
-            Context: {context if context else "Reach out about their work"}
+            YOUR TASK:
+            Generate a concise, professional, human-like LinkedIn DM message that:
+            - References the hiring context naturally
+            - Matches the role mentioned ({role_context})
+            - Sounds respectful and non-salesy
+            - Is suitable for manual copy-paste
+            - Does NOT claim referrals, past conversations, or insider knowledge
             
-            Constraints:
-            - Use modal verbs ("might", "wondering") -> Softness (Opt 14)
-            - NO credentials ("As a X...") -> (Opt 17)
-            - NO "I hope this finds you well"
-            - End with a question OR soft curiosity -> (Opt 15 + Refinement){memory_constraint}
-            """
+            MESSAGE RULES:
+            - Length: 2-4 short paragraphs max
+            - Tone: professional, polite, confident
+            - No emojis
+            - No buzzwords or hype
+            - No assumptions about recruiter familiarity
+            - Do NOT use "Open to connecting"
+            
+            OUTPUT FORMAT:
+            Return ONLY the message text.
+            Do NOT include explanations, headings, or metadata.
+            '''
+        else:
+            # STANDARD MASTER PROMPT FOR OTHERS
+            prompt = f'''
+            # MASTER PROMPT (DYNAMIC PERSONA VERSION)
+            
+            You are an AI outreach assistant that generates human-sounding, high-conversion LinkedIn messages for job applications.
+            
+            INPUT CONTEXT:
+            1. CANDIDATE (SENDER) RESUME SUMMARY:
+            {user_bio}
+            
+            2. TARGET JOB / RECIPIENT CONTEXT:
+            - Recipient: {c.get('name') or 'a professional'} ({c.get('title') or 'role not specified'})
+            - Company: {c.get('company') or 'not specified'}
+            - Target Role / Context: {role_context}
+            
+            TASK: {task_instruction}
+            
+            CONTENT RULES:
+            - Always mention the exact job title: "{role_context}"
+            - Emphasize:
+              1. Hands-on experience where skills overlap
+              2. Learning mindset where skills are adjacent
+              3. Interest in infrastructure, reliability, operations, or scale
+            - End with a soft CTA (resume / connect / brief discussion)
+            
+            THINKING RULES (CRITICAL):
+            - Analyze the implied job requirements for "{role_context}".
+            - Analyze the sender's skills (Cloud, Linux, Automation, Stability).
+            - Identify 2-4 overlapping or adjacent skills.
+            - Only reference skills that actually exist in the sender's bio.
+            
+            STYLE RULES:
+            - Sound like a real human engineer, not a template.
+            - Slightly conversational, confident, and respectful.
+            - Avoid buzzwords and exaggerated claims.
+            - Do NOT sound desperate or overly polished.
+            - No emojis.
+            - No corporate marketing language.
+            
+            HARD CONSTRAINTS:
+            - Do NOT invent experience.
+            - Do NOT repeat resume bullet points.
+            - Do NOT copy sample phrasing verbatim-adapt it.
+            - Each message must feel written specifically for THIS role.
+            '''
 
         # 5. MULTI-VARIANT SCORING (Priority 1)
         # Reduced to 1 variant for Gemini Free Tier (Optimization 69)
@@ -784,10 +1209,70 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             'intent': intent
         }
         
-        result = await generate_with_scoring(prompt, contact_type, candidate_context, num_variants=1)
+        result = await generate_with_scoring(
+            prompt, 
+            contact_type, 
+            candidate_context, 
+            num_variants=1,
+            suggested_temp=biased_params.get("suggested_temperature")
+        )
         
         if not result:
-            raise HTTPException(status_code=500, detail="AI generation failed after retries")
+            # AI failed (likely 429 rate limit) — use template fallback instead of 500
+            logger.warning("AI Generation failed. Switching to Fallback Template.")
+            fallback_text = generate_fallback_draft(
+                c, sender_intro, signal['signal'],
+                intent.value, contact_type
+            )
+            variant_id = str(uuid.uuid4())
+            gen_params = {
+                "variant_id": variant_id,
+                "score": 55.0,
+                "model": "fallback-template",
+                "context_band": context_band,
+                "signal_type": signal.get('type', 'generic'),
+                "is_fallback": True,
+                "data_quality": c['_data_quality']
+            }
+            if contact_type == "linkedin":
+                res = supabase.table("drafts").insert({
+                    "candidate_id": candidate_id, "subject": "",
+                    "body": fallback_text, "intent": intent,
+                    "temperature": 0.0, "signal_used": signal['signal'],
+                    "variant_id": variant_id, "generation_params": gen_params
+                }).execute()
+                return {
+                    "type": "linkedin", "message": fallback_text,
+                    "char_count": len(fallback_text),
+                    "quality_score": 55.0,
+                    "draft_id": res.data[0]["id"],
+                    "time_to_read": calculate_time_to_read(fallback_text),
+                    "variant_id": variant_id, "is_fallback": True
+                }
+            else:
+                lines = fallback_text.strip().split('\n')
+                subject = "Quick intro"
+                body_lines = []
+                for line in lines:
+                    if "Subject:" in line:
+                        subject = line.replace("Subject:", "").strip()
+                    elif line.strip():
+                        body_lines.append(line)
+                final_body = "\n".join(body_lines).strip()
+                res = supabase.table("drafts").insert({
+                    "candidate_id": candidate_id, "subject": subject,
+                    "body": final_body, "intent": intent,
+                    "temperature": 0.0, "signal_used": signal['signal'],
+                    "variant_id": variant_id, "generation_params": gen_params
+                }).execute()
+                return {
+                    "type": "email", "subject": subject, "body": final_body,
+                    "word_count": len(final_body.split()),
+                    "quality_score": 55.0,
+                    "draft_id": res.data[0]["id"],
+                    "time_to_read": calculate_time_to_read(final_body),
+                    "variant_id": variant_id, "is_fallback": True
+                }
         
         response_text = result['text']
         score = result['score']
@@ -798,8 +1283,12 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         # Compute variant ID for this generation attempt
         variant_id = str(uuid.uuid4())
         gen_params = {
+            "variant_id": variant_id,
+            "score": score,
+            "opener_hash": result.get('opener_hash'),
+            "embedding": result.get('embedding'),
             "model": "gemini-2.0-flash",
-            "temperature": result.get('temp'),
+            "temperature": result.get('temp', 0.4),
             "context_band": context_band,
             "signal_type": signal['type']
         }
@@ -809,8 +1298,12 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             
             # Ensure proper greeting
             first_name = c['name'].split()[0] if c.get('name') else 'there'
+            # Don't prepend greeting if name is garbage
             if not final_msg.lower().startswith("hi"):
-                final_msg = f"Hi {first_name}, " + final_msg
+                if first_name and first_name.lower() not in ('unknown', 'n/a', '#'):
+                    final_msg = f"Hi {first_name}, " + final_msg
+                else:
+                    final_msg = "Hi, " + final_msg
 
             res = supabase.table("drafts").insert({
                 "candidate_id": candidate_id, 
@@ -870,9 +1363,81 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             }
 
     except HTTPException:
-        raise
+        # If it's a 500 from AI failure, fallback to template
+        logger.warning("AI Generation failed. Switching to Fallback Template.")
+        fallback_text = generate_fallback_draft(
+            c, 
+            sender_intro, 
+            signal['signal'], 
+            intent.value if hasattr(intent, 'value') else str(intent),
+            contact_type
+        )
+        
+        # We need to wrap this in the same structure as a successful result to save it
+        variant_id = str(uuid.uuid4())
+        gen_params = {
+            "variant_id": variant_id,
+            "score": 50.0, # Average score for fallback
+            "model": "fallback-template",
+            "context_band": context_band,
+            "signal_type": signal.get('type', 'generic'),
+            "is_fallback": True
+        }
+
+        # Save Fallback Draft
+        if contact_type == "linkedin":
+            res = supabase.table("drafts").insert({
+                "candidate_id": candidate_id, 
+                "subject": "", 
+                "body": fallback_text,
+                "intent": intent,
+                "temperature": 0.0,
+                "signal_used": signal['signal'],
+                "variant_id": variant_id,
+                "generation_params": gen_params
+            }).execute()
+            
+            return {
+                "type": "linkedin", 
+                "message": fallback_text, 
+                "char_count": len(fallback_text), 
+                "quality_score": 50.0,
+                "draft_id": res.data[0]["id"],
+                "time_to_read": calculate_time_to_read(fallback_text),
+                "variant_id": variant_id,
+                "is_fallback": True
+            }
+        else:
+            # Email Fallback
+            subject = "Quick question"
+            res = supabase.table("drafts").insert({
+                "candidate_id": candidate_id, 
+                "subject": subject, 
+                "body": fallback_text,
+                "intent": intent,
+                "temperature": 0.0,
+                "signal_used": signal['signal'],
+                "variant_id": variant_id,
+                "generation_params": gen_params
+            }).execute()
+            
+            return {
+                "type": "email", 
+                "subject": subject, 
+                "body": fallback_text, 
+                "word_count": len(fallback_text.split()),
+                "quality_score": 50.0,
+                "draft_id": res.data[0]["id"],
+                "time_to_read": calculate_time_to_read(fallback_text),
+                "variant_id": variant_id,
+                "is_fallback": True
+            }
+
     except Exception as e:
         logger.error(f"Generate Check Failed: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Generation logic error: {str(e)}")
+        
+        # Fallback Logic (Optimization 10)
+        # If AI fails, return basic template based on signal
+        print("Falling back to Template Logic...")

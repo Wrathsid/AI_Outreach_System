@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Settings, Brain, Menu, X, Users, Mail } from 'lucide-react';
+import { Home, Settings, Brain, Menu, X, Users, Mail, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -25,9 +25,10 @@ const Sidebar = () => {
 
   const navItems = [
     { href: '/', icon: Home, label: 'Dashboard' },
-    { href: '/search', icon: Users, label: 'Candidates' },
-    { href: '/brain', icon: Brain, label: 'Personal Brain' },
+    { href: '/search', icon: Search, label: 'Search' },
+    { href: '/candidates', icon: Users, label: 'Pipeline' },
     { href: '/drafts', icon: Mail, label: 'Drafts' },
+    { href: '/brain', icon: Brain, label: 'Personal Brain' },
 
   ];
 

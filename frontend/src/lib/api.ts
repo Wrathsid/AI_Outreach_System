@@ -1,6 +1,6 @@
-// API Client for Cold Emailing Backend
+// API Client for Intelligent Outreach Backend
 // export const API_BASE = 'http://localhost:8000'; // Hardcoded for now until env var logic is stricter
-export const API_BASE = 'http://localhost:8000';
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 // Types
 export interface Candidate {
@@ -40,6 +40,8 @@ export interface Draft {
   candidate_generated_email?: string;
   candidate_email_confidence?: number;
   email_source?: 'verified' | 'generated' | 'none';
+  match_score?: number;
+  created_at?: string;
 }
 
 export interface ActivityLog {
@@ -185,6 +187,15 @@ export const api = {
     }
   },
 
+  async deleteAllCandidates(): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/candidates/all/delete`, { method: 'DELETE' });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
   // UX Improvements: Bulk Operations & Sent Tracking
   async bulkAddToPipeline(candidateIds: number[]): Promise<boolean> {
     try {
@@ -239,6 +250,15 @@ export const api = {
       return res.json();
     } catch {
       return [];
+    }
+  },
+
+  async deleteAllDrafts(): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/drafts`, { method: 'DELETE' });
+      return res.ok;
+    } catch {
+      return false;
     }
   },
 
@@ -397,6 +417,18 @@ export const api = {
       return data.auth_url;
     } catch {
       return null;
+    }
+  },
+  // Automation
+  async launchAutomation(candidateId: number): Promise<{ status: string; detail?: string }> {
+    try {
+      const res = await fetch(`${API_BASE}/automation/launch/${candidateId}`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('API error');
+      return res.json();
+    } catch {
+      return { status: 'error', detail: 'Failed to launch automation' };
     }
   },
 };

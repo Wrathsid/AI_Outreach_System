@@ -26,7 +26,7 @@ async def google_auth_start(user_id: int = 1):
 async def google_auth_callback(code: str = None, state: str = None, error: str = None):
     """Handle OAuth callback from Google."""
     if error:
-        return RedirectResponse(url=f"http://localhost:3001/settings?error={error}")
+        return RedirectResponse(url=f"http://localhost:3000/settings?error={error}")
     
     if not code:
         return {"error": "No authorization code received"}
@@ -36,9 +36,9 @@ async def google_auth_callback(code: str = None, state: str = None, error: str =
     result = await gmail_service.exchange_code(code, state)
     
     if result.get("error"):
-        return RedirectResponse(url=f"http://localhost:3001/settings?error={result['error']}")
+        return RedirectResponse(url=f"http://localhost:3000/settings?error={result['error']}")
     
-    return RedirectResponse(url=f"http://localhost:3001/settings?gmail_connected=true&email={result.get('email', '')}")
+    return RedirectResponse(url=f"http://localhost:3000/settings?gmail_connected=true&email={result.get('email', '')}")
 
 
 @router.get("/gmail/status")
@@ -73,7 +73,7 @@ async def send_via_gmail(request: GmailSendRequest, user_id: int = 1):
         if supabase:
             supabase.table("activity_log").insert({
                 "action_type": "email_sent",
-                "title": f"Email sent via Gmail",
+                "title": "Email sent via Gmail",
                 "description": f"To: {request.to}, Subject: {request.subject[:50]}...",
                 "candidate_id": request.candidate_id
             }).execute()
@@ -81,7 +81,7 @@ async def send_via_gmail(request: GmailSendRequest, user_id: int = 1):
             if request.candidate_id:
                 supabase.table("candidates").update({
                     "status": "contacted",
-                    "contacted_at": datetime.now().isoformat()
+                    "sent_at": datetime.now().isoformat()
                 }).eq("id", request.candidate_id).execute()
         
         return {
@@ -129,7 +129,7 @@ async def send_draft_via_gmail(draft_id: int, user_id: int = 1):
         
         supabase.table("candidates").update({
             "status": "contacted",
-            "contacted_at": datetime.now().isoformat()
+            "sent_at": datetime.now().isoformat()
         }).eq("id", draft["candidate_id"]).execute()
         
         supabase.table("activity_log").insert({

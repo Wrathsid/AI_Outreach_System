@@ -2,21 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Mail, Check, Clock, ArrowRight, Loader2 } from 'lucide-react';
-import { api } from '@/lib/api';
+import { api, Candidate } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
 
-interface Candidate {
-    id: number;
-    name: string;
-    title: string;
-    company: string;
-    email?: string;
-    sent_at?: string;
-    reply_received?: boolean;
-    reply_at?: string;
-    status: string;
-}
+
 
 const SentPage = () => {
     const router = useRouter();
@@ -24,15 +14,17 @@ const SentPage = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<'all' | 'replied' | 'no-reply' | 'needs-followup'>('all');
 
-    const loadSentCandidates = async () => {
-        setLoading(true);
-        const data = await api.getSentCandidates();
-        setCandidates(data);
-        setLoading(false);
-    };
+
 
     useEffect(() => {
-        loadSentCandidates();
+        let isMounted = true;
+        api.getSentCandidates().then(data => {
+            if (isMounted) {
+                setCandidates(data);
+                setLoading(false);
+            }
+        });
+        return () => { isMounted = false; };
     }, []);
 
     const daysSince = (dateStr?: string) => {

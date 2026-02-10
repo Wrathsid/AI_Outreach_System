@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
+import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3, ShieldCheck, Moon, Trash2 } from 'lucide-react';
 import { api, Draft, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
+import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
 import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn } from './Animations';
 import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -45,9 +46,23 @@ const Dashboard = () => {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line
-    loadData();
-  }, [loadData]);
+    let isMounted = true;
+    Promise.all([
+      api.getDrafts(),
+      api.getActivity(),
+      api.getStats(),
+      api.getCandidates()
+    ]).then(([draftsData, activityData, statsData, candidatesData]) => {
+      if (isMounted) {
+        setDrafts(draftsData);
+        setActivity(activityData);
+        setStats(statsData);
+        setCandidates(candidatesData);
+        setLoading(false);
+      }
+    });
+    return () => { isMounted = false; };
+  }, []);
 
   // No need for body scroll lock since main container handles scrolling
   // We will toggle overflow on main tag instead
@@ -69,6 +84,14 @@ const Dashboard = () => {
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
+  const handleDeleteAllDrafts = async () => {
+    if (confirm('Are you sure you want to delete all drafts? This cannot be undone.')) {
+        setLoading(true);
+        await api.deleteAllDrafts();
+        await loadData(true);
+    }
+  };
+
   return (
     <main className="flex-1 flex flex-col h-full overflow-x-hidden p-4 md:p-8 relative overflow-y-auto">
       <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-8 pb-10">
@@ -77,7 +100,27 @@ const Dashboard = () => {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
           <div>
             <BlurIn delay={0}>
-              <p className="text-slate-400 font-medium text-sm mb-1 tracking-wider uppercase">{dateStr}</p>
+              <div className="flex items-center gap-3 mb-1">
+                <p className="text-slate-400 font-medium text-sm tracking-wider uppercase">{dateStr}</p>
+                {/* Reliability Status Indicator */}
+                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium border ${
+                  hour >= 9 && hour < 18 
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+                    : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                }`}>
+                  {hour >= 9 && hour < 18 ? (
+                    <>
+                      <ShieldCheck size={10} />
+                      <span>SAFE TO SEND</span>
+                    </>
+                  ) : (
+                    <>
+                      <Moon size={10} />
+                      <span>THROTTLING</span>
+                    </>
+                  )}
+                </div>
+              </div>
             </BlurIn>
             <TextReveal 
               text={`${greeting}, there.`}
@@ -108,16 +151,28 @@ const Dashboard = () => {
                       {drafts.length} pending · Avg review time: 4 min
                     </p>
                     
-                    <Link href="/drafts">
-                      <motion.button 
-                        className="mx-auto w-64 h-14 rounded-2xl bg-primary hover:bg-blue-600 transition-all text-white font-medium text-lg shadow-[0_0_40px_-10px_rgba(37,99,235,0.5)] flex items-center justify-center gap-3 group/btn"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        Review Now
-                        <ArrowRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
-                      </motion.button>
-                    </Link>
+                    <div className="flex items-center justify-center gap-4">
+                        <Link href="/drafts">
+                        <motion.button 
+                            className="w-48 h-14 rounded-2xl bg-primary hover:bg-blue-600 transition-all text-white font-medium text-lg shadow-[0_0_40px_-10px_rgba(37,99,235,0.5)] flex items-center justify-center gap-3 group/btn"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                        >
+                            Review Now
+                            <ArrowRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
+                        </motion.button>
+                        </Link>
+
+                        <motion.button
+                            onClick={handleDeleteAllDrafts}
+                            className="w-14 h-14 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-all flex items-center justify-center group/del"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            title="Delete All Drafts"
+                        >
+                            <Trash2 size={24} className="group-hover/del:text-red-400" />
+                        </motion.button>
+                    </div>
                    </>
                 ) : (
                    <>
@@ -280,10 +335,10 @@ const Dashboard = () => {
                                 </div>
                                 <div className="flex items-start gap-4">
                                     <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                        {candidate.name.charAt(0)}
+                                        {getNameInitial(candidate.name)}
                                     </div>
                                     <div>
-                                        <h4 className="text-white font-medium truncate pr-6">{candidate.name}</h4>
+                                        <h4 className="text-white font-medium truncate pr-6">{cleanDisplayName(candidate.name)}</h4>
                                         <p className="text-slate-400 text-xs truncate">{candidate.title}</p>
                                         <p className="text-slate-500 text-xs mt-1">{candidate.company}</p>
                                         

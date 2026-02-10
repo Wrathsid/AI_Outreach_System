@@ -3,7 +3,7 @@ Configuration and shared resources for the Cold Emailing backend.
 Initializes Supabase, Groq, and other shared clients.
 """
 import os
-import httpx
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,8 +53,9 @@ gemini_model = None
 if GEMINI_API_KEY:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
-        gemini_model = genai.GenerativeModel('gemini-2.0-flash') # Updated to 2.0 Flash for 2026 era
-        print("[OK] Gemini API configured")
+        # Default to 1.5 Flash for stability, but we can try 2.0 if needed
+        gemini_model = genai.GenerativeModel('gemini-1.5-flash') 
+        print("[OK] Gemini API configured (Model: gemini-1.5-flash)")
     except Exception as e:
         print(f"[ERR] Gemini API error: {e}")
 else:
@@ -62,55 +63,57 @@ else:
 
 
 async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens: int = 300, system_prompt: str = None) -> str:
-    """Generate text using Gemini API."""
+    """Generate text using Gemini API with Model Fallback."""
     if not gemini_model:
         return None
-    
-    # Gemini distinct system prompt handling
-    # We prepend system prompt to user prompt for simpler models or use key if supported
-    # gemini-1.5-flash supports system_instruction at model init, but here we keep it simple per request
     
     full_prompt = prompt
     if system_prompt:
         full_prompt = f"{system_prompt}\n\nUSER REQUEST:\n{prompt}"
     
     try:
-        # Gemini temperature is distinct
         generation_config = genai.types.GenerationConfig(
             temperature=temperature,
             max_output_tokens=max_tokens,
         )
         
-        # Async generation with retry logic (Optimization 70)
-        # Gemini Free Tier has aggressive rate limits (15 RPM)
+        # Async generation with retry logic
         import asyncio
         import random
         
         max_retries = 3
         base_delay = 2.0
         
-        for attempt in range(max_retries):
-            try:
-                response = await gemini_model.generate_content_async(
-                    full_prompt,
-                    generation_config=generation_config
-                )
-                return response.text
-                
-            except Exception as e:
-                # Check for 429 Resource Exhausted
-                if "429" in str(e) or "Resource has been exhausted" in str(e):
-                    if attempt < max_retries - 1:
-                        sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
-                        print(f"[WARN] Gemini 429 Hit. Retrying in {sleep_time:.2f}s...")
-                        await asyncio.sleep(sleep_time)
-                        continue
-                
-                # If other error or max retries reached
-                print(f"[ERR] Gemini API Attempt {attempt+1} failed: {e}")
-                if attempt == max_retries - 1:
-                    return None
+        models_to_try = ['gemini-1.5-flash', 'gemini-2.0-flash']
+        
+        for model_name in models_to_try:
+            current_model = genai.GenerativeModel(model_name)
+            
+            for attempt in range(max_retries):
+                try:
+                    response = await current_model.generate_content_async(
+                        full_prompt,
+                        generation_config=generation_config
+                    )
+                    return response.text
+                    
+                except Exception as e:
+                    error_str = str(e)
+                    if "429" in error_str or "Resource has been exhausted" in error_str:
+                        if attempt < max_retries - 1:
+                            sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                            print(f"[WARN] Gemini {model_name} 429 Hit. Retrying in {sleep_time:.2f}s...")
+                            await asyncio.sleep(sleep_time)
+                            continue
+                    
+                    print(f"[ERR] Gemini {model_name} Attempt {attempt+1} failed: {e}")
+                    if attempt == max_retries - 1:
+                        break # Try next model
+            
+            print(f"[INFO] Switching to fallback model after {model_name} failure...")
+
         return None
+
     except Exception as e:
         print(f"Gemini API Critical Error: {e}")
         return None

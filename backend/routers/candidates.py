@@ -8,7 +8,18 @@ from datetime import datetime, timedelta, timezone
 from backend.config import get_supabase, logger
 from backend.models.schemas import Candidate, CandidateCreate, BulkAddRequest
 
+
 router = APIRouter(tags=["Candidates"])
+
+def get_candidate_by_id(candidate_id: int):
+    """Helper to get candidate dict by ID (internal use)."""
+    supabase = get_supabase()
+    if supabase:
+        result = supabase.table("candidates").select("*").eq("id", candidate_id).single().execute()
+        if result.data:
+            return result.data
+    return None
+
 
 
 # ============================================================
@@ -247,3 +258,19 @@ def prune_candidates(days: int = 7):
         supabase.table("candidates").delete().lt("created_at", cutoff).execute()
         return {"status": "success", "message": f"Pruned candidates older than {days} days"}
     return {"status": "error", "message": "Database not connected"}
+
+
+@router.delete("/all/delete")
+def delete_all_candidates():
+    """Delete ALL candidates (Dangerous Operation)."""
+    supabase = get_supabase()
+    if supabase:
+        # Delete all records
+        try:
+            supabase.table("candidates").delete().neq("id", 0).execute()
+            logger.warning("Deleted ALL candidates via API")
+            return {"status": "success", "message": "All candidates deleted"}
+        except Exception as e:
+            logger.error(f"Delete all failed: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+    raise HTTPException(status_code=500, detail="Database not connected")

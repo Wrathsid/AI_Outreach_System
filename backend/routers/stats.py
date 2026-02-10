@@ -8,6 +8,7 @@ from collections import Counter
 
 from backend.config import get_supabase, logger
 from backend.models.schemas import DashboardStats, ActivityLog
+from backend.services.throttle import throttle_service
 
 router = APIRouter(tags=["Stats"])
 

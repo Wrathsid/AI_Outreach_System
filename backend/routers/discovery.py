@@ -82,11 +82,11 @@ def predict_pattern(request: PatternRequest):
 
 
 @router.get("/hr-search")
-async def discovery_hr_search(role: str = "Recruiter", company: str = "", broad_mode: bool = False):
+async def discovery_hr_search(role: str = "Recruiter", company: str = "", broad_mode: bool = False, icp_context: str = None):
     """Method 1 & 3: Advanced HR Search (V2 Architecture)."""
     query = f"{role} {company}".strip()
     return StreamingResponse(
-        orchestrator.discover_leads_stream(query, limit=30, broad_mode=broad_mode),
+        orchestrator.discover_leads_stream(query, limit=30, broad_mode=broad_mode, icp_context=icp_context),
         media_type="application/x-ndjson"
     )
 
@@ -100,7 +100,7 @@ def discover_candidates(role: str):
             msg = json.loads(line)
             if msg['type'] == 'result':
                 results.append(msg['data'])
-        except:
+        except Exception:
             pass
     return results
 
@@ -119,14 +119,14 @@ async def _search_leads_generator(role: str):
     corrected_role = role
     
     try:
-            suggestion = await generate_with_gemini(
-                role,
-                system_prompt="You are a spell checker. Correct the job title or search term. Return ONLY the corrected term. No quotes, no explanation. If correct, return original."
-            )
-            
-            if suggestion and len(suggestion) < 50 and suggestion.lower() != role.lower():
-                yield json.dumps({"type": "status", "data": f"Auto-corrected: '{role}' -> '{suggestion}'"}) + "\n"
-                corrected_role = suggestion
+        suggestion = await generate_with_gemini(
+            role,
+            system_prompt="You are a spell checker. Correct the job title or search term. Return ONLY the corrected term. No quotes, no explanation. If correct, return original."
+        )
+        
+        if suggestion and len(suggestion) < 50 and suggestion.lower() != role.lower():
+            yield json.dumps({"type": "status", "data": f"Auto-corrected: '{role}' -> '{suggestion}'"}) + "\n"
+            corrected_role = suggestion
     except Exception as e:
         yield json.dumps({"type": "error", "data": f"AI Error: {str(e)}"}) + "\n"
 

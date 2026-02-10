@@ -19,6 +19,7 @@ interface ScanResult {
     summary?: string;
     is_hr?: boolean;
     hr_score?: number;
+    resonance_score?: number;
 }
 
 // Common roles for auto-complete
@@ -205,7 +206,8 @@ const SearchPage = () => {
         try {
             const queryParams = new URLSearchParams({ 
                 role,
-                broad_mode: broadMode.toString()
+                broad_mode: broadMode.toString(),
+                icp_context: "Focus on AI engineers, recruitment leads, and agency owners in the US/Europe." // Example default context
             });
             const response = await fetch(`${API_BASE}/discover/hr-search?${queryParams.toString()}`);
             
@@ -529,6 +531,27 @@ const SearchPage = () => {
                                                     </span>
                                                 </div>
                                             </div>
+
+                                            {/* Resonance Indicator (Phase 3) */}
+                                            {r.resonance_score !== undefined && r.resonance_score > 0 && (
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex gap-0.5">
+                                                        {[1, 2, 3, 4, 5].map((i) => (
+                                                            <div 
+                                                                key={i} 
+                                                                className={`w-1 h-3 rounded-full transition-all duration-500 ${
+                                                                    (r.resonance_score! * 5) >= i 
+                                                                        ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' 
+                                                                        : 'bg-white/10'
+                                                                }`}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                    <span className="text-[10px] font-medium text-blue-400 uppercase tracking-wider">
+                                                        {r.resonance_score > 0.8 ? 'High Signal' : r.resonance_score > 0.5 ? 'Strong Match' : 'Potentially Relevant'}
+                                                    </span>
+                                                </div>
+                                            )}
 
                                             {/* Context / Intent (1 Line Max) */}
                                             {r.summary && (

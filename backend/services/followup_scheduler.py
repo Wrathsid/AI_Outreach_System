@@ -19,6 +19,9 @@ logger = logging.getLogger("backend")
 load_dotenv()
 
 from backend.config import generate_with_gemini
+from .embeddings import embeddings_service
+from .throttle import throttle_service
+import re
 
 # Follow-up timing configuration
 DEFAULT_FOLLOW_UP_DAYS = [3, 7, 14]  # Days after initial email to send follow-ups
@@ -106,10 +109,7 @@ class FollowUpScheduler:
         user_name: str = "Siddharth"
     ) -> Dict:
         """
-        Generate follow-up email content using AI.
-        
-        Returns:
-            {"subject": "...", "body": "..."}
+        Generate follow-up email content using AI with humanness scoring (Phase 3).
         """
         tone_map = {
             1: "friendly reminder",
@@ -130,6 +130,7 @@ class FollowUpScheduler:
         4. {"Offer to close the loop if they're not interested" if follow_up_number >= 2 else ""}
         5. {"This is the final follow-up, be respectful of their time" if follow_up_number >= 3 else ""}
         6. Sign off as {user_name}
+        7. Use natural paragraph breaks for human-like rhythm.
         
         Format:
         Subject: [Short subject line]
@@ -137,16 +138,27 @@ class FollowUpScheduler:
         """
         
         try:
-            content = await generate_with_gemini(
-                prompt,
-                system_prompt="You write concise follow-up emails."
-            )
+            # Generate 3 variants and score them
+            variants = []
+            for i in range(3):
+                temp = 0.4 + (i * 0.1)
+                content = await generate_with_gemini(
+                    prompt,
+                    system_prompt="You write concise, human-like follow-up emails. Avoid corporate buzzwords.",
+                    temperature=temp
+                )
+                if content:
+                    score = self._score_follow_up(content)
+                    variants.append({"content": content, "score": score})
             
-            if content:
+            if variants:
+                # Pick best variant
+                best = max(variants, key=lambda x: x["score"])["content"]
+                
                 # Parse
-                lines = content.strip().split('\n')
+                lines = best.strip().split('\n')
                 subject = f"Re: {original_subject}"
-                body = content
+                body = best
                 
                 for i, line in enumerate(lines):
                     if line.lower().startswith("subject:"):
@@ -159,8 +171,38 @@ class FollowUpScheduler:
                 return self._get_template_follow_up(candidate_name, original_subject, follow_up_number, user_name)
             
         except Exception as e:
-            logger.error(f"AI Error: {e}")
+            logger.error(f"AI Error in Follow-up Generation: {e}")
             return self._get_template_follow_up(candidate_name, original_subject, follow_up_number, user_name)
+
+    def _score_follow_up(self, text: str) -> float:
+        """Heuristic scoring for follow-ups (Simplified Phase 2/3 Guards)."""
+        score = 100.0
+        
+        # 1. Length - shorter is better for follow-ups
+        word_count = len(text.split())
+        if word_count > 60:
+            score -= 20
+        elif 20 <= word_count <= 40:
+            score += 15
+            
+        # 2. Banned AI phrases
+        banned = ["hope this finds you well", "i understand you're busy", "just checking in"]
+        for b in banned:
+            if b in text.lower():
+                score -= 30
+                
+        # 3. Asymmetry Check
+        paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+        if len(paragraphs) >= 2:
+            len1 = len(paragraphs[0])
+            len2 = len(paragraphs[1])
+            ratio = max(len1, len2) / max(min(len1, len2), 1)
+            if ratio < 1.15: # Too symmetrical
+                score -= 20
+            elif 1.5 <= ratio <= 3.0: # Good variance
+                score += 10
+                
+        return score
     
     def _get_template_follow_up(
         self, 
@@ -208,7 +250,16 @@ async def process_pending_follow_ups(supabase_client, email_sender):
     pending = await scheduler.get_pending_follow_ups()
     logger.info(f"[Follow-ups] Found {len(pending)} pending follow-ups")
     
+    # Global Throttle Check (Safe Hours & Daily Limits)
+    status = throttle_service.is_safe_to_send(supabase_client, channel="email")
+    if not status["allowed"]:
+        logger.warning(f"[Follow-ups] Throttled: {status.get('reason')}. Retrying later.")
+        return
+
     for followup in pending:
+        # Human Jitter (Wait before processing each)
+        await throttle_service.wait_for_human_delay()
+
         candidate = followup.get("candidates", {})
         candidate_id = followup["candidate_id"]
         

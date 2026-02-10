@@ -11,10 +11,13 @@ from backend.models.schemas import (
     SendEmailRequest, SendEmailDirectRequest, 
     EmailGuessRequest, EmailVerifyRequest, EmailVerifyBatchRequest
 )
-from backend.services.email_guesser import guess_emails, guess_email_for_candidate
+from backend.services.email_generator import EmailGenerator
 from backend.services.email_verifier import verify_email, verify_emails_batch
 from backend.services.email_sender import EmailSender
 from backend.services.followup_scheduler import FollowUpScheduler
+from backend.services.embeddings import embeddings_service
+from backend.services.throttle import throttle_service
+import asyncio
 
 router = APIRouter(tags=["Emails"])
 
@@ -34,12 +37,12 @@ async def guess_email_patterns(request: EmailGuessRequest):
     if not domain:
         return {"error": "Could not determine domain. Please provide company or domain."}
     
-    emails = guess_emails(request.name, domain)
+    guesses = EmailGenerator.generate_patterns(request.name, domain)
     return {
         "name": request.name,
         "company": request.company,
         "domain": domain,
-        "guesses": emails[:5]
+        "guesses": guesses
     }
 
 
@@ -56,13 +59,12 @@ async def guess_candidate_email(candidate_id: int):
     
     candidate = result.data
     
-    emails = guess_email_for_candidate(
+    guesses = EmailGenerator.generate_patterns(
         name=candidate.get("name", ""),
-        company=candidate.get("company", ""),
-        linkedin_url=candidate.get("linkedin_url")
+        company=candidate.get("company", "")
     )
     
-    best_guess = emails[0]["email"] if emails else None
+    best_guess = guesses[0]["email"] if guesses else None
     
     if best_guess:
         supabase.table("candidates").update({
@@ -74,7 +76,7 @@ async def guess_candidate_email(candidate_id: int):
         "candidate_id": candidate_id,
         "name": candidate.get("name"),
         "company": candidate.get("company"),
-        "guesses": emails,
+        "guesses": guesses,
         "saved_email": best_guess
     }
 
@@ -148,9 +150,20 @@ async def send_email_direct(request: SendEmailDirectRequest):
 
 
 @router.post("/send-legacy")
-def send_email_legacy(request: SendEmailRequest):
+async def send_email_legacy(request: SendEmailRequest):
     """Send an email and log it (legacy endpoint)."""
     supabase = get_supabase()
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+
+    # Phase 3: Adaptive Throttle Check
+    throttle = throttle_service.is_safe_to_send(supabase, channel="email")
+    if not throttle["allowed"]:
+        raise HTTPException(status_code=429, detail=throttle["reason"])
+
+    # Human-like delay
+    await asyncio.sleep(throttle_service.get_random_delay())
+    
     if supabase:
         supabase.table("sent_emails").insert({
             "candidate_id": request.candidate_id,
@@ -189,8 +202,10 @@ def send_email_legacy(request: SendEmailRequest):
                 
                 if opener:
                     opener_hash = hashlib.md5(opener.lower().encode()).hexdigest()
+                    embedding = embeddings_service.generate_embedding(opener)
                     supabase.table("sent_openers").insert({
-                        "opener_hash": opener_hash
+                        "opener_hash": opener_hash,
+                        "embedding": embedding
                     }).execute()
             except Exception as e:
                 # Don't fail the send if memory logging fails
@@ -235,6 +250,14 @@ async def send_draft(draft_id: int):
     if not to_email:
         raise HTTPException(status_code=400, detail="Candidate has no email address")
     
+    # Phase 3: Adaptive Throttle Check
+    throttle = throttle_service.is_safe_to_send(supabase, channel="email")
+    if not throttle["allowed"]:
+        raise HTTPException(status_code=429, detail=throttle["reason"])
+
+    # Human-like delay
+    await asyncio.sleep(throttle_service.get_random_delay())
+    
     sender = EmailSender()
     result = await sender.send(
         to_email=to_email,
@@ -252,7 +275,7 @@ async def send_draft(draft_id: int):
         scheduler = FollowUpScheduler(supabase)
         await scheduler.schedule_follow_ups(candidate.get("id"))
         
-        supabase.table("activity_logs").insert({
+        supabase.table("activity_log").insert({
             "action_type": "email_sent",
             "title": f"Email sent to {candidate.get('name')}",
             "description": f"Subject: {draft.get('subject')}",
@@ -274,8 +297,10 @@ async def send_draft(draft_id: int):
             
             if opener:
                 opener_hash = hashlib.md5(opener.lower().encode()).hexdigest()
+                embedding = embeddings_service.generate_embedding(opener)
                 supabase.table("sent_openers").insert({
-                    "opener_hash": opener_hash
+                    "opener_hash": opener_hash,
+                    "embedding": embedding
                 }).execute()
         except Exception as e:
             from backend.config import logger

@@ -13,6 +13,7 @@ class IntentType(str, Enum):
     PEER = "peer"        # Default for Email
     SOFT = "soft"        # Opportunity hint
     DIRECT = "direct"    # Direct ask (rare)
+    OPPORTUNITY = "opportunity" # For Recruiters
 
 
 
@@ -32,7 +33,6 @@ class Candidate(BaseModel):
     avatar_url: Optional[str] = None
     match_score: int = 0
     summary: Optional[str] = None
-    tags: Optional[List[str]] = []
     tags: Optional[List[str]] = []
     status: Optional[str] = "new"
     email_source: Optional[str] = "none"

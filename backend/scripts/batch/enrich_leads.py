@@ -99,7 +99,7 @@ async def enrich_batch(limit=20):
             continue
             
         # 2. Extract
-        company = extract_company_with_ai(lead['name'], lead['title'], context)
+        company = await extract_company_with_ai(lead['name'], lead['title'], context)
         
         # 3. Update
         if company and company != "Unknown" and len(company) < 50:
