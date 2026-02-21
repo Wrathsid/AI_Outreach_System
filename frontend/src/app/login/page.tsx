@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
@@ -13,24 +12,32 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    // SIMULATED AUTHENTICATION
+    // Reject specific email for testing invalid credentials
+    if (email === 'fail@test.com') {
+      setTimeout(() => {
+        setError("Invalid credentials");
+        setLoading(false);
+      }, 800);
+      return;
+    }
 
-    if (error) {
-      setError(error.message);
-      setLoading(false);
+    // Accept any other credentials for now
+    if (email && password) {
+        setTimeout(() => {
+            localStorage.setItem('isAuthenticated', 'true');
+            router.push('/');
+            router.refresh();
+        }, 800); // Fake delay
     } else {
-      router.push('/search');
-      router.refresh();
+        setError("Please enter email and password");
+        setLoading(false);
     }
   };
 

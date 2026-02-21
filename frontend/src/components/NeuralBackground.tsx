@@ -17,7 +17,7 @@ export default function NeuralBackground() {
     
     // Neural Nodes
     const nodes: { x: number, y: number, vx: number, vy: number, radius: number }[] = [];
-    const nodeCount = 50; 
+    const nodeCount = 30; 
     
     for (let i = 0; i < nodeCount; i++) {
         nodes.push({
@@ -65,7 +65,7 @@ export default function NeuralBackground() {
             }
         });
 
-        requestAnimationFrame(draw);
+        animId = requestAnimationFrame(draw);
     };
 
     const handleResize = () => {
@@ -74,7 +74,7 @@ export default function NeuralBackground() {
     };
 
     window.addEventListener('resize', handleResize);
-    const animId = requestAnimationFrame(draw);
+    let animId = requestAnimationFrame(draw);
 
     return () => {
         window.removeEventListener('resize', handleResize);

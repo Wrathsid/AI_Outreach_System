@@ -11,10 +11,12 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.next();
   }
   
-  // If trying to access login/signup, just go to app
+  /* 
+  // Temporarily disabled forced redirect to avoid conflict with AuthGuard
   if (path === '/login' || path === '/signup') {
       return NextResponse.redirect(new URL('/', request.url));
   }
+  */
 
   return NextResponse.next({
     request: {

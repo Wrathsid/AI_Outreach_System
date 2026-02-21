@@ -185,13 +185,16 @@ const SKILLS_CATALOG: Record<string, string[]> = {
 const ALL_SKILLS = Object.values(SKILLS_CATALOG).flat();
 
 export default function PersonalBrain() {
-  const [isSyncing, setIsSyncing] = useState(false);
+
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
+  const [userName, setUserName] = useState('');
+  const [isSavingName, setIsSavingName] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -199,6 +202,10 @@ export default function PersonalBrain() {
     const context = await api.getBrainContext();
     if (context.extracted_skills && context.extracted_skills.length > 0) {
       setSelectedSkills(context.extracted_skills);
+    }
+    const settings = await api.getSettings();
+    if (settings.full_name) {
+      setUserName(settings.full_name);
     }
   }, []);
 
@@ -218,12 +225,7 @@ export default function PersonalBrain() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSync = async () => {
-    setIsSyncing(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    await loadBrainContext();
-    setIsSyncing(false);
-  };
+
 
   const toggleSkill = (skill: string) => {
     setSaved(false);
@@ -253,6 +255,16 @@ export default function PersonalBrain() {
     setIsSaving(false);
   };
 
+  const saveName = async () => {
+    setIsSavingName(true);
+    const currentSettings = await api.getSettings();
+    await api.updateSettings({
+      ...currentSettings,
+      full_name: userName
+    });
+    setIsSavingName(false);
+  };
+
   // Filter skills based on search query
   const filteredSkills = searchQuery.trim()
     ? ALL_SKILLS.filter(s => 
@@ -266,12 +278,11 @@ export default function PersonalBrain() {
     !ALL_SKILLS.some(s => s.toLowerCase() === searchQuery.trim().toLowerCase()) &&
     !selectedSkills.some(s => s.toLowerCase() === searchQuery.trim().toLowerCase());
 
-  const trainingPercent = Math.min(95, 50 + selectedSkills.length * 3);
-  const circumference = 2 * Math.PI * 24; 
-  const dashPercentage = (trainingPercent / 100) * circumference;
+  const hasName = userName.trim().length > 0;
+  const hasSkills = selectedSkills.length > 0;
 
   return (
-    <div className="flex-1 h-full overflow-hidden relative bg-black text-white font-sans selection:bg-cyan-500/30">
+    <div className="flex-1 h-full overflow-y-auto overflow-x-hidden relative bg-black text-white font-sans selection:bg-cyan-500/30">
       <NeuralBackground />
       
       <div className="relative z-10 h-full flex flex-col p-6 md:p-12 max-w-5xl mx-auto w-full overflow-y-auto">
@@ -290,41 +301,89 @@ export default function PersonalBrain() {
              <p className="text-slate-400 text-sm font-light max-w-md leading-relaxed">
                Define your skills to train the AI on your professional context. The more specific you are, the better your outreach becomes.
              </p>
+             
+             <div className="mt-6 flex items-center gap-3">
+               <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 flex items-center gap-2 focus-within:border-cyan-500/50 focus-within:bg-white/10 transition-all w-64">
+                 <span className="text-slate-500 text-xs uppercase font-mono tracking-wider">User:</span>
+                 <input 
+                   type="text" 
+                   value={userName}
+                   onChange={(e) => setUserName(e.target.value)}
+                   onBlur={saveName}
+                   onKeyDown={(e) => e.key === 'Enter' && saveName()}
+                   placeholder="Your Name"
+                   className="bg-transparent border-none outline-none text-white text-sm w-full placeholder-slate-600"
+                 />
+                 {isSavingName && <RefreshCw size={12} className="text-cyan-500 animate-spin" />}
+               </div>
+             </div>
           </div>
 
           <div className="flex items-center gap-8">
-             {/* Circular Progress */}
+             {/* Two-Semicircle Completion Indicator */}
              <div className="relative w-16 h-16 flex items-center justify-center group cursor-default">
-                <svg className="w-full h-full transform -rotate-90">
-                    <circle cx="32" cy="32" r="24" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/5" />
-                    <circle 
-                        cx="32" cy="32" r="24" 
-                        stroke="currentColor" strokeWidth="4" 
-                        fill="transparent" 
-                        className="text-cyan-500 transition-all duration-1000 ease-out"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={circumference - dashPercentage}
-                        strokeLinecap="round"
+                <svg viewBox="0 0 64 64" className="w-full h-full">
+                    {/* Background semicircles (dim) */}
+                    {/* Left semicircle background */}
+                    <path
+                      d="M 32 4 A 28 28 0 0 0 32 60"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      className="text-white/5"
+                      strokeLinecap="round"
+                    />
+                    {/* Right semicircle background */}
+                    <path
+                      d="M 32 4 A 28 28 0 0 1 32 60"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      className="text-white/5"
+                      strokeLinecap="round"
+                    />
+                    
+                    {/* Active semicircles */}
+                    {/* Left semicircle - fills when NAME is entered */}
+                    <path
+                      d="M 32 4 A 28 28 0 0 0 32 60"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      className={`transition-all duration-700 ease-out ${hasName ? 'text-cyan-500' : 'text-transparent'}`}
+                      strokeLinecap="round"
+                    />
+                    {/* Right semicircle - fills when SKILLS are added */}
+                    <path
+                      d="M 32 4 A 28 28 0 0 1 32 60"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3.5"
+                      className={`transition-all duration-700 ease-out ${hasSkills ? 'text-cyan-500' : 'text-transparent'}`}
+                      strokeLinecap="round"
                     />
                 </svg>
-                <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    <span className="text-xs font-bold text-white">{trainingPercent}%</span>
+                {/* Center icon */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                    {hasName && hasSkills ? (
+                      <Zap size={18} className="text-cyan-400" />
+                    ) : (
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                        {!hasName && !hasSkills ? '0/2' : '1/2'}
+                      </span>
+                    )}
                 </div>
                 
                 {/* Tooltip */}
-                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-1 bg-black/80 border border-white/10 rounded text-xs text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                    Synapse Density
+                <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/90 border border-white/10 rounded text-[10px] text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none space-y-0.5">
+                    <div className={`flex items-center gap-1.5 ${hasName ? 'text-cyan-400' : 'text-slate-500'}`}>
+                      <span>{hasName ? '✓' : '○'}</span> Name
+                    </div>
+                    <div className={`flex items-center gap-1.5 ${hasSkills ? 'text-cyan-400' : 'text-slate-500'}`}>
+                      <span>{hasSkills ? '✓' : '○'}</span> Skills
+                    </div>
                 </div>
              </div>
-
-            <button 
-              onClick={handleSync}
-              disabled={isSyncing}
-              className="w-10 h-10 rounded-full bg-white/5 hover:bg-cyan-500/20 border border-white/10 hover:border-cyan-500/50 flex items-center justify-center text-slate-400 hover:text-cyan-400 transition-all duration-300"
-              title="Resynchronize Neural Net"
-            >
-              <RefreshCw size={18} className={isSyncing ? "animate-spin" : ""} />
-            </button>
           </div>
         </header>
 

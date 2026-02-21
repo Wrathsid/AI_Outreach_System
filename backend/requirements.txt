@@ -2,11 +2,15 @@ fastapi
 uvicorn
 supabase
 python-dotenv
-google-generativeai
+google-genai
 pydantic
 python-multipart
 pypdf
 beautifulsoup4
-duckduckgo-search
 requests
 dnspython
+httpx
+sentence-transformers
+playwright
+serpapi
+duckduckgo-search

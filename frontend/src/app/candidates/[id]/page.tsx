@@ -5,14 +5,12 @@ import { useRouter, useParams } from 'next/navigation';
 import { 
   Briefcase, MapPin, Linkedin, 
   Mail, ChevronDown, ChevronUp,
-  Copy, Send, ExternalLink, ArrowLeft, Trash2,
+  Copy, ExternalLink, ArrowLeft, Trash2,
   Loader2, Check, Sparkles
 } from 'lucide-react';
-import { api, Candidate, Draft } from '@/lib/api';
+import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
-import { triggerConfetti } from '@/lib/confetti';
-import { computeDraftDiff, renderDiffAsHtml } from '@/lib/diffUtil';
 
 // --- Shared Components ---
 
@@ -32,74 +30,32 @@ export default function MinimalCandidatePage() {
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Editor State
-  // Multi-Channel State
-  const [activeTab, setActiveTab] = useState<'email' | 'linkedin'>('email');
-  const [emailDraft, setEmailDraft] = useState<Draft | null>(null);
-  const [linkedinDraft, setLinkedinDraft] = useState<Draft | null>(null);
+  // LinkedIn message state
+  const [linkedinBody, setLinkedinBody] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isSending, setIsSending] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // P3: Debounce guard for generation
+  // Debounce guard for generation
   const lastGenerateRef = useRef<number>(0);
-  // U2: Cursor preservation ref
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // U4: Draft Diff State
-  const [previousDraft, setPreviousDraft] = useState<string | null>(null);
-  const [showDiff, setShowDiff] = useState(false);
-
-  // Editor State (Derived from active tab, but we keep synced for rendering)
-  // We'll use refs or just simple state updates on tab switch
-  // Actually, let's keep one "edited" state that syncs when tabs change, or separate?
-  // Simpler: Keep separate edited states to persist changes when switching tabs.
-  const [emailSubject, setEmailSubject] = useState('');
-  const [emailBody, setEmailBody] = useState('');
-  const [linkedinBody, setLinkedinBody] = useState('');
 
   // Context State
   const [showContext, setShowContext] = useState(false);
 
-  const generateContent = useCallback((type: 'email' | 'linkedin') => {
-      // P3: Debounce — ignore if triggered within 2s of last call
+  const generateLinkedinMessage = useCallback(() => {
       const now = Date.now();
       if (now - lastGenerateRef.current < 2000) return;
       lastGenerateRef.current = now;
 
-
-
-      // U4: Capture current text before regenerating
-      const currentText = type === 'email' ? emailBody : linkedinBody;
-      if (currentText.trim()) {
-          setPreviousDraft(currentText);
-          setShowDiff(false); // Reset diff view on new generation
-      }
-
       setIsGenerating(true);
-      api.generateDraft(candidateId, '', type).then(newDraft => {
+      api.generateDraft(candidateId, '', 'linkedin').then(newDraft => {
           if (newDraft) {
-             const draftData: Draft = {
-                 id: newDraft.draft_id || 0,
-                 candidate_id: candidateId,
-                 subject: newDraft.subject || '',
-                 body: (newDraft.message || newDraft.body) || '',
-                 status: 'draft'
-             };
-
-             if (type === 'email') {
-                 setEmailDraft(draftData);
-                 setEmailSubject(draftData.subject);
-                 setEmailBody(draftData.body);
-             } else {
-                 setLinkedinDraft(draftData);
-                 setLinkedinBody(draftData.body);
-             }
-             success(`Generated ${type === 'email' ? 'email' : 'connection message'}`);
+              setLinkedinBody((newDraft.message || newDraft.body) || '');
+              success('Generated connection message');
           }
           setIsGenerating(false);
       }).catch(() => setIsGenerating(false));
-  }, [candidateId, success, emailBody, linkedinBody]);
+  }, [candidateId, success]);
 
   useEffect(() => {
     let mounted = true;
@@ -107,38 +63,13 @@ export default function MinimalCandidatePage() {
     const loadData = async () => {
         setLoading(true);
         try {
-            const [candidateData, draftsData] = await Promise.all([
-                api.getCandidate(candidateId),
-                api.getDrafts()
-            ]);
+            const candidateData = await api.getCandidate(candidateId);
             
             if (mounted && candidateData) {
                 setCandidate(candidateData);
                 
-                const hasEmail = candidateData.email || candidateData.generated_email;
-                const initialTab = hasEmail ? 'email' : 'linkedin';
-                setActiveTab(initialTab);
-
-                const eDraft = draftsData.find((d: Draft) => d.candidate_id === candidateId && d.subject);
-                const lDraft = draftsData.find((d: Draft) => d.candidate_id === candidateId && !d.subject);
-                
-                if (eDraft) {
-                    setEmailDraft(eDraft);
-                    setEmailSubject(eDraft.subject);
-                    setEmailBody(eDraft.body);
-                }
-                if (lDraft) {
-                    setLinkedinDraft(lDraft);
-                    setLinkedinBody(lDraft.body);
-                }
-
-                // Auto-Generate if missing for INITIAL tab
-                // Note: We use the local vars eDraft/lDraft here
-                if (initialTab === 'email' && !eDraft) {
-                    generateContent('email');
-                } else if (initialTab === 'linkedin' && !lDraft) {
-                    generateContent('linkedin');
-                }
+                // Auto-generate LinkedIn message
+                generateLinkedinMessage();
             }
         } catch (err) {
             console.error(err);
@@ -150,7 +81,7 @@ export default function MinimalCandidatePage() {
     loadData();
 
     return () => { mounted = false; };
-  }, [candidateId, generateContent]);
+  }, [candidateId, generateLinkedinMessage]);
 
   const handleDelete = async () => {
     if (confirm('Delete this candidate?')) {
@@ -159,82 +90,16 @@ export default function MinimalCandidatePage() {
     }
   };
 
-  const handleAction = async () => {
-    if (!candidate) return;
-
-    if (activeTab === 'linkedin') {
-       navigator.clipboard.writeText(linkedinBody);
-       
-       // U3: Copy feedback — icon swap for 2s
-       setCopied(true);
-       setTimeout(() => setCopied(false), 2000);
-       
-       // POST-SEND FEEDBACK (Priority 7)
-       success("✅ Copied to clipboard. Marked as contacted.");
-       
-       // UX Improvement: Track sent (for Sent page)
-       await api.markAsSent(candidateId);
-
-       return;
-    }
-
-
-
-    // Email Mode
-    if (!emailBody) return error("Message is empty");
-    setIsSending(true);
-    const sent = await api.sendEmail(
-        candidate.email || candidate.generated_email || '', 
-        emailSubject, 
-        emailBody, 
-        candidate.id
-    );
+  const handleCopyMessage = async () => {
+    if (!linkedinBody) return error("Message is empty");
     
-    if (sent) {
-       // POST-SEND FEEDBACK (Priority 7)
-       success("✅ Email sent. Marked as contacted.");
-       triggerConfetti();
-       
-       // UX Improvement: Track sent (for Sent page)
-       await api.markAsSent(candidateId);
-    } else {
-       error("Failed to send");
-    }
-    setIsSending(false);
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _handleLaunchAutomation = async () => {
-      if (!linkedinBody) return error("Generate a draft first");
-      
-      const confirmLaunch = window.confirm("🚀 Launch Browser Automation?\n\nThis will:\n1. Open Chrome (using your profile)\n2. Go to LinkedIn\n3. Click Connect\n4. Paste the message\n\nIt will STOP before sending so you can review.");
-      if (!confirmLaunch) return;
-
-      success("Launching Automation...");
-      try {
-          const res = await api.launchAutomation(candidateId);
-          if (res.status === 'success') {
-              success("✅ Automation Complete! Check the Chrome window.");
-          } else {
-              if (res.status === 'pending') {
-                  success("⚠️ Connection already pending.");
-              } else {
-                  error("Automation finished with warnings. Check logs.");
-              }
-          }
-      } catch {
-          error("Failed to launch automation");
-      }
-  };
-  
-  const handleTabSwitch = (tab: 'email' | 'linkedin') => {
-      setActiveTab(tab);
-      // Auto-generate if switching to a tab that has no content
-      if (tab === 'email' && !emailBody && !emailDraft) {
-          generateContent('email');
-      } else if (tab === 'linkedin' && !linkedinBody && !linkedinDraft) {
-          generateContent('linkedin');
-      }
+    navigator.clipboard.writeText(linkedinBody);
+    
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    
+    success("✅ Copied to clipboard. Marked as contacted.");
+    await api.markAsSent(candidateId);
   };
 
   if (loading) {
@@ -255,11 +120,11 @@ export default function MinimalCandidatePage() {
       {/* Minimal Header */}
       <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
         <button 
-            onClick={() => router.push('/')} 
+            onClick={() => router.push('/candidates')} 
             className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm"
         >
             <ArrowLeft size={16} />
-            <span className="font-medium">Candidates</span>
+            <span className="font-medium">Pipeline</span>
         </button>
         <button 
             onClick={handleDelete}
@@ -300,8 +165,9 @@ export default function MinimalCandidatePage() {
                 </div>
             </div>
 
-            {/* Contact Actions */}
+            {/* Contact Info */}
             <div className="space-y-3 pt-4 border-t border-white/5">
+                {/* Email - display only, no compose */}
                 <div className="flex items-center justify-between group">
                     <div className="flex items-center gap-3 text-sm">
                         <Mail size={16} className={hasEmail ? "text-slate-300" : "text-slate-600"} />
@@ -309,6 +175,18 @@ export default function MinimalCandidatePage() {
                             {hasEmail ? (candidate.email || candidate.generated_email) : 'No email found'}
                         </span>
                     </div>
+                    {hasEmail && (
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(candidate.email || candidate.generated_email || '');
+                                success('Email copied to clipboard');
+                            }}
+                            className="text-slate-600 hover:text-white transition-colors p-1 rounded hover:bg-white/5"
+                            title="Copy email"
+                        >
+                            <Copy size={14} />
+                        </button>
+                    )}
                 </div>
 
                 {candidate.linkedin_url && (
@@ -379,72 +257,54 @@ export default function MinimalCandidatePage() {
             </div>
         </div>
 
-        {/* Right Column: Writing Area (8 Cols) */}
+        {/* Right Column: LinkedIn Message (8 Cols) */}
         <div className="lg:col-span-8 flex flex-col h-[calc(100vh-140px)] min-h-[500px]">
             <MinimalCard className="flex-1 flex flex-col p-1 overflow-hidden bg-[#0f0f15]">
                 
-                {/* Editor Header & Tabs */}
+                {/* Editor Header */}
                 <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between min-h-[70px]">
-                     {hasEmail && candidate.linkedin_url ? (
-                         <div className="flex items-center gap-1 bg-[#131326] p-1 rounded-lg border border-white/5">
-                             <button
-                                onClick={() => handleTabSwitch('email')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${activeTab === 'email' ? 'bg-[#0f0f15] text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                             >
-                                Email
-                             </button>
-                             <button
-                                onClick={() => handleTabSwitch('linkedin')}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'linkedin' ? 'bg-[#0077b5]/10 text-[#0077b5] shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}
-                             >
-                                <Linkedin size={12} />
-                                LinkedIn
-                             </button>
+                     <div className="flex items-center gap-3">
+                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#0077b5]/10 text-[#0077b5] text-sm font-medium">
+                             <Linkedin size={14} />
+                             LinkedIn Message
                          </div>
-                     ) : (
-                        <h2 className="font-medium text-white">
-                            {hasEmail ? 'Compose Email' : 'Connection Message'}
-                        </h2>
-                     )}
-                     
-                    {activeTab === 'email' && (
-                         <span className="text-xs text-slate-500">Draft saved locally</span>
-                    )}
+                     </div>
 
-                    {/* View Post Button (Contextual) */}
-                    {(candidate.linkedin_url?.includes('/posts/') || candidate.linkedin_url?.includes('/feed/') || candidate.linkedin_url?.includes('/activity/')) && (
-                       <a 
-                           href={candidate.linkedin_url}
-                           target="_blank" 
-                           rel="noopener noreferrer"
-                           className="ml-auto flex items-center gap-2 text-xs bg-[#131326] hover:bg-[#1c1c36] text-[#0077b5] px-3 py-1.5 rounded-lg border border-white/5 transition-colors"
-                       >
-                           <ExternalLink size={12} />
-                           View Post
-                       </a>
-                    )}
+                     <div className="flex items-center gap-2">
+                         {/* Regenerate Button */}
+                         <button
+                             onClick={generateLinkedinMessage}
+                             disabled={isGenerating}
+                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5 transition-colors disabled:opacity-50"
+                         >
+                             <Sparkles size={12} />
+                             Regenerate
+                         </button>
+
+                         {/* View Post Button (Contextual) */}
+                         {(candidate.linkedin_url?.includes('/posts/') || candidate.linkedin_url?.includes('/feed/') || candidate.linkedin_url?.includes('/activity/')) && (
+                            <a 
+                                href={candidate.linkedin_url}
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 text-xs bg-[#131326] hover:bg-[#1c1c36] text-[#0077b5] px-3 py-1.5 rounded-lg border border-white/5 transition-colors"
+                            >
+                                <ExternalLink size={12} />
+                                View Post
+                            </a>
+                         )}
+                     </div>
                 </div>
-
-                {/* Subject Line (Email Only) */}
-                {activeTab === 'email' && (
-                    <input 
-                        className="w-full bg-transparent border-b border-white/5 px-6 py-4 text-slate-200 placeholder-slate-600 focus:outline-none focus:bg-white/5 transition-colors"
-                        placeholder="Subject"
-                        value={emailSubject}
-                        onChange={(e) => setEmailSubject(e.target.value)}
-                    />
-                )}
 
                 {/* Main Textarea */}
                 <textarea
                     ref={textareaRef}
-                    className={`w-full bg-[#0f0f15] border border-white/5 focus:border-primary/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:outline-none transition-all leading-relaxed font-sans text-sm min-h-[400px] resize-y ${isGenerating ? 'animate-pulse opacity-50 cursor-wait' : ''}`}
-                    placeholder={isGenerating ? "AI is writing your message..." : (activeTab === 'email' ? "Hi [Name], I noticed..." : "Hi [Name], I'd like to connect...")}
-                    value={activeTab === 'email' ? emailBody : linkedinBody}
+                    className={`w-full flex-1 bg-[#0f0f15] border border-white/5 focus:border-primary/50 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:outline-none transition-all leading-relaxed font-sans text-sm min-h-[400px] resize-y ${isGenerating ? 'animate-pulse opacity-50 cursor-wait' : ''}`}
+                    placeholder={isGenerating ? "AI is writing your connection message..." : "Hi [Name], I'd like to connect..."}
+                    value={linkedinBody}
                     onChange={(e) => {
                       const pos = e.target.selectionStart;
-                      if (activeTab === 'email') { setEmailBody(e.target.value); } else { setLinkedinBody(e.target.value); }
-                      // U2: Restore cursor position after React re-render
+                      setLinkedinBody(e.target.value);
                       requestAnimationFrame(() => {
                         if (textareaRef.current) {
                           textareaRef.current.selectionStart = pos;
@@ -452,95 +312,36 @@ export default function MinimalCandidatePage() {
                         }
                       });
                     }}
-                    disabled={isGenerating || showDiff}
+                    disabled={isGenerating}
                 />
-                
-                {/* U4: Diff Overlay */}
-                {showDiff && previousDraft && (
-                    <div 
-                        className="absolute inset-x-5 top-[84px] bottom-16 bg-[#0f0f15]/95 backdrop-blur-sm z-10 overflow-y-auto custom-scrollbar p-4 rounded-xl border border-white/10"
-                        dangerouslySetInnerHTML={{ 
-                            __html: renderDiffAsHtml(computeDraftDiff(previousDraft, activeTab === 'email' ? emailBody : linkedinBody)) 
-                        }} 
-                    />
-                )}
 
                 {/* Footer Actions */}
                 <div className="px-6 py-4 border-t border-white/5 bg-[#131326]/50 flex items-center justify-between">
-                     {/* U1: Draft stability indicator */}
+                     {/* Character count */}
                      {(() => {
-                       const text = activeTab === 'email' ? emailBody : linkedinBody;
-                       const len = text.length;
-                       const limit = activeTab === 'linkedin' ? 300 : 600;
+                       const len = linkedinBody.length;
+                       const limit = 300;
                        const ratio = len / limit;
                        const color = ratio <= 0.85 ? 'bg-green-400' : ratio <= 1.0 ? 'bg-yellow-400' : 'bg-red-400';
                        return (
-                         <div className="flex items-center gap-4">
-                            <span className="flex items-center gap-2 text-xs text-slate-600">
-                                <span className={`w-1.5 h-1.5 rounded-full ${color} inline-block`} />
-                                {len} / {limit} chars
-                            </span>
-                            {(() => {
-                                const currentDraft = activeTab === 'email' ? emailDraft : linkedinDraft;
-                                const skillCount = currentDraft?.generation_params?.skill_count;
-                                if (skillCount !== undefined) {
-                                    return (
-                                        <div 
-                                            className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-medium text-blue-400 cursor-help transition-colors hover:bg-blue-500/20"
-                                            title={`Generated using AI analysis of resume + ${skillCount} matching skills to ensure relevance.`}
-                                        >
-                                            <Sparkles size={10} />
-                                            <span>{skillCount} Skills</span>
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            })()}
-                         </div>
+                         <span className="flex items-center gap-2 text-xs text-slate-600">
+                             <span className={`w-1.5 h-1.5 rounded-full ${color} inline-block`} />
+                             {len} / {limit} chars
+                         </span>
                        );
                      })()}
 
                      <button
-                        onClick={handleAction}
-                        disabled={isSending}
+                        onClick={handleCopyMessage}
                         className="px-6 py-2 rounded-lg bg-white text-black hover:bg-slate-200 font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
                      >
-                        {isSending ? (
-                            <Loader2 size={16} className="animate-spin" />
-                        ) : activeTab === 'email' ? (
-                            <Send size={16} />
-                        ) : copied ? (
-                            <Check size={16} className="text-green-400" />
+                        {copied ? (
+                            <Check size={16} className="text-green-500" />
                         ) : (
                             <Copy size={16} />
                         )}
-                        {activeTab === 'email' ? 'Send Email' : 'Copy for LinkedIn'}
+                        {copied ? 'Copied!' : 'Copy for LinkedIn'}
                      </button>
-
-                     {/* U4: Diff Toggle */}
-                     {previousDraft && !isGenerating && (
-                         <button
-                            onClick={() => setShowDiff(!showDiff)}
-                            className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors border ${showDiff ? 'bg-primary/20 text-primary border-primary/30' : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'}`}
-                         >
-                            {showDiff ? 'Hide Changes' : 'Show Changes'}
-                         </button>
-                     )}
-
-                     {/* Automation Button */}
-                     {/* Automation Button - MASKED per user request (Feb 10) */}
-                     {/* 
-                     {activeTab === 'linkedin' && (
-                         <button
-                            onClick={handleLaunchAutomation}
-                            className="px-4 py-2 rounded-lg bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 font-semibold text-sm transition-colors flex items-center gap-2 border border-blue-600/30"
-                            title="Auto-open LinkedIn and paste message"
-                         >
-                            <Send size={16} />
-                            <span>Auto-Fill</span>
-                         </button>
-                     )}
-                     */}
                 </div>
             </MinimalCard>
         </div>

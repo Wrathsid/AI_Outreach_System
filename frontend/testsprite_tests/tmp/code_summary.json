@@ -1,0 +1,74 @@
+{
+  "tech_stack": [
+    "TypeScript",
+    "Next.js 16 (App Router)",
+    "React 19",
+    "Tailwind CSS 4",
+    "Framer Motion",
+    "Supabase",
+    "Lucide React",
+    "Recharts",
+    "Zustand (implied by previous context/sidebar)",
+    "Lenis"
+  ],
+  "features": [
+    {
+      "name": "Authentication",
+      "description": "User login, signup, and route protection using AuthGuard.",
+      "files": [
+        "src/app/login/page.tsx",
+        "src/app/signup/page.tsx",
+        "src/components/AuthGuard.tsx"
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Main application dashboard showing statistics and navigation.",
+      "files": [
+        "src/app/page.tsx",
+        "src/components/Dashboard.tsx",
+        "src/components/StatCard.tsx"
+      ]
+    },
+    {
+      "name": "Candidate Management",
+      "description": "Viewing and managing candidates/leads in the outreach pipeline.",
+      "files": [
+        "src/app/candidates/page.tsx",
+        "src/app/candidates/[id]/page.tsx"
+      ]
+    },
+    {
+      "name": "Search",
+      "description": "Search functionality for leads and candidates.",
+      "files": [
+        "src/app/search/page.tsx",
+        "src/components/CommandPalette.tsx"
+      ]
+    },
+    {
+      "name": "Email/Drafting",
+      "description": "Managing email drafts and outreach messages.",
+      "files": [
+        "src/app/drafts/page.tsx"
+      ]
+    },
+    {
+      "name": "UI Shell",
+      "description": "Core layout components including Sidebar and background animations.",
+      "files": [
+        "src/app/layout.tsx",
+        "src/components/Sidebar.tsx",
+        "src/components/NeuralBackground.tsx",
+        "src/components/Animations.tsx"
+      ]
+    },
+    {
+      "name": "API Service",
+      "description": "Central API communication layer.",
+      "files": [
+        "src/lib/api.ts"
+      ]
+    }
+  ]
+}

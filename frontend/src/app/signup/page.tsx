@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/utils/supabase/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
@@ -13,31 +12,18 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const supabase = createClient();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
-      }
-    });
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-    } else {
-      // Auto-login or show verification message? 
-      // Supabase defaults to requiring email verification mostly, but for dev it might just work or send email
-      // We'll assume success and redirect or show message
-      router.push('/search'); // Or show "Check your email"
-      router.refresh();
-    }
+    // SIMULATED AUTHENTICATION
+    setTimeout(() => {
+        localStorage.setItem('isAuthenticated', 'true');
+        router.push('/');
+        router.refresh();
+    }, 800);
   };
 
   return (

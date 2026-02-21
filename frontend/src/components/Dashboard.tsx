@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3, Trash2 } from 'lucide-react';
-import { api, Draft, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
+import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
+import { api, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
 import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
 import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn } from './Animations';
 import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -14,14 +14,12 @@ import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieC
 const Dashboard = () => {
 
 
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [activity, setActivity] = useState<ActivityLog[]>([]);
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ 
     weekly_goal_percent: 0, 
     people_found: 0, 
     emails_sent: 0, 
-    replies_received: 0,
     account_health: 100,
     is_safe: true,
     recent_leads: [],
@@ -29,18 +27,13 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-
-
-
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setLoading(true);
-    const [draftsData, activityData, statsData, candidatesData] = await Promise.all([
-      api.getDrafts(),
+    const [activityData, statsData, candidatesData] = await Promise.all([
       api.getActivity(),
       api.getStats(),
       api.getCandidates()
     ]);
-    setDrafts(draftsData);
     setActivity(activityData);
     setStats(statsData);
     setCandidates(candidatesData);
@@ -50,13 +43,11 @@ const Dashboard = () => {
   useEffect(() => {
     let isMounted = true;
     Promise.all([
-      api.getDrafts(),
       api.getActivity(),
       api.getStats(),
       api.getCandidates()
-    ]).then(([draftsData, activityData, statsData, candidatesData]) => {
+    ]).then(([activityData, statsData, candidatesData]) => {
       if (isMounted) {
-        setDrafts(draftsData);
         setActivity(activityData);
         setStats(statsData);
         setCandidates(candidatesData);
@@ -65,9 +56,6 @@ const Dashboard = () => {
     });
     return () => { isMounted = false; };
   }, []);
-
-  // No need for body scroll lock since main container handles scrolling
-  // We will toggle overflow on main tag instead
 
   const formatTimeAgo = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -86,14 +74,6 @@ const Dashboard = () => {
   const hour = today.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const handleDeleteAllDrafts = async () => {
-    if (confirm('Are you sure you want to delete all drafts? This cannot be undone.')) {
-        setLoading(true);
-        await api.deleteAllDrafts();
-        await loadData(true);
-    }
-  };
-
   return (
     <main className="flex-1 flex flex-col h-full overflow-x-hidden p-4 md:p-8 relative overflow-y-auto">
       <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-8 pb-10">
@@ -104,7 +84,6 @@ const Dashboard = () => {
             <BlurIn delay={0}>
               <div className="flex items-center gap-3 mb-1">
                 <p className="text-slate-400 font-medium text-sm tracking-wider uppercase">{dateStr}</p>
-
               </div>
             </BlurIn>
             <TextReveal 
@@ -115,7 +94,6 @@ const Dashboard = () => {
               <span className="text-slate-400/60 font-normal text-3xl md:text-4xl block mt-1">Your AI is ready to connect.</span>
             </BlurIn>
           </div>
-
         </header>
 
         {/* Hero Section - Simplified */}
@@ -127,58 +105,22 @@ const Dashboard = () => {
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none group-hover:bg-primary/10 transition-colors duration-700"></div>
 
               <div className="relative z-10 max-w-2xl w-full">
-                {drafts.length > 0 ? (
-                   <>
-                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-2 tracking-tight">
-                      Review <span className="text-primary">{drafts.length}</span> Drafts
-                    </h2>
-                    <p className="text-slate-400 text-lg mb-8">
-                      {drafts.length} pending · Avg review time: 4 min
-                    </p>
-                    
-                    <div className="flex items-center justify-center gap-4">
-                        <Link href="/drafts">
-                        <motion.button 
-                            className="w-48 h-14 rounded-2xl bg-primary hover:bg-blue-600 transition-all text-white font-medium text-lg shadow-[0_0_40px_-10px_rgba(37,99,235,0.5)] flex items-center justify-center gap-3 group/btn"
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                        >
-                            Review Now
-                            <ArrowRight size={20} className="group-hover/btn:translate-x-1 transition-transform" />
-                        </motion.button>
-                        </Link>
-
-                        <motion.button
-                            onClick={handleDeleteAllDrafts}
-                            className="w-14 h-14 rounded-2xl bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 transition-all flex items-center justify-center group/del"
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                            title="Delete All Drafts"
-                        >
-                            <Trash2 size={24} className="group-hover/del:text-red-400" />
-                        </motion.button>
-                    </div>
-                   </>
-                ) : (
-                   <>
-                    <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
-                      Ready to Prospect?
-                    </h2>
-                    <p className="text-slate-400 text-lg mb-8">
-                       Start your search to find new leads.
-                    </p>
-                    <Link href="/search">
-                      <motion.button 
-                        className="mx-auto w-64 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 transition-all text-white font-medium text-lg shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)] flex items-center justify-center gap-3 group/btn"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        Find Leads
-                        <UserSearch size={20} />
-                      </motion.button>
-                    </Link>
-                   </>
-                )}
+                <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 tracking-tight">
+                  Ready to Prospect?
+                </h2>
+                <p className="text-slate-400 text-lg mb-8">
+                   Start your search to find new leads.
+                </p>
+                <Link href="/search">
+                  <motion.button 
+                    className="mx-auto w-64 h-14 rounded-2xl bg-emerald-500 hover:bg-emerald-600 transition-all text-white font-medium text-lg shadow-[0_0_40px_-10px_rgba(16,185,129,0.5)] flex items-center justify-center gap-3 group/btn"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Find Leads
+                    <UserSearch size={20} />
+                  </motion.button>
+                </Link>
               </div>
 
               {/* Refresh Button (Subtle, Top Right) */}
@@ -358,7 +300,7 @@ const Dashboard = () => {
                   </div>
                 ) : activity.length > 0 ? (
                   <StaggerContainer staggerDelay={0.05}>
-                    {activity.map((item) => (
+                    {activity.slice(0, 10).map((item) => (
                       <StaggerItem key={item.id}>
                         <Link 
                           href={item.candidate_id ? `/candidates/${item.candidate_id}` : '#'} 

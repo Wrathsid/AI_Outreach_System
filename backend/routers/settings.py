@@ -240,3 +240,39 @@ def verify_linkedin_url(url: str):
         return {"valid": True, "message": "Valid LinkedIn Profile URL"}
     else:
         return {"valid": False, "message": "Invalid URL format. Must be linkedin.com/in/username"}
+
+
+@router.delete("/account")
+def delete_account():
+    """Delete all user data (Hard Reset)."""
+    supabase = get_supabase()
+    if supabase:
+        try:
+            # Delete in order of constraints
+            supabase.table("activity_log").delete().neq("id", 0).execute()
+            supabase.table("drafts").delete().neq("id", 0).execute()
+            supabase.table("candidates").delete().neq("id", 0).execute()
+            
+            # Reset Settings & Brain to defaults (don't delete rows to keep ID 1 valid)
+            supabase.table("user_settings").update({
+                "full_name": None,
+                "company": None,
+                "role": None,
+                "updated_at": datetime.now().isoformat()
+            }).eq("id", 1).execute()
+
+            supabase.table("brain_context").update({
+                "formality": 75,
+                "detail_level": 30,
+                "use_emojis": False,
+                "resume_url": None,
+                "resume_text": None,
+                "extracted_skills": [],
+                "updated_at": datetime.now().isoformat()
+            }).eq("id", 1).execute()
+            
+            return {"status": "success", "message": "Account reset successfully"}
+        except Exception as e:
+            logger.error(f"Delete Account Failed: {e}")
+            return {"status": "error", "message": str(e)}
+    return {"status": "not connected"}

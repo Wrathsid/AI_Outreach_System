@@ -1,0 +1,33 @@
+version: "2"
+type: frontend
+tech_stack:
+  - TypeScript
+  - React
+  - Next.js (App Router)
+  - Tailwind CSS
+features:
+  - name: Authentication
+    description: User login and signup views
+    files:
+      - src/app/login/page.tsx
+      - src/app/signup/page.tsx
+  - name: Dashboard
+    description: Main dashboard showing recent drafts and candidate list
+    files:
+      - src/app/page.tsx
+      - src/components/Dashboard.tsx
+  - name: Candidates Management
+    description: View and manage leads/candidates
+    files:
+      - src/app/candidates/page.tsx
+      - src/app/candidates/[id]/page.tsx
+  - name: Brain Settings
+    description: Setup context and skills for the AI to use
+    files:
+      - src/app/brain/page.tsx
+  - name: General Settings
+    description: Update user settings
+    files:
+      - src/app/settings/page.tsx
+      - src/components/Sidebar.tsx
+known_limitations: []

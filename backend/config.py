@@ -3,6 +3,7 @@ Configuration and shared resources for the Cold Emailing backend.
 Initializes Supabase, Groq, and other shared clients.
 """
 import os
+import sys
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -34,37 +35,64 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 # Initialize Supabase client
-supabase = None
-if SUPABASE_URL and SUPABASE_KEY:
-    try:
-        from supabase import create_client
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        print("[OK] Supabase connected")
-    except Exception as e:
-        print(f"[ERR] Supabase not connected: {e}")
-else:
-    print("[WARN] Supabase credentials not found - using local storage")
+_supabase = None
+
+def get_supabase():
+    """Get the Supabase client instance with lazy initialization."""
+    global _supabase
+    if _supabase is not None:
+        return _supabase
+        
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            from supabase import create_client
+            _supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+            logger.info("Supabase connected")
+            return _supabase
+        except Exception as e:
+            logger.error(f"Supabase not connected: {e}")
+    else:
+        logger.warning("Supabase credentials not found - using local storage")
+    return None
+
+# Initialize it on module load if not in testing
+if "pytest" not in sys.modules:
+    get_supabase()
 
 # Initialize Gemini client
-import google.generativeai as genai
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+_gemini_model = None
 
-gemini_model = None
-if GEMINI_API_KEY:
-    try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        # Default to 1.5 Flash for stability, but we can try 2.0 if needed
-        gemini_model = genai.GenerativeModel('gemini-1.5-flash') 
-        print("[OK] Gemini API configured (Model: gemini-1.5-flash)")
-    except Exception as e:
-        print(f"[ERR] Gemini API error: {e}")
-else:
-    print("[WARN] GEMINI_API_KEY not found - AI features disabled")
+def get_gemini_model():
+    """Get the Gemini model instance with lazy initialization."""
+    global _gemini_model
+    if _gemini_model is not None:
+        return _gemini_model
+        
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    if GEMINI_API_KEY:
+        try:
+            from google import genai
+            _gemini_model = genai.Client(api_key=GEMINI_API_KEY)
+            logger.info("Gemini API configured (Client initialized)")
+            return _gemini_model
+        except Exception as e:
+            logger.error(f"Gemini API error: {e}")
+    else:
+        logger.warning("GEMINI_API_KEY not found - AI features disabled")
+    return None
+
+# Initialize it on module load if not in testing
+if "pytest" not in sys.modules:
+    get_gemini_model()
 
 
 async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens: int = 300, system_prompt: str = None) -> str:
     """Generate text using Gemini API with Model Fallback."""
-    if not gemini_model:
+    client = get_gemini_model()
+    if not client:
         return None
     
     full_prompt = prompt
@@ -72,30 +100,30 @@ async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens
         full_prompt = f"{system_prompt}\n\nUSER REQUEST:\n{prompt}"
     
     try:
-        generation_config = genai.types.GenerationConfig(
-            temperature=temperature,
-            max_output_tokens=max_tokens,
-        )
-        
         # Async generation with retry logic
         import asyncio
         import random
+        from google.genai import types
         
         max_retries = 3
         base_delay = 2.0
         
-        models_to_try = ['gemini-1.5-flash', 'gemini-2.0-flash']
+        # Models to try (using new SDK model names)
+        models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
         
         for model_name in models_to_try:
-            current_model = genai.GenerativeModel(model_name)
             
             for attempt in range(max_retries):
                 try:
                     # R4: Wrap in timeout to prevent hanging requests
                     response = await asyncio.wait_for(
-                        current_model.generate_content_async(
-                            full_prompt,
-                            generation_config=generation_config
+                        client.aio.models.generate_content(
+                            model=model_name,
+                            contents=full_prompt,
+                            config=types.GenerateContentConfig(
+                                temperature=temperature,
+                                max_output_tokens=max_tokens
+                            )
                         ),
                         timeout=15.0
                     )
@@ -113,7 +141,14 @@ async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens
                     error_str = str(e)
                     if "429" in error_str or "Resource has been exhausted" in error_str:
                         if attempt < max_retries - 1:
-                            sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                            # Try to extract the requested retry delay
+                            import re
+                            retry_match = re.search(r'retry in ([\d\.]+)s', error_str)
+                            if retry_match:
+                                sleep_time = min(float(retry_match.group(1)) + 1.0, 60.0)
+                            else:
+                                sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                            
                             print(f"[WARN] Gemini {model_name} 429 Hit. Retrying in {sleep_time:.2f}s...")
                             await asyncio.sleep(sleep_time)
                             continue
@@ -144,7 +179,7 @@ def setup_cors(app: FastAPI):
 
 def get_supabase():
     """Get the Supabase client instance."""
-    return supabase
+    return _supabase
 
 
 

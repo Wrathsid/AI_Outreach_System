@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Settings, Brain, Menu, X, Users, Mail, Search } from 'lucide-react';
+import { Home, Settings, Brain, Menu, X, Users, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const Sidebar = () => {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -21,13 +20,15 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Hide Sidebar on Auth pages
+  if (pathname === '/login' || pathname === '/signup') return null;
+
   const isActive = (path: string) => pathname === path;
 
   const navItems = [
     { href: '/', icon: Home, label: 'Dashboard' },
     { href: '/search', icon: Search, label: 'Search' },
     { href: '/candidates', icon: Users, label: 'Pipeline' },
-    { href: '/drafts', icon: Mail, label: 'Drafts' },
     { href: '/brain', icon: Brain, label: 'Personal Brain' },
 
   ];

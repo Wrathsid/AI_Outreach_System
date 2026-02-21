@@ -108,27 +108,31 @@ class DiscoveryOrchestrator:
             role = parsed["role"]
             company = parsed["company"]
         elif "linkedin.com/posts" in url or "linkedin.com/feed" in url:
-            # LinkedIn post — extract poster name from URL slug, NOT the title
+            # LinkedIn post — extract poster name from title snippet first (most reliable)
             from backend.services.hr_extractor import (
                 parse_linkedin_post_url, extract_poster_info_from_snippet, 
                 extract_role_from_post_body
             )
             
-            # Layer 1: Extract name from URL slug (most reliable)
-            url_info = parse_linkedin_post_url(url)
-            if url_info.get("name"):
-                name = url_info["name"]
-            
-            # Layer 2: Extract name/title/company from Google snippet
+            # Layer 1: Extract name from Google snippet title (most reliable for names)
+            # e.g. "Ramiro Torres on LinkedIn: We are Hiring!!" → "Ramiro Torres"
             snippet_info = extract_poster_info_from_snippet(title, body)
             if snippet_info.get("name"):
-                name = snippet_info["name"]  # Override with full name from snippet
+                name = snippet_info["name"]
+            
+            # Layer 2: Fallback — extract from URL slug only if snippet didn't find a name
+            if name == "Candidate":
+                url_info = parse_linkedin_post_url(url)
+                if url_info.get("name"):
+                    name = url_info["name"]
+            
+            # Layer 3: Extract company/title from snippet
             if snippet_info.get("company"):
                 company = snippet_info["company"]
             if snippet_info.get("title"):
                 role = snippet_info["title"]
             
-            # Layer 3: Extract role being hired for from body
+            # Layer 4: Extract role being hired for from body
             post_role = extract_role_from_post_body(body)
             if post_role and role == search_role:
                 role = post_role

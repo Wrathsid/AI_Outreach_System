@@ -70,7 +70,6 @@ export interface DashboardStats {
   weekly_goal_percent: number;
   people_found: number;
   emails_sent: number;
-  replies_received: number;
   account_health: number;
   is_safe: boolean;
   safety_reason?: string;
@@ -345,7 +344,7 @@ export const api = {
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
-      return { weekly_goal_percent: 0, people_found: 0, emails_sent: 0, replies_received: 0, account_health: 100, is_safe: true, recent_leads: [], top_industries: [] };
+      return { weekly_goal_percent: 0, people_found: 0, emails_sent: 0, account_health: 100, is_safe: true, recent_leads: [], top_industries: [] };
     }
   },
 
@@ -362,7 +361,7 @@ export const api = {
   // Brain Context
   async updateSkills(skills: string[]): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/brain/skills`, {
+      const res = await fetch(`${API_BASE}/settings/brain/skills`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(skills),
@@ -375,7 +374,7 @@ export const api = {
 
   async getBrainContext(): Promise<{ formality: number; detail_level: number; use_emojis: boolean; resume_url?: string; extracted_skills?: string[] }> {
     try {
-      const res = await fetch(`${API_BASE}/brain`);
+      const res = await fetch(`${API_BASE}/settings/brain`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -385,7 +384,7 @@ export const api = {
 
   async updateBrainContext(formality: number, detailLevel: number, useEmojis: boolean): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/brain?formality=${formality}&detail_level=${detailLevel}&use_emojis=${useEmojis}`, {
+      const res = await fetch(`${API_BASE}/settings/brain?formality=${formality}&detail_level=${detailLevel}&use_emojis=${useEmojis}`, {
         method: 'PUT',
       });
       return res.ok;
@@ -396,7 +395,7 @@ export const api = {
 
   async verifyLinkedIn(url: string): Promise<{ valid: boolean; message: string }> {
     try {
-      const res = await fetch(`${API_BASE}/verify-linkedin?url=${encodeURIComponent(url)}`, {
+      const res = await fetch(`${API_BASE}/settings/verify-linkedin?url=${encodeURIComponent(url)}`, {
           method: 'POST'
       });
       if (!res.ok) throw new Error('API error');
@@ -409,7 +408,7 @@ export const api = {
   // AI Extraction
   extractOpportunity: async (text: string): Promise<ExtractedOpportunity | null> => {
     try {
-      const res = await fetch(`${API_BASE}/extract-opportunity`, {
+      const res = await fetch(`${API_BASE}/settings/extract-opportunity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -453,6 +452,18 @@ export const api = {
       return res.json();
     } catch {
       return { status: 'error', detail: 'Failed to launch automation' };
+    }
+  },
+
+  // Account Management
+  async deleteAccount(): Promise<boolean> {
+    try {
+      const res = await fetch(`${API_BASE}/settings/account`, {
+        method: 'DELETE',
+      });
+      return res.ok;
+    } catch {
+      return false;
     }
   },
 };

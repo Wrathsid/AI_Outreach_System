@@ -1,0 +1,42 @@
+Product Name:
+AI Outreach System
+
+Purpose:
+Generate high-quality, personalized LinkedIn/email outreach drafts using user skills and profile context.
+
+Core Flow:
+1. User searches for a role/job/internship.
+2. System discovers relevant leads.
+3. User adds selected leads to pipeline.
+4. Draft is generated automatically.
+5. User reviews draft.
+6. User copies message and sends manually on LinkedIn.
+
+Non-Goals:
+- No automated sending.
+- No CRM complexity.
+- No campaign management.
+
+Key Features:
+- Deterministic draft generation
+- Skill-grounded personalization
+- Channel auto-detection (email/LinkedIn)
+- Idempotent draft generation
+- Length normalization
+- Hedge removal
+- Tone control (if implemented)
+
+AI Behavior:
+- Uses extracted skills from resume.
+- Does not hallucinate skills.
+- Enforces structured message format.
+- Has timeout and retry safety.
+
+Technical Stack:
+Frontend: Next.js + Tailwind
+Backend: FastAPI
+Database: Supabase
+AI: Gemini
+
+Success Metric:
+User can generate a high-quality outreach draft in under 30 seconds.

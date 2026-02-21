@@ -9,7 +9,7 @@ export default function Template({ children }: { children: React.ReactNode }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="flex-1 flex flex-col h-full overflow-hidden" // Ensure it takes full space
+      className="flex-1 flex flex-col h-full overflow-y-auto overflow-x-hidden" // Allow vertical scroll on small viewports
     >
       {children}
     </motion.div>

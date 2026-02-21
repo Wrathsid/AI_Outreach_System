@@ -20,14 +20,14 @@ router = APIRouter(tags=["Drafts"])
 # ============================================================
 # R5: VALID CHANNELS
 # ============================================================
-VALID_CHANNELS = {"email", "linkedin"}
+VALID_CHANNELS = {"linkedin"}
 
 
 # ============================================================
 # Q5: CHANNEL TONE LOCK
 # ============================================================
 CHANNEL_TONE = {
-    "linkedin": "TONE: Casual, mid-thought, low-pressure. Like a quick note to a peer. Keep it under 220 chars.",
+    "linkedin": "TONE: Casual, professional, and engaging. Write 1-2 distinct paragraphs. Keep it around 300-600 chars.",
     "email": "TONE: Professional but 'typed', not 'composed'. Slightly asymmetrical rhythm. Keep it under 100 words."
 }
 
@@ -126,10 +126,10 @@ def validate_structure(text: str, contact_type: str) -> bool:
 def normalize_length(text: str, contact_type: str) -> str:
     """Hard-trim to channel limits (Q4)."""
     if contact_type == "linkedin":
-        if len(text) > 300:
-            trimmed = text[:300]
+        if len(text) > 800:
+            trimmed = text[:800]
             last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
-            if last_period > 100:
+            if last_period > 300:
                 return trimmed[:last_period + 1]
             return trimmed.rstrip() + "..."
     else:  # email
@@ -353,11 +353,11 @@ def score_draft(text: str, contact_type: str, candidate_context: dict = None) ->
     # Length sweet spot
     if contact_type == "linkedin":
         length = len(text)
-        if 140 <= length <= 200:
+        if 250 <= length <= 600:
             score += 20
-        elif length < 120:
+        elif length < 150:
             score -= 10
-        elif length > 250:
+        elif length > 800:
             score -= 15
     else:  # Email
         word_count = len(text.split())
@@ -928,7 +928,7 @@ NEGATIVE CONSTRAINTS (CRITICAL):
 RULES:
 - Start MID-THOUGHT ("Saw you're...", "Noticed...")
 - NO introductions ("Hi name, I am...")
-- ONE paragraph only.
+- Write 1-2 distinct paragraphs.
 - MAX 1 question.
 
 STRUCTURE:
@@ -936,7 +936,7 @@ STRUCTURE:
 2. Observation ("Saw you're hiring for X", "Noticed your post on Y")
 3. Soft question ("Curious how you're thinking about Z", "Open to a quick exchange?")
 
-MAX: 220 chars. Write the message ONLY.
+MAX: 600 chars. Write the message ONLY.
 """,
     IntentType.PEER: PERSONA_ANCHOR + """
 You are writing a cold email to a peer.
@@ -974,7 +974,7 @@ RULES:
 - Genuine compliment (must be specific).
 - Soft open loop ("Wondering if...")
 
-MAX: 200 chars (LI) or 80 words (Email). Write the message ONLY.
+MAX: 600 chars (LI) or 80 words (Email). Write the message ONLY.
 """,
     IntentType.DIRECT: PERSONA_ANCHOR + """
 You are writing a high-signal value email.
@@ -1011,7 +1011,7 @@ STRUCTURE:
 3. "Saw you're hiring for [Role] / recruiting for technical roles."
 4. Direct Ask (Review profile / hiring status).
 
-MAX: 75 words. Write the message ONLY.
+MAX: 150 words. Write the message ONLY.
 """,
 
 
@@ -1139,7 +1139,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             
         # Auto-detect contact type
         if contact_type == "auto":
-            contact_type = "email" if (c.get("email") or c.get("generated_email")) else "linkedin"
+            contact_type = "linkedin"  # Email drafting disabled
 
         # R5: Strict channel lock — reject invalid contact types early
         if contact_type not in VALID_CHANNELS:
