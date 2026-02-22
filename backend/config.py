@@ -88,6 +88,36 @@ def get_gemini_model():
 if "pytest" not in sys.modules:
     get_gemini_model()
 
+# ============================================================
+# Initialize Qubrid OpenAI Client
+# ============================================================
+_qubrid_client = None
+
+def get_qubrid_client():
+    """Get the Qubrid AsyncOpenAI client instance."""
+    global _qubrid_client
+    if _qubrid_client is not None:
+        return _qubrid_client
+    
+    QUBRID_API_KEY = os.getenv("QUBRID_API_KEY")
+    if QUBRID_API_KEY:
+        try:
+            from openai import AsyncOpenAI
+            _qubrid_client = AsyncOpenAI(
+                base_url="https://platform.qubrid.com/v1",
+                api_key=QUBRID_API_KEY,
+            )
+            logger.info("Qubrid API configured (Client initialized)")
+            return _qubrid_client
+        except Exception as e:
+            logger.error(f"Qubrid API error: {e}")
+    else:
+        logger.warning("QUBRID_API_KEY not found - Qubrid features disabled")
+    return None
+
+if "pytest" not in sys.modules:
+    get_qubrid_client()
+
 
 async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens: int = 300, system_prompt: str = None) -> str:
     """Generate text using Gemini API with Model Fallback."""
@@ -167,6 +197,70 @@ async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens
 
     except Exception as e:
         print(f"Gemini API Critical Error: {e}")
+        return None
+
+async def generate_with_qubrid(prompt: str, temperature: float = 0.5, max_tokens: int = 1500, system_prompt: str = None) -> str:
+    """Generate text using Qubrid Platform via OpenAI SDK."""
+    client = get_qubrid_client()
+    if not client:
+        return None
+    
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    
+    messages.append({"role": "user", "content": prompt})
+
+    try:
+        import asyncio
+        import random
+        
+        max_retries = 3
+        base_delay = 2.0
+        
+        # We recommend Llama-3.3-70B over Fara-7B for highly detailed and structurally complex instructions
+        model_name = "meta-llama/Llama-3.3-70B-Instruct"
+
+        for attempt in range(max_retries):
+            try:
+                # Wrap in timeout
+                response = await asyncio.wait_for(
+                    client.chat.completions.create(
+                        model=model_name,
+                        messages=messages,
+                        max_tokens=max_tokens,
+                        temperature=temperature,
+                        top_p=1,
+                    ),
+                    timeout=20.0
+                )
+                if response and response.choices and len(response.choices) > 0:
+                    return response.choices[0].message.content
+                return None
+            
+            except asyncio.TimeoutError:
+                logger.warning(f"Qubrid {model_name} timed out on attempt {attempt+1}")
+                if attempt < max_retries - 1:
+                    sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                    await asyncio.sleep(sleep_time)
+                    continue
+                break
+                
+            except Exception as e:
+                if "429" in str(e) or "Too Many Requests" in str(e):
+                    if attempt < max_retries - 1:
+                        sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                        logger.warning(f"Qubrid {model_name} 429 Hit. Retrying in {sleep_time:.2f}s...")
+                        await asyncio.sleep(sleep_time)
+                        continue
+                logger.error(f"Qubrid {model_name} Attempt {attempt+1} failed: {e}")
+                if attempt == max_retries - 1:
+                    break
+
+        return None
+
+    except Exception as e:
+        logger.error(f"Qubrid API Critical Error: {e}")
         return None
 
 
