@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Home, Settings, Brain, Menu, X, Users, Search } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { MagneticHover } from './Animations';
 
 const Sidebar = () => {
   const pathname = usePathname();
@@ -89,12 +90,14 @@ const Sidebar = () => {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', delay: 0.2 }}
         >
-          <motion.div 
-            className="bg-center bg-no-repeat bg-cover rounded-full size-12 shadow-lg ring-2 ring-white/10" 
-            style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBXRt6dLsnIlX1FqjzEzocSMwA4U5jYadog5VnpuINqK2rcNy2lJyVmKHo-cSc7nOZEkRIWPFZP8btRf2iNM5eHJz5rvIsBx7V620ZutDXFBoJISXi4vx2GzPSHvRz7LXDpcs7RrfO4n-5eUoiFCl3awvnp731qmHDjJA671Z83FqNI7wavnAL_wqXyc3n6VyQd4HuGuws3BKB2wrzydcq8KouwQPiYXbXbbVTbDKOt-BB6OtqHMqTUuHFkLZq0ymACETLUYcxBrPXv")' }}
-            whileHover={{ scale: 1.1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-          />
+          <MagneticHover>
+            <motion.div 
+              className="bg-center bg-no-repeat bg-cover rounded-full size-12 shadow-lg ring-2 ring-white/10" 
+              style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuBXRt6dLsnIlX1FqjzEzocSMwA4U5jYadog5VnpuINqK2rcNy2lJyVmKHo-cSc7nOZEkRIWPFZP8btRf2iNM5eHJz5rvIsBx7V620ZutDXFBoJISXi4vx2GzPSHvRz7LXDpcs7RrfO4n-5eUoiFCl3awvnp731qmHDjJA671Z83FqNI7wavnAL_wqXyc3n6VyQd4HuGuws3BKB2wrzydcq8KouwQPiYXbXbbVTbDKOt-BB6OtqHMqTUuHFkLZq0ymACETLUYcxBrPXv")' }}
+              whileHover={{ scale: 1.1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+            />
+          </MagneticHover>
           <motion.div 
             className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a2e] rounded-full"
             animate={{ scale: [1, 1.2, 1] }}

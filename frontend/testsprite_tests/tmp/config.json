@@ -1,11 +1,10 @@
 {
   "status": "commited",
-  "type": "backend",
+  "type": "frontend",
   "scope": "codebase",
-  "localEndpoint": "http://localhost:3001",
-  "backendAuthType": "public",
+  "localEndpoint": "http://localhost:3000",
   "executionArgs": {
-    "projectName": "frontend",
+    "projectName": "cold_email_frontend",
     "projectPath": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\Cold emailing\\frontend",
     "testIds": [],
     "additionalInstruction": "",
@@ -13,6 +12,6 @@
       "API_KEY": "sk-user-NQcLxugG8FJCjuTd4Ibcl0qTI1a1vtkNjdgG-RarnUsIvUZeLVSX7DFmFc93Q-eWOdeQSmpzmEthjFyQWRgo9SjlTy16011TKw5oLG9dEby6Jqc0cw3jYN1Ir3KbDk-Xbh8"
     }
   },
-  "serverPort": 51500,
-  "proxy": "http://7e76ff69-cec3-47a2-9832-2cabaa91e86b:Css2ZtVKlipj6LmaysoDn0kkyFLeypp0@tun.testsprite.com:8080"
+  "serverPort": 65247,
+  "proxy": "http://0d657db1-574d-4cee-8a31-7fb809990a3c:hDM7wijYYZkrs06SR2OMTRL13cjlZiBb@tun.testsprite.com:8080"
 }

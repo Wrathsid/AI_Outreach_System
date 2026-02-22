@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
 import { api, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
 import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
-import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn } from './Animations';
+import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn, HoverSpotlight } from './Animations';
 import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 
@@ -141,8 +141,9 @@ const Dashboard = () => {
         {/* Analytics Grid */}
         <StaggerContainer className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <StaggerItem>
-            <div className="glass-panel rounded-3xl p-6 md:p-8 flex flex-col h-[320px]">
-               <div className="flex justify-between items-center mb-6">
+            <HoverSpotlight className="rounded-3xl">
+              <div className="glass-panel p-6 md:p-8 flex flex-col h-[320px] relative z-10">
+                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center text-blue-400">
                         <BarChart3 size={20} />
@@ -185,12 +186,14 @@ const Dashboard = () => {
                      </BarChart>
                   </ResponsiveContainer>
                </div>
-            </div>
+              </div>
+            </HoverSpotlight>
           </StaggerItem>
 
           <StaggerItem>
-            <div className="glass-panel rounded-3xl p-6 md:p-8 flex flex-col h-[320px]">
-               <div className="flex justify-between items-center mb-6">
+            <HoverSpotlight className="rounded-3xl">
+              <div className="glass-panel p-6 md:p-8 flex flex-col h-[320px] relative z-10">
+                 <div className="flex justify-between items-center mb-6">
                   <div className="flex items-center gap-3">
                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
                         <PieIcon size={20} />
@@ -234,7 +237,8 @@ const Dashboard = () => {
                      </div>
                   </div>
                </div>
-            </div>
+              </div>
+            </HoverSpotlight>
           </StaggerItem>
         </StaggerContainer>
 
@@ -252,35 +256,38 @@ const Dashboard = () => {
                         {candidates.slice(0, 3).map((candidate, i) => (
                              <motion.div 
                                 key={candidate.id}
-                                className="glass-panel p-5 rounded-2xl border border-white/5 hover:border-primary/30 transition-all group relative overflow-hidden"
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: 0.1 * i }}
                              >
-                                <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <ArrowRight className="text-primary -rotate-45 group-hover:rotate-0 transition-transform" size={16} />
+                              <HoverSpotlight className="rounded-2xl">
+                                <div className="glass-panel p-5 border border-white/5 hover:border-primary/30 transition-all group relative overflow-hidden h-full z-10">
+                                  <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <ArrowRight className="text-primary -rotate-45 group-hover:rotate-0 transition-transform" size={16} />
+                                  </div>
+                                  <div className="flex items-start gap-4">
+                                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                                          {getNameInitial(candidate.name)}
+                                      </div>
+                                      <div>
+                                          <h4 className="text-white font-medium truncate pr-6">{cleanDisplayName(candidate.name)}</h4>
+                                          <p className="text-slate-400 text-xs truncate">{candidate.title}</p>
+                                          <p className="text-slate-500 text-xs mt-1">{candidate.company}</p>
+                                          
+                                          <div className="mt-3 flex items-center gap-2">
+                                              <div className="text-[10px] bg-white/5 px-2 py-1 rounded text-slate-300 border border-white/5">
+                                                  {candidate.email ? 'Email Found' : 'No Email'}
+                                              </div>
+                                              {candidate.match_score > 0 && (
+                                                  <div className="text-[10px] bg-green-500/10 px-2 py-1 rounded text-green-400 border border-green-500/10">
+                                                      {candidate.match_score}% Match
+                                                  </div>
+                                              )}
+                                          </div>
+                                      </div>
+                                  </div>
                                 </div>
-                                <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                        {getNameInitial(candidate.name)}
-                                    </div>
-                                    <div>
-                                        <h4 className="text-white font-medium truncate pr-6">{cleanDisplayName(candidate.name)}</h4>
-                                        <p className="text-slate-400 text-xs truncate">{candidate.title}</p>
-                                        <p className="text-slate-500 text-xs mt-1">{candidate.company}</p>
-                                        
-                                        <div className="mt-3 flex items-center gap-2">
-                                            <div className="text-[10px] bg-white/5 px-2 py-1 rounded text-slate-300 border border-white/5">
-                                                {candidate.email ? 'Email Found' : 'No Email'}
-                                            </div>
-                                            {candidate.match_score > 0 && (
-                                                <div className="text-[10px] bg-green-500/10 px-2 py-1 rounded text-green-400 border border-green-500/10">
-                                                    {candidate.match_score}% Match
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
+                              </HoverSpotlight>
                              </motion.div>
                         ))}
                     </div>

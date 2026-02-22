@@ -1,598 +1,677 @@
 [
   {
     "id": "TC001",
-    "title": "Sign up with missing required fields shows validation feedback",
-    "description": "Verifies required-field validation is shown on the signup form when submitting incomplete data.",
-    "category": "Authentication",
-    "priority": "Medium",
+    "title": "Search leads with a valid query shows candidate results",
+    "description": "Verifies that entering a valid job-title query returns a visible list of candidate results on the dashboard.",
+    "category": "Search Leads",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /signup"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify page title contains \"Sign Up\""
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click the \"Create account\" button"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"required\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the search input in the command palette"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Software Engineer\" into the search input"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Email\" is visible"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"Password\" is visible"
+        "description": "Verify element \"candidate results list\" is visible"
       }
     ]
   },
   {
     "id": "TC002",
-    "title": "Login page provides navigation to the Sign Up page",
-    "description": "Verifies users can reach the signup screen from the login screen using an in-page link.",
-    "category": "Authentication",
-    "priority": "Low",
+    "title": "Search leads after explicitly focusing the search input",
+    "description": "Verifies that the search input can be focused first and then used to search, resulting in visible candidate results.",
+    "category": "Search Leads",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
         "description": "Navigate to /login"
       },
       {
-        "type": "assertion",
-        "description": "Verify page title contains \"Login\""
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Click the \"Sign up\" link"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify URL contains \"/signup"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the search input in the command palette"
       },
       {
         "type": "assertion",
-        "description": "Verify page title contains \"Sign Up\""
+        "description": "Verify element \"search input\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Software Engineer\" into the search input"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"candidate results list\" is visible"
       }
     ]
   },
   {
     "id": "TC003",
-    "title": "Signup page provides navigation to the Login page",
-    "description": "Verifies users can reach the login screen from the signup screen using an in-page link.",
-    "category": "Authentication",
-    "priority": "Low",
+    "title": "Invalid query shows an empty state",
+    "description": "Verifies that an invalid or non-matching query displays an empty state rather than results.",
+    "category": "Search Leads",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /signup"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify page title contains \"Sign Up\""
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click the \"Log in\" link"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify URL contains \"/login"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the search input in the command palette"
+      },
+      {
+        "type": "action",
+        "description": "Type \"asdkjhasdkjhasd\" into the search input"
       },
       {
         "type": "assertion",
-        "description": "Verify page title contains \"Login\""
+        "description": "Verify element \"empty state\" is visible"
       }
     ]
   },
   {
     "id": "TC004",
-    "title": "Search candidates and view results list",
-    "description": "Verifies a user can search for candidates and see a list of matching leads.",
-    "category": "Candidates Management",
-    "priority": "High",
+    "title": "Whitespace-only query shows empty state (edge case)",
+    "description": "Verifies that entering only whitespace does not show results and instead shows the empty state.",
+    "category": "Search Leads",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to \"/candidates\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify page title contains \"Candidates\""
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click on the candidate search input field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"software engineer\" into the candidate search field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
       },
       {
         "type": "action",
-        "description": "Press \"Enter\""
+        "description": "Click on the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Candidates results list\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the search input in the command palette"
+      },
+      {
+        "type": "action",
+        "description": "Type \"     \" into the search input"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"software\" is visible"
+        "description": "Verify element \"empty state\" is visible"
       }
     ]
   },
   {
     "id": "TC005",
-    "title": "Open a candidate from search results to view candidate details",
-    "description": "Verifies a user can open a candidate profile from the results list and view candidate details.",
-    "category": "Candidates Management",
-    "priority": "High",
+    "title": "Search is case-insensitive for common queries",
+    "description": "Verifies that a query with different casing still returns candidate results.",
+    "category": "Search Leads",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to \"/candidates\""
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click on the candidate search input field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"software engineer\" into the candidate search field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
       },
       {
         "type": "action",
-        "description": "Press \"Enter\""
+        "description": "Click on the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Candidates results list\" is visible"
+        "description": "Verify URL contains \"/\""
       },
       {
         "type": "action",
-        "description": "Click on the first candidate in the results list"
+        "description": "Click on the search input in the command palette"
+      },
+      {
+        "type": "action",
+        "description": "Type \"software engineer\" into the search input"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Candidate profile\" is visible"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"Add to pipeline\" is visible"
+        "description": "Verify element \"candidate results list\" is visible"
       }
     ]
   },
   {
     "id": "TC006",
-    "title": "Add a candidate to pipeline from candidate details page",
-    "description": "Verifies a user can add a candidate to the pipeline from the candidate detail view and see a success confirmation.",
-    "category": "Candidates Management",
+    "title": "New search replaces previous results (no stale list)",
+    "description": "Verifies that after a successful search, entering a non-matching query shows the empty state instead of stale results.",
+    "category": "Search Leads",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to \"/candidates\""
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click on the candidate search input field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"software engineer\" into the candidate search field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
       },
       {
         "type": "action",
-        "description": "Press \"Enter\""
-      },
-      {
-        "type": "action",
-        "description": "Click on the first candidate in the results list"
+        "description": "Click on the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Add to pipeline\" is visible"
+        "description": "Verify URL contains \"/\""
       },
       {
         "type": "action",
-        "description": "Click on \"Add to pipeline\""
+        "description": "Click on the search input in the command palette"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Software Engineer\" into the search input"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Added to pipeline\" is visible"
+        "description": "Verify element \"candidate results list\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Type \"qzzqzzqzz-no-results\" into the search input"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"empty state\" is visible"
       }
     ]
   },
   {
     "id": "TC007",
-    "title": "Prevent adding the same candidate to pipeline twice (conflict handling)",
-    "description": "Verifies the UI handles the case where a lead is already in the pipeline and displays an appropriate message.",
-    "category": "Candidates Management",
-    "priority": "High",
+    "title": "Search handles long query input gracefully (edge case)",
+    "description": "Verifies that entering a long query does not break the UI and results area or empty state remains visible.",
+    "category": "Search Leads",
+    "priority": "Low",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to \"/candidates\""
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click on the candidate search input field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"software engineer\" into the candidate search field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
       },
       {
         "type": "action",
-        "description": "Press \"Enter\""
-      },
-      {
-        "type": "action",
-        "description": "Click on the first candidate in the results list"
-      },
-      {
-        "type": "action",
-        "description": "Click on \"Add to pipeline\""
-      },
-      {
-        "type": "action",
-        "description": "Click on \"Add to pipeline\""
+        "description": "Click on the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Lead already in pipeline\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click on the search input in the command palette"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Software Engineer Software Engineer Software Engineer Software Engineer Software Engineer\" into the search input"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"candidate results list\" is visible"
       }
     ]
   },
   {
     "id": "TC008",
-    "title": "Search with no matches shows an empty state",
-    "description": "Verifies searching for a query with no results shows an appropriate empty state message.",
-    "category": "Candidates Management",
-    "priority": "Medium",
+    "title": "Add a candidate to the pipeline from the dashboard",
+    "description": "Verifies a user can add a candidate to the outreach pipeline and see them appear in the pipeline view.",
+    "category": "Manage Pipeline",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to \"/candidates\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"Candidate search\" is visible"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click on the candidate search input field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"zzzznonexistentrole123\" into the candidate search field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
       },
       {
         "type": "action",
-        "description": "Press \"Enter\""
+        "description": "Click the \"Login\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"No candidates\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add to Pipeline\" button for a candidate"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Candidates results list\" is visible"
+        "description": "Verify candidate appears in pipeline view"
       }
     ]
   },
   {
     "id": "TC009",
-    "title": "Candidate details page shows core profile sections",
-    "description": "Verifies the candidate details page renders core sections (e.g., headline/experience/skills) when opened from the list.",
-    "category": "Candidates Management",
-    "priority": "Medium",
+    "title": "Prevent adding the same candidate to the pipeline twice",
+    "description": "Verifies the UI prevents duplicates when the user attempts to add the same candidate multiple times.",
+    "category": "Manage Pipeline",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to \"/candidates\""
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click on the candidate search input field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"software engineer\" into the candidate search field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
       },
       {
         "type": "action",
-        "description": "Press \"Enter\""
-      },
-      {
-        "type": "action",
-        "description": "Click on the first candidate in the results list"
+        "description": "Click the \"Login\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Candidate name\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add to Pipeline\" button for a candidate"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Skills\" is visible"
+        "description": "Verify candidate appears in pipeline view"
       },
       {
-        "type": "assertion",
-        "description": "Verify element \"Experience\" is visible"
+        "type": "action",
+        "description": "Click the \"Add to Pipeline\" button for the same candidate again"
       }
     ]
   },
   {
     "id": "TC010",
-    "title": "Search input validation: submitting an empty query does not break the page",
-    "description": "Verifies submitting an empty search query does not crash and keeps the user on the Candidates page with a stable UI.",
-    "category": "Candidates Management",
-    "priority": "Low",
+    "title": "Duplicate add attempt shows a visible prevention message or disabled state",
+    "description": "Verifies that when a duplicate add is attempted, the user gets visible feedback that the duplicate is prevented.",
+    "category": "Manage Pipeline",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to \"/candidates\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"Candidate search\" is visible"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Click on the candidate search input field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Press \"Enter\""
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify page title contains \"Candidates\""
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add to Pipeline\" button for a candidate"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add to Pipeline\" button for the same candidate again"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Candidates results list\" is visible"
+        "description": "Verify text \"Already in pipeline\" is visible"
       }
     ]
   },
   {
     "id": "TC011",
-    "title": "Edit and save Brain skills and context successfully",
-    "description": "Verifies a user can update the AI brain skills/context and sees a successful save state in the UI.",
-    "category": "Brain Settings",
-    "priority": "High",
+    "title": "Add to Pipeline control is visible for at least one candidate on the dashboard",
+    "description": "Verifies the dashboard exposes the primary call-to-action to add a candidate to the pipeline.",
+    "category": "Manage Pipeline",
+    "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /brain"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify page title contains \"Brain\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Skills\" is visible"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Type \"Prospecting, B2B SaaS, React\" into the skills field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"I have 5+ years in outbound sales and frontend engineering; focus on concise outreach.\" into the context field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
       },
       {
         "type": "action",
-        "description": "Click on \"Save\""
+        "description": "Click the \"Login\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Saved\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Add to Pipeline\" is visible"
       }
     ]
   },
   {
     "id": "TC012",
-    "title": "Brain settings load and display existing values",
-    "description": "Verifies the Brain Settings page loads and shows existing saved skills/context to the user.",
-    "category": "Brain Settings",
-    "priority": "High",
+    "title": "Candidate remains visible in pipeline view after page refresh",
+    "description": "Verifies that after adding a candidate, the pipeline view still shows the candidate after reloading the page (within the simulated auth behavior).",
+    "category": "Manage Pipeline",
+    "priority": "Low",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /brain"
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Login\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Skills\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add to Pipeline\" button for a candidate"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"skills field\" is visible"
+        "description": "Verify candidate appears in pipeline view"
       },
       {
-        "type": "assertion",
-        "description": "Verify element \"context field\" is visible"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"Save\" is visible"
+        "type": "action",
+        "description": "Navigate to /"
       }
     ]
   },
   {
     "id": "TC013",
-    "title": "Saving with empty skills shows a validation error",
-    "description": "Verifies the UI prevents saving (or shows an error) when skills are empty/invalid.",
-    "category": "Brain Settings",
+    "title": "Generate a draft for the Email outreach channel",
+    "description": "Verifies a user can log in, choose Email as the outreach channel, generate a draft, and see generated text.",
+    "category": "Generate Draft",
     "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /brain"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Skills\" is visible"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Type \"\" into the skills field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Click on \"Save\""
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Skills\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Email\" as the outreach channel"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Generate Draft\""
       },
       {
         "type": "assertion",
-        "description": "Verify text \"required\" is visible"
+        "description": "Verify element \"generated draft text\" is visible"
       }
     ]
   },
   {
     "id": "TC014",
-    "title": "Saving with malformed skills format shows validation error",
-    "description": "Verifies the UI shows validation feedback when skills payload format is invalid (e.g., non-text characters or invalid structure).",
-    "category": "Brain Settings",
-    "priority": "Medium",
+    "title": "Generate a draft for the LinkedIn outreach channel",
+    "description": "Verifies a user can generate a draft when the LinkedIn outreach channel is selected.",
+    "category": "Generate Draft",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /brain"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Skills\" is visible"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Type \"{ not-a-skill-array: true }\" into the skills field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Click on \"Save\""
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"validation\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"LinkedIn\" as the outreach channel"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Generate Draft\""
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Skills\" is visible"
+        "description": "Verify element \"generated draft text\" is visible"
       }
     ]
   },
   {
     "id": "TC015",
-    "title": "Unsaved changes remain visible until saved",
-    "description": "Verifies that when the user edits skills/context, the edited content is visible in the form and not reverted unexpectedly before saving.",
-    "category": "Brain Settings",
+    "title": "Generate a draft after selecting a specific message type",
+    "description": "Verifies draft generation works when a message type is chosen before generating.",
+    "category": "Generate Draft",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /brain"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Skills\" is visible"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Type \"Personalization, LinkedIn outreach\" into the skills field"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Personalization, LinkedIn outreach\" is visible"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Type \"Prefer a friendly but direct tone; ask one clear question.\" into the context field"
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Prefer a friendly but direct tone; ask one clear question.\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Email\" as the outreach channel"
+      },
+      {
+        "type": "action",
+        "description": "Select a message type from the message type dropdown"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Generate Draft\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"generated draft text\" is visible"
       }
     ]
   },
   {
     "id": "TC016",
-    "title": "Save button shows progress then success (no duplicate submissions)",
-    "description": "Verifies clicking Save results in a visible in-progress state and then a success state without repeated saves from rapid clicks.",
-    "category": "Brain Settings",
+    "title": "Switch outreach channel and generate again",
+    "description": "Verifies the user can change the outreach channel and generate a new draft successfully.",
+    "category": "Generate Draft",
     "priority": "Medium",
     "steps": [
       {
         "type": "action",
-        "description": "Navigate to /brain"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"Save\" is visible"
+        "description": "Navigate to /login"
       },
       {
         "type": "action",
-        "description": "Type \"Account research, Cold email\" into the skills field"
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
       },
       {
         "type": "action",
-        "description": "Click on \"Save\""
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Saving\" is visible"
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"Email\" as the outreach channel"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Generate Draft\""
+      },
+      {
+        "type": "action",
+        "description": "Select \"LinkedIn\" as the outreach channel"
+      },
+      {
+        "type": "action",
+        "description": "Click \"Generate Draft\""
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Saved\" is visible"
+        "description": "Verify element \"generated draft text\" is visible"
       }
     ]
   },
   {
     "id": "TC017",
-    "title": "Large context text can be saved successfully",
-    "description": "Verifies the Brain context field supports a longer text and can be saved without UI errors.",
-    "category": "Brain Settings",
-    "priority": "Low",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /brain"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Context\" is visible"
-      },
-      {
-        "type": "action",
-        "description": "Type \"Background: I have experience in enterprise SaaS, demand gen, and full-stack TypeScript. Goals: generate deterministic outreach drafts, avoid exaggeration, and reference specific public signals when available. Style: short paragraphs, no buzzwords, include a clear CTA.\" into the context field"
-      },
-      {
-        "type": "action",
-        "description": "Click on \"Save\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Saved\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC018",
-    "title": "Open Settings page from the sidebar and view General Settings",
-    "description": "Verifies the user can reach the Settings page via the sidebar and see General Settings content.",
-    "category": "General Settings",
+    "title": "Attempt to generate without selecting an outreach channel",
+    "description": "Verifies the UI prevents generation or prompts the user when no outreach channel is selected.",
+    "category": "Generate Draft",
     "priority": "High",
     "steps": [
       {
@@ -609,269 +688,23 @@
       },
       {
         "type": "action",
-        "description": "Click the \"Sign in\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"Sidebar\" is visible"
+        "description": "Verify URL contains \"/\""
       },
       {
         "type": "action",
-        "description": "Click \"Settings\" in the sidebar"
+        "description": "Click \"Generate Draft\""
       },
       {
         "type": "assertion",
-        "description": "Verify page title contains \"Settings\""
+        "description": "Verify text \"Select outreach channel\" is visible"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"General Settings\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC019",
-    "title": "Update a tone default preference and save successfully",
-    "description": "Verifies a user can change the default tone preference and see a successful save indication.",
-    "category": "General Settings",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Sign in\" button"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Settings\" in the sidebar"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"General Settings\" is visible"
-      },
-      {
-        "type": "action",
-        "description": "Select \"Friendly\" from the \"Default tone\" dropdown"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Save\" button"
-      }
-    ]
-  },
-  {
-    "id": "TC020",
-    "title": "Verify saved tone preference persists after page refresh",
-    "description": "Verifies that a previously saved tone default is still displayed after refreshing the Settings page.",
-    "category": "General Settings",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Sign in\" button"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Settings\" in the sidebar"
-      },
-      {
-        "type": "action",
-        "description": "Select \"Professional\" from the \"Default tone\" dropdown"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Save\" button"
-      },
-      {
-        "type": "action",
-        "description": "Press \"Enter\" key"
-      }
-    ]
-  },
-  {
-    "id": "TC021",
-    "title": "Update a UI option preference and save successfully",
-    "description": "Verifies a user can toggle a UI preference and save without errors.",
-    "category": "General Settings",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Sign in\" button"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Settings\" in the sidebar"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"General Settings\" is visible"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Enable\" toggle for a UI option (such as \"Compact mode\" or \"Show tips\")"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Save\" button"
-      }
-    ]
-  },
-  {
-    "id": "TC022",
-    "title": "Attempt to save with an invalid preference value shows inline field error",
-    "description": "Verifies the UI displays validation errors when invalid settings values are submitted.",
-    "category": "General Settings",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Sign in\" button"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Settings\" in the sidebar"
-      },
-      {
-        "type": "action",
-        "description": "Type \"-1\" into a numeric preference field (such as \"Daily limit\" or similar) if present"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Save\" button"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Invalid\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC023",
-    "title": "Cancel/discard changes does not persist modifications",
-    "description": "Verifies that using a cancel/discard control does not save unsaved preference changes.",
-    "category": "General Settings",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Sign in\" button"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Settings\" in the sidebar"
-      },
-      {
-        "type": "action",
-        "description": "Select \"Casual\" from the \"Default tone\" dropdown"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Cancel\" or \"Discard\" button"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"Changes discarded\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC024",
-    "title": "Save button disabled until a change is made (if supported)",
-    "description": "Verifies the page prevents saving when no settings have changed.",
-    "category": "General Settings",
-    "priority": "Low",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Sign in\" button"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Settings\" in the sidebar"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"General Settings\" is visible"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"Save\" button is visible"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify text \"No changes\" is visible"
+        "description": "Verify element \"generated draft text\" is not visible"
       }
     ]
   }

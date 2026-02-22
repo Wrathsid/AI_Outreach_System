@@ -1,33 +1,100 @@
 version: "2"
 type: frontend
 tech_stack:
-  - TypeScript
-  - React
-  - Next.js (App Router)
-  - Tailwind CSS
+  - react
+  - nextjs
+  - tailwindcss
+  - typescript
+routes:
+  - path: /login
+    file: src/app/login/page.tsx
+    auth_required: false
+    description: User login page
+  - path: /signup
+    file: src/app/signup/page.tsx
+    auth_required: false
+    description: User signup page
+  - path: /
+    file: src/app/page.tsx
+    auth_required: true
+    description: Dashboard and Command Center for cold emailing
 features:
-  - name: Authentication
-    description: User login and signup views
+  - name: User Login
+    description: Login with email and password credentials
     files:
       - src/app/login/page.tsx
+    entry_route: /login
+    user_interactions:
+      - Fill email input field
+      - Fill password input field
+      - Click Sign In button to submit
+      - See error message on invalid credentials "fail@test.com"
+      - Redirect to Dashboard on success (simulated auth)
+    api_calls: []
+    auth_required: false
+  - name: User Signup
+    description: Create an account
+    files:
       - src/app/signup/page.tsx
-  - name: Dashboard
-    description: Main dashboard showing recent drafts and candidate list
+    entry_route: /signup
+    user_interactions:
+      - Fill email input field
+      - Fill password input field
+      - Click Sign Up button to submit
+      - Redirect to Dashboard on success (simulated auth)
+    api_calls: []
+    auth_required: false
+  - name: Search Leads
+    description: Search for candidates via command palette and view results
+    files:
+      - src/components/CommandPalette.tsx
+      - src/app/page.tsx
+    entry_route: /
+    user_interactions:
+      - Focus search input
+      - Enter search query (e.g., "Software Engineer")
+      - View list of candidate results
+      - See empty state if no results found
+    api_calls:
+      - method: POST
+        endpoint: http://localhost:8000/api/discovery/search
+    auth_required: true
+  - name: View Candidate Details
+    description: Click on a candidate to view their profile details
     files:
       - src/app/page.tsx
-      - src/components/Dashboard.tsx
-  - name: Candidates Management
-    description: View and manage leads/candidates
+    entry_route: /
+    user_interactions:
+      - Click on a candidate from search results
+      - View core profile sections (experience, education)
+    api_calls: []
+    auth_required: true
+  - name: Manage Pipeline
+    description: Add candidates to the outreach pipeline
     files:
-      - src/app/candidates/page.tsx
-      - src/app/candidates/[id]/page.tsx
-  - name: Brain Settings
-    description: Setup context and skills for the AI to use
+      - src/app/page.tsx
+    entry_route: /
+    user_interactions:
+      - Click 'Add to Pipeline' button for a candidate
+      - Verify candidate appears in pipeline view
+      - Prevent adding duplicate candidates
+    api_calls: []
+    auth_required: true
+  - name: Generate Draft
+    description: Generate an outreach draft for a candidate using AI
     files:
-      - src/app/brain/page.tsx
-  - name: General Settings
-    description: Update user settings
-    files:
-      - src/app/settings/page.tsx
-      - src/components/Sidebar.tsx
-known_limitations: []
+      - src/app/page.tsx
+    entry_route: /
+    user_interactions:
+      - Select outreach channel (LinkedIn, Email)
+      - Select message type
+      - Click 'Generate Draft'
+      - View generated draft text
+    api_calls:
+      - method: POST
+        endpoint: http://localhost:8000/api/drafts/generate
+    auth_required: true
+known_limitations:
+  - issue: Authentication is simulated on frontend
+    location: src/app/login/page.tsx
+    impact: Real user session management is deferred, any valid looking credentials login except specific failure cases
