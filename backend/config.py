@@ -121,8 +121,7 @@ async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens
                             model=model_name,
                             contents=full_prompt,
                             config=types.GenerateContentConfig(
-                                temperature=temperature,
-                                max_output_tokens=max_tokens
+                                temperature=temperature
                             )
                         ),
                         timeout=15.0
@@ -138,18 +137,23 @@ async def generate_with_gemini(prompt: str, temperature: float = 0.5, max_tokens
                     break  # Try next model
                     
                 except Exception as e:
-                    error_str = str(e)
-                    if "429" in error_str or "Resource has been exhausted" in error_str:
+                    if "429" in str(e) or "Resource has been exhausted" in str(e):
                         if attempt < max_retries - 1:
-                            # Try to extract the requested retry delay
-                            import re
-                            retry_match = re.search(r'retry in ([\d\.]+)s', error_str)
-                            if retry_match:
-                                sleep_time = min(float(retry_match.group(1)) + 1.0, 60.0)
-                            else:
-                                sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                            sleep_time = (base_delay * (2 ** attempt)) + (random.random() * 0.5)
+                            if "retryDelay" in str(e):
+                                try:
+                                    import json
+                                    err_str = str(e).replace('"', '\\"').replace("'", '"')
+                                    # Very rough extraction since error might be weirdly formatted
+                                    import re
+                                    match = re.search(r'"retryDelay":\s*"(\d+)s"', err_str)
+                                    if match:
+                                        sleep_time = int(match.group(1))
+                                except:
+                                    pass
                             
-                            print(f"[WARN] Gemini {model_name} 429 Hit. Retrying in {sleep_time:.2f}s...")
+                            sleep_time = min(sleep_time, 5) # DEBUG: cap wait to 5s
+                            logger.warning(f"Gemini {model_name} 429 Hit. Retrying in {sleep_time:.2f}s...")
                             await asyncio.sleep(sleep_time)
                             continue
                     

@@ -25,9 +25,9 @@ VALID_CHANNELS = {"linkedin"}
 
 # ============================================================
 # Q5: CHANNEL TONE LOCK
-# ============================================================
+# ============================================================# Q5: Enforce tone guidelines per channel
 CHANNEL_TONE = {
-    "linkedin": "TONE: Casual, professional, and engaging. Write 1-2 distinct paragraphs. Keep it around 300-600 chars.",
+    "linkedin": "TONE: Casual, professional, and engaging. Write 1-2 distinct sentences. Keep it under 40 words.",
     "email": "TONE: Professional but 'typed', not 'composed'. Slightly asymmetrical rhythm. Keep it under 100 words."
 }
 
@@ -126,10 +126,10 @@ def validate_structure(text: str, contact_type: str) -> bool:
 def normalize_length(text: str, contact_type: str) -> str:
     """Hard-trim to channel limits (Q4)."""
     if contact_type == "linkedin":
-        if len(text) > 800:
-            trimmed = text[:800]
+        if len(text) > 300:
+            trimmed = text[:290]
             last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
-            if last_period > 300:
+            if last_period > 100:
                 return trimmed[:last_period + 1]
             return trimmed.rstrip() + "..."
     else:  # email
@@ -846,9 +846,12 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
         
         # Use intent-based system prompt
         intent_value = candidate_context.get('intent', IntentType.CURIOUS)
-        # Handle case where intent is passed as Enum vs string
-        if hasattr(intent_value, 'value'):
-             intent_value = intent_value.value
+        # Convert string back to Enum for dict lookup if needed
+        if isinstance(intent_value, str):
+            try:
+                intent_value = IntentType(intent_value)
+            except ValueError:
+                intent_value = IntentType.CURIOUS
         
         system_prompt = SYSTEM_PROMPTS.get(intent_value, SYSTEM_PROMPTS[IntentType.CURIOUS])
         
@@ -991,27 +994,23 @@ RULES:
 MAX: 100 words. Write the message ONLY.
 """,
     IntentType.OPPORTUNITY: PERSONA_ANCHOR + """
-You are writing a direct but respectful message to a Recruiter or Talent Acquisition professional.
-TONE: Professional, concise, high-signal.
-GOAL: Pitch yourself for a specific role or general engineering needs.
+You are writing a LinkedIn connection request to a Recruiter or TA.
+TONE: Crisp, direct, high-signal, confident.
+GOAL: Pitch yourself in a very brief LinkedIn invite.
 NEGATIVE CONSTRAINTS (CRITICAL):
-- Do NOT use "Open to connecting" or "I'd like to join your network".
-- Do NOT be vague ("I'm looking for opportunities").
-- Do NOT ask "how are you?".
+- Do NOT use "I'm a DevOps engineer with experience in...". That is boring.
 - Do NOT use "I hope this email finds you well".
+- ZERO fluff.
 
 RULES:
-- State clearly that you are an experienced engineer (DevOps/SRE focus).
-- Mention 2-3 key hard skills (e.g., AWS, Linux, Terraform).
-- Direct Ask: "Are you hiring for relevant roles?" or "Open to reviewing my profile?" or "Do you have any open searches?"
+- Hook them immediately with your 2 strongest skills mapped to their role.
+- Max 2 short sentences total.
+- Soft Ask: "Open to connecting?" or "Worth a chat if roles open up?"
 
 STRUCTURE:
-1. Hi [Name]
-2. "I'm a DevOps engineer with experience in [Skill 1], [Skill 2], and [Skill 3]."
-3. "Saw you're hiring for [Role] / recruiting for technical roles."
-4. Direct Ask (Review profile / hiring status).
+"Hi [Name], saw you're recruiting for [Role]. I'm a DevOps builder focused on [Skill 1]/[Skill 2] — would love to connect and see if there's a mutual fit down the line."
 
-MAX: 150 words. Write the message ONLY.
+Write the message ONLY. Keep it very short, around 30 to 40 words maximum.
 """,
 
 
@@ -1336,11 +1335,11 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         if is_company_recipient:
              intent = IntentType.SOFT # Company page DMs should be soft
              role_context = c.get('title') or 'DevOps / SRE Role'
-             task_instruction = "Generate Message 1: Company Page DM (120-160 words). Exploratory, context-aware, slightly descriptive."
+             task_instruction = "Generate Message 1: Company Page DM (under 40 words). Exploratory, context-aware, slightly descriptive."
         elif (c.get('title') and ("recruiter" in c.get('title').lower() or "talent" in c.get('title').lower())):
              intent = IntentType.OPPORTUNITY # Recruiters get the new Opportunity intent
              role_context = "DevOps / Site Reliability Engineer" # Force specific context
-             task_instruction = "Generate Message 2: Recruiter DM. Follow STRICT rules."
+             task_instruction = "Generate Message 2: Recruiter DM. Follow STRICT rules (max 40 words)."
         else:
              intent = IntentType.DIRECT # Default for specific people / hiring managers
              # If title is generic recruiter, assume DevOps role
@@ -1348,87 +1347,40 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
              role_context = "DevOps / Site Reliability Engineer"
              if candidate_title and "recruiter" not in candidate_title and "talent" not in candidate_title:
                  role_context = c.get('title') or 'DevOps / SRE Role'
-             task_instruction = "Generate Message 2: Recruiter DM (100-120 words). Direct, respectful, and concise."
+             task_instruction = "Generate Message 2: Recruiter or Manager DM (under 40 words). Direct, respectful, and concise."
 
         # SELECT PROMPT BASED ON INTENT
         if intent == IntentType.OPPORTUNITY:
             # USER PROMPT FOR RECRUITERS
             prompt = f'''
-            You are an AI assistant inside an "AI Outreach System".
-
-            Your role is STRICTLY LIMITED to generating LinkedIn outreach messages.
-            Do NOT invent features, steps, or data that are not explicitly provided.
+            You are generating a LinkedIn Connection Request (focus on brevity, max 40 words).
             
-            INPUT PROVIDED TO YOU:
-            - Job role: {role_context}
-            - Recipient: {c.get('name') or 'Recruiter'}
-            - Company: {c.get('company') or 'Unknown Company'}
+            INPUT:
+            - Target Role: {role_context}
+            - Recipient: {c.get('name') or 'Recruiter'} at {c.get('company') or 'a great company'}
             
-            YOUR TASK:
-            Generate a concise, professional, human-like LinkedIn DM message that:
-            - References the hiring context naturally
-            - Matches the role mentioned ({role_context})
-            - Sounds respectful and non-salesy
-            - Is suitable for manual copy-paste
-            - Does NOT claim referrals, past conversations, or insider knowledge
-            
-            MESSAGE RULES:
-            - Length: 2-4 short paragraphs max
-            - Tone: professional, polite, confident
-            - No emojis
-            - No buzzwords or hype
-            - No assumptions about recruiter familiarity
-            - Do NOT use "Open to connecting"
-            
-            OUTPUT FORMAT:
-            Return ONLY the message text.
-            Do NOT include explanations, headings, or metadata.
+            TASK: Generate ONE punchy, no-fluff message.
+            - Tie {role_context} to the user's infrastructure/cloud skills.
+            - Do NOT start with "I'm an experienced engineer". Be more conversational.
+            - No emojis. Only the message.
             '''
         else:
             # STANDARD MASTER PROMPT FOR OTHERS
             prompt = f'''
             # MASTER PROMPT (DYNAMIC PERSONA VERSION)
             
-            You are an AI outreach assistant that generates human-sounding, high-conversion LinkedIn messages for job applications.
+            You are generating a LinkedIn Connection Request.
             
-            INPUT CONTEXT:
-            1. CANDIDATE (SENDER) RESUME SUMMARY:
-            {user_bio}
-            
-            2. TARGET JOB / RECIPIENT CONTEXT:
-            - Recipient: {c.get('name') or 'a professional'} ({c.get('title') or 'role not specified'})
-            - Company: {c.get('company') or 'not specified'}
-            - Target Role / Context: {role_context}
+            INPUT:
+            1. SENDER: {user_bio}
+            2. RECIPIENT: {c.get('name') or 'a professional'} ({c.get('title') or 'role not specified'}) at {c.get('company') or 'not specified'}
+            3. ROLE/CONTEXT: {role_context}
             
             TASK: {task_instruction}
-            
-            CONTENT RULES:
-            - Always mention the exact job title: "{role_context}"
-            - Emphasize:
-              1. Hands-on experience where skills overlap
-              2. Learning mindset where skills are adjacent
-              3. Interest in infrastructure, reliability, operations, or scale
-            - End with a soft CTA (resume / connect / brief discussion)
-            
-            THINKING RULES (CRITICAL):
-            - Analyze the implied job requirements for "{role_context}".
-            - Analyze the sender's skills (Cloud, Linux, Automation, Stability).
-            - Identify 2-4 overlapping or adjacent skills.
-            - Only reference skills that actually exist in the sender's bio.
-            
-            STYLE RULES:
-            - Sound like a real human engineer, not a template.
-            - Slightly conversational, confident, and respectful.
-            - Avoid buzzwords and exaggerated claims.
-            - Do NOT sound desperate or overly polished.
-            - No emojis.
-            - No corporate marketing language.
-            
-            HARD CONSTRAINTS:
-            - Do NOT invent experience.
-            - Do NOT repeat resume bullet points.
-            - Do NOT copy sample phrasing verbatim-adapt it.
-            - Each message must feel written specifically for THIS role.
+            - Keep it to 2 brief sentences max.
+            - Mention "{role_context}".
+            - End with soft CTA.
+            - No emojis. Sound conversational. Only the message text.
             '''
 
         # Q5: Inject channel tone lock into prompt
