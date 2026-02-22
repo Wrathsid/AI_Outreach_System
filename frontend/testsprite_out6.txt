@@ -1,0 +1,25 @@
+﻿≡ƒÜÇ Starting test execution...
+Proxy port: 52639
+Tunnel started successfully! Proxy URL: http://f43ac8cd-6936-4ce4-92be-03e0c7e62d71:FvotTFAAYV4DWBBstsaACekcBX1LADQy@tun.testsprite.com:8080
+ΓÜí Running tests...
+This process may take anywhere from several minutes up to 15 minutes to complete.
+
+Γ£à Please ensure:
+  ΓÇó Your local servers are running and reachable
+  ΓÇó Your internet connection remains stable throughout the process
+node : (node:8264) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. 
+Please use Object.assign() instead.
+At line:1 char:66
++ ... \frontend"; node "C:\Users\Siddharth\AppData\Local\npm-cache\_npx\8dd ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:8264) [DE...sign() instead.:String) [] 
+   , RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-deprecation ...` to show where the warning was created)
+Test execution completed.
+HTTP Proxy has been closed.
+Tunnel has been closed.
+Execution lock released.
+Γ£à Test execution completed
+The AI assistant will generate a report for you.

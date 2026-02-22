@@ -1,0 +1,19 @@
+🚀 Starting test execution...
+Proxy port: 65249
+Tunnel started successfully! Proxy URL: http://0d657db1-574d-4cee-8a31-7fb809990a3c:hDM7wijYYZkrs06SR2OMTRL13cjlZiBb@tun.testsprite.com:8080
+⚡ Running tests...
+This process may take anywhere from several minutes up to 15 minutes to complete.
+
+✅ Please ensure:
+  • Your local servers are running and reachable
+  • Your internet connection remains stable throughout the process
+Test execution completed.
+HTTP Proxy has been closed.
+Tunnel has been closed.
+Execution lock released.
+
+Server will remain active for 1 hour. Press Ctrl+C to exit early.
+✅ Test execution completed
+The AI assistant will generate a report for you.
+
+

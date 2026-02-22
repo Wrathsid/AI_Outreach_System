@@ -140,6 +140,7 @@ const SearchPage = () => {
     const [isScanning, setIsScanning] = useState(false);
     const [results, setResults] = useState<ScanResult[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isAdding, setIsAdding] = useState(false);
     
     // Rotating Placeholder Logic
@@ -290,15 +291,51 @@ const SearchPage = () => {
                                 onChange={(e) => {
                                     setRole(e.target.value);
                                     setShowSuggestions(true);
+                                    setSelectedIndex(-1);
                                 }}
-                                onFocus={() => setShowSuggestions(true)}
-                                onKeyDown={(e) => e.key === 'Enter' && handleScan()}
+                                onFocus={() => {
+                                    setShowSuggestions(true);
+                                    setSelectedIndex(-1);
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'ArrowDown') {
+                                        e.preventDefault();
+                                        if (showSuggestions && filteredSuggestions.length > 0) {
+                                            setSelectedIndex(prev => (prev + 1) % filteredSuggestions.length);
+                                        } else if (!showSuggestions && role) {
+                                            setShowSuggestions(true);
+                                            setSelectedIndex(0);
+                                        }
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        if (showSuggestions && filteredSuggestions.length > 0) {
+                                            setSelectedIndex(prev => prev <= 0 ? filteredSuggestions.length - 1 : prev - 1);
+                                        }
+                                    } else if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        if (showSuggestions && selectedIndex >= 0 && selectedIndex < filteredSuggestions.length) {
+                                            setRole(filteredSuggestions[selectedIndex]);
+                                            setShowSuggestions(false);
+                                            setSelectedIndex(-1);
+                                        } else if (role) {
+                                            handleScan();
+                                            setShowSuggestions(false);
+                                        }
+                                    } else if (e.key === 'Escape') {
+                                        setShowSuggestions(false);
+                                        setSelectedIndex(-1);
+                                    }
+                                }}
                                 className="flex-1 bg-transparent border-none outline-none text-white px-4 py-4 text-lg placeholder-slate-500"
                                 placeholder={PLACEHOLDERS[placeholderIndex]}
                                 spellCheck={false}
                                 autoCorrect="off"
                                 autoComplete="off"
                                 autoCapitalize="off"
+                                role="combobox"
+                                aria-expanded={showSuggestions}
+                                aria-controls="search-suggestions"
+                                aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
                             />
                             
                             {role && (
@@ -344,15 +381,28 @@ const SearchPage = () => {
 
                         {/* Dropdown Suggestions */}
                         {showSuggestions && role && filteredSuggestions.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-50">
+                            <div 
+                                id="search-suggestions"
+                                role="listbox"
+                                className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-50"
+                            >
                                 {filteredSuggestions.map((suggestion, index) => (
                                     <button
                                         key={index}
+                                        id={`suggestion-${index}`}
+                                        role="option"
+                                        aria-selected={index === selectedIndex}
+                                        onMouseEnter={() => setSelectedIndex(index)}
                                         onClick={() => {
                                             setRole(suggestion);
                                             setShowSuggestions(false);
+                                            setSelectedIndex(-1);
                                         }}
-                                        className="w-full text-left px-6 py-3 text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center gap-2"
+                                        className={`w-full text-left px-6 py-3 transition-all duration-200 flex items-center gap-2 ${
+                                            index === selectedIndex 
+                                                ? 'bg-white/10 text-white' 
+                                                : 'text-slate-300 hover:bg-white/5 hover:text-white'
+                                        }`}
                                     >
                                         <Search size={14} className="opacity-50" />
                                         {suggestion}

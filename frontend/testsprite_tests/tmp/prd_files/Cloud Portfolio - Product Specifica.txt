@@ -1,0 +1,38 @@
+Cloud Portfolio - Product Specification
+Overview
+Cloud Portfolio is a personal portfolio website built with React, Vite, and Tailwind CSS. It showcases the developer's projects, skills, and background with a focus on high-performance animations and smooth user experience.
+
+Tech Stack
+Frontend: React 18, Vite
+Styling: Tailwind CSS, PostCSS
+Animations: Framer Motion, GSAP (implied by Lenis/smooth scrolling context)
+Routing: React Router v6
+Performance: Code splitting, Lazy loading, Lenis smooth scrolling
+Core Pages & Routes
+Home (/):
+Landing page with hero section.
+Introduction and navigation to other sections.
+About (/about):
+Detailed information about the developer.
+Professional background and skills.
+Projects (/projects):
+showcase of technical projects.
+Likely contains cards or lists of projects with details.
+404 (*):
+Custom "Not Found" page for invalid URLs.
+Key Features
+Custom Cursor: A unique cursor interaction component (<CustomCursor />).
+Smooth Scrolling: Implemented using lenis for a premium feel (<LenisWrapper />).
+Error Handling: Global ErrorBoundary to catch and display app-wide errors without crashing.
+Performance Optimization:
+Routes are lazy-loaded (React.lazy).
+Critical routes (/about, /projects) are preloaded after a short delay on the home page.
+Responsive Design: Mobile-first approach using Tailwind CSS.
+Testing Focus Areas
+Navigation: Verify switching between Home, About, and Projects works without full page reloads.
+Rendering: Ensure all pages load without blank screens or console errors.
+Interactions:
+Check if custom cursor doesn't block clicks.
+Verify smooth scrolling behavior doesn't break anchor links.
+Responsiveness: Check layout stability on mobile vs. desktop viewports.
+Error Boundary: Verify the app handles crashes gracefully (simulated).

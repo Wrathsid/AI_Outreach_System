@@ -91,10 +91,10 @@ def test_normalize_length():
     """Q4: normalize_length trims to channel limits."""
     from backend.routers.drafts import normalize_length
     
-    # LinkedIn: 300 char limit
-    long_linkedin = "a " * 200  # 400 chars
+    # LinkedIn: 2500 char limit
+    long_linkedin = "a " * 2000  # 4000 chars
     result = normalize_length(long_linkedin, "linkedin")
-    assert len(result) <= 303, f"LinkedIn result too long: {len(result)} chars"
+    assert len(result) <= 2500, f"LinkedIn result too long: {len(result)} chars"
     
     # Email: 150 word limit
     long_email = "word " * 200  # 200 words

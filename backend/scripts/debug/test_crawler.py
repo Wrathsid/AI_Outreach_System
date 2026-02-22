@@ -1,6 +1,8 @@
 import asyncio
+import pytest
 from services.crawler import Crawler
 
+@pytest.mark.asyncio
 async def test():
     c = Crawler()
     print("Starting crawler test for 'Frontend Developer'...")
