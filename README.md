@@ -1,163 +1,173 @@
 <div align="center">
-  <h1>❄️ Cold Email Discovery Engine</h1>
-  <p>
-    <strong>The "Apple-style" Command Center for high-precision outreach.</strong>
-  </p>
-  <p>
-    Find leads, verify emails, and draft personalized sequences—all in one calm, focused interface.
-  </p>
+  <img src="https://raw.githubusercontent.com/Wrathsid/AI_Outreach_System/main/public/logo.png" alt="Cold Email Discovery Engine Logo" width="150" height="150" style="border-radius: 20%;">
+  
+  # ❄️ Cold Email Discovery Engine
+  
+  **The "Apple-style" Command Center for high-precision outreach.**  
+  *Find leads, verify emails, and draft personalized sequences—all in one calm, focused interface.*
 
-  <!-- Badges -->
   <p>
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License" /></a>
-    <img src="https://img.shields.io/badge/Frontend-Next.js_14-black?logo=next.js" alt="Frontend" />
-    <img src="https://img.shields.io/badge/Backend-FastAPI-teal?logo=fastapi" alt="Backend" />
-    <img src="https://img.shields.io/badge/AI-Google_Gemini-purple?logo=google" alt="AI" />
-    <img src="https://img.shields.io/badge/Database-Supabase-green?logo=supabase" alt="Database" />
+    <a href="#-features"><img src="https://img.shields.io/badge/Features-Explore-blue?style=for-the-badge&logo=rocket" alt="Features"></a>
+    <a href="#-technology-stack"><img src="https://img.shields.io/badge/Stack-Tech-black?style=for-the-badge&logo=code" alt="Tech"></a>
+    <a href="#-getting-started"><img src="https://img.shields.io/badge/Install-Get_Started-green?style=for-the-badge&logo=terminal" alt="Getting Started"></a>
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=for-the-badge" alt="License">
   </p>
 </div>
 
 ---
 
-## 📖 Table of Contents
+## ✨ Features
 
-- [About the Project](#-about-the-project)
-- [Key Features](#-key-features)
-- [Tech Stack](#️-tech-stack)
-- [Getting Started](#-getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Configuration](#️-configuration)
-- [Usage](#-usage)
-- [License](#-license)
+### 🔍 Deep Web Discovery
 
-## 🎯 About the Project
+- **Role-Based Precision Search:** Enter any job title (e.g., "Senior React Developer") to instantly scrape high-intent hiring managers & recruiters actively posting jobs right now.
+- **Dynamic Crawler Fallbacks:** Uses robust automated Bing & DuckDuckGo Search APIs to silently and smoothly crawl the open web for LinkedIn profiles and data endpoints without getting blocked.
+- **Smart Filtering:** Ignore spam, focus purely on genuine leads.
 
-The **Cold Email Discovery Engine** is a specialized tool built to move beyond basic, spray-and-pray email lists. It provides a highly focused workspace to discover relevant professionals, strictly verify their contact information to ensure zero false positives, and leverage AI to draft personalized outreach emails.
+### 🤖 Generative AI Email Pipeline
 
-Built with a "Calm Command Center" philosophy, the UI minimizes overwhelm with glassmorphism aesthetics, soft interactions, and full keyboard-centric navigation.
+- **Smart Draft Generation:** Employs the cutting-edge **Gemini Pro/Flash LLM** to dissect a prospect's public footprint and construct a highly tailored, non-robot sounding introduction.
+- **Built-In Batch AI Queueing:** Advanced backend task queuing (10 contacts/minute chunking) respects LLM provider rate limits, ensuring you can import 100+ candidates at once without throwing API errors.
+- **Tone Customization:** Direct, humorous, or formal—choose your angle.
+- **Automatic Fallback Templates:** Generates a reliable templated outline formatted beautifully when candidate data is too sparse.
 
-## ✨ Key Features
+### 🛡️ Pre-Delivery Verification
 
-- **🔍 Deep Web Discovery**: Scans multiple sources (LinkedIn, GitHub, and niche communities) to find high-relevance leads that others miss.
-  - _Role-based Search_: Type "DevOps Engineer" or "Growth Marketer" and get instant results.
-  - _Real-time Streaming_: Results stream in instantly via Server-Sent Events (SSE).
-  - _Broad vs. Precision Mode_: Toggle between wide-net scanning and laser-focused targeting.
+- **Real-Time SMTP Ping Verification:** Ensures "100% Delivery Confidence." The backend actively tests the MX records and pings identical SMTP mail servers in real-time to catch bounces before they happen.
+- **Catch-All Detection:** Evaluates domains to stop generic info@ spam routing.
 
-- **✅ Triple-Layer Verification**: Every email goes through a rigorous check.
-  - _Syntax Validation_: Checks format and domain structure.
-  - _DNS Lookup_: Verifies domain records and MX server existence.
-  - _SMTP Handshake_: Pings the actual mail server to confirm the user exists.
+### 💅 Premium Glassmorphic UI
 
-- **🧠 AI-Powered Context**: Don't just say "Hi". The engine analyzes summaries, companies, and roles to:
-  - _Draft Personalized Openers_: Uses **Google Gemini** for high-speed, human-like intros.
-  - _Match Scoring_: Auto-calculates fit based on resume analysis.
+- **Lightning-Fast Next.js 14 Frontend:** Keyboard-navigable UI with Spotlight hover effects, translucent Apple-vision aesthetics, and buttery smooth animations driven by TailwindCSS and Framer Motion.
 
-- **📋 Kanban Pipeline**: Manage outreach without spreadsheet chaos.
-  - _One-Click Add_: Move verified leads from Search to Pipeline instantly.
-  - _Status Tracking_: Visual pipeline for `New`, `Contacted`, and `Replied` leads.
+---
 
-## 🛠️ Tech Stack
+## 💻 Technology Stack
 
-**Frontend**
+<div align="center">
 
-- [Next.js 14](https://nextjs.org/) (App Router)
-- [Tailwind CSS](https://tailwindcss.com/)
-- [Framer Motion](https://www.framer.com/motion/) (Micro-interactions)
-- [Lucide React](https://lucide.dev/)
+| Area         | Technologies                                                     |
+| :----------- | :--------------------------------------------------------------- |
+| **Frontend** | ⚡ **Next.js 14** (App Router), React, TailwindCSS, Lucide Icons |
+| **Backend**  | 🚀 **FastAPI** (Python 3.11+), Pydantic, Asyncio BackgroundTasks |
+| **AI / NLP** | 🧠 Google **Gemini GenAI**, SentenceTransformers                 |
+| **Database** | 🗄️ **Supabase** (PostgreSQL)                                     |
+| **Scraping** | 🕷️ SerpAPI, DuckDuckGo Search                                    |
 
-**Backend**
+</div>
 
-- [FastAPI](https://fastapi.tiangolo.com/) (Python)
-- `asyncio` & Server-Sent Events (SSE)
-- Custom Async Scraping Pipeline
-- Testing: `pytest` & `pytest-asyncio`
-
-**Infrastructure**
-
-- **Database / Auth**: [Supabase](https://supabase.com/) (PostgreSQL)
-- **AI Models**: Google Gemini API (1.5 / 2.0 Flash)
+---
 
 ## 🚀 Getting Started
 
-Follow these instructions to set up the project locally.
+To get a local instance of the application up and running smoothly, follow these concise steps.
 
 ### Prerequisites
 
-- **Node.js**: `v18.x` or higher
-- **Python**: `3.10` or higher
-- **Git**
+Ensure you have the following installed on your machine:
 
-### Installation
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [Python](https://www.python.org/downloads/) (3.11 or higher)
+- [Git](https://git-scm.com/)
 
-#### 1. Clone the Repository
+### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/Wrathsid/cold_email.git
-cd cold_email
+git clone https://github.com/Wrathsid/AI_Outreach_System.git
+cd AI_Outreach_System
 ```
 
-#### 2. Backend Setup
+### 2. Configure Backend Setup (FastAPI Pipeline)
 
-Navigate to the backend directory and set up the Python environment:
+The backend handles AI generation, scraping, and email verification.
 
 ```bash
 cd backend
 python -m venv venv
 
 # Activate the virtual environment:
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
+# Windows:
+.\\venv\\Scripts\\activate
+# macOS/Linux:
 source venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-#### 3. Frontend Setup
+Create a `.env` file in the `backend/` directory:
 
-Navigate to the frontend directory and install Node dependencies:
+```env
+SUPABASE_URL="your-supabase-url"
+SUPABASE_KEY="your-supabase-anon-key"
+GEMINI_API_KEY="your-google-gemini-key"
+SERPAPI_KEY="your-serpapi-api-key"
+```
+
+Start the backend application:
 
 ```bash
-cd ../frontend
+python -m backend.main
+```
+
+The backend API will run on `http://localhost:8000`.
+
+### 3. Configure Frontend Setup (Next.js Application)
+
+In a new terminal window, initialize the stunning UI component.
+
+```bash
+cd frontend
 npm install
 ```
 
-## ⚙️ Configuration
+Create a `.env.local` file in the `frontend/` directory connecting to the same Supabase instance:
 
-Create a `.env` file in the `backend/` directory referencing your keys:
-
-```text
-# backend/.env
-SUPABASE_URL="your_supabase_project_url"
-SUPABASE_KEY="your_supabase_anon_key"
-
-GEMINI_API_KEY="your_google_gemini_api_key"
+```env
+NEXT_PUBLIC_SUPABASE_URL="your-supabase-url"
+NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
 ```
 
-## 💻 Usage
+Start the development web server:
 
-1. **Start the Backend Server**:
-   ```bash
-   cd backend
-   python main.py
-   # API available at http://localhost:8000
-   ```
-2. **Start the Frontend Server**:
-   ```bash
-   cd frontend
-   npm run dev
-   # UI available at http://localhost:3000
-   ```
-3. **Discover Leads**:
-   Open `http://localhost:3000` in your browser. Use the central search bar and follow the intuitive UI flow to search, add, and generate drafts for your prospects!
+```bash
+npm run dev
+```
 
-## 📄 License
-
-This project is licensed under the MIT License.
+Navigate to `http://localhost:3000` to dive into the Discovery Engine.
 
 ---
 
-<div align="center">
-  <i>Built with focus and precision.</i>
-</div>
+## 📁 Repository Architecture
+
+```
+AI_Outreach_System/
+├── backend/
+│   ├── routers/       # API interface endpoints (Drafts, Search, Testing)
+│   ├── services/      # Core logic (AI Queues, Crawlers, SMTP verifiers)
+│   ├── models/        # Pydantic schemas mapping
+│   ├── requirements.txt
+│   └── main.py        # FastAPI Application Entry
+├── frontend/
+│   ├── src/
+│   │   ├── app/       # Next.js 14 App Router pages
+│   │   ├── components/# React UI Components (Spotlight, Dialogs, Cards)
+│   │   └── lib/       # API connectivity and Supabase integrations
+│   ├── public/        # Static assets
+│   ├── tailwind.config.ts
+│   └── package.json
+└── README.md
+```
+
+## 🤝 Contributing
+
+Contributions are always welcome. Please ensure that backend modifications pass standard linting tests and new frontend capabilities preserve the minimalist, glassmorphism design parameters.
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+<p align="center">Built with elegance and optimization in mind. Designed by Siddharth.</p>
