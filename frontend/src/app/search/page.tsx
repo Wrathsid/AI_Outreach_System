@@ -496,8 +496,6 @@ const SearchPage = () => {
                                                     });
                                                     
                                                     if (res?.id) {
-                                                        // Fire and forget draft generation to speed up UI
-                                                        api.generateDraft(res.id, "").catch(console.error);
                                                         return res.id;
                                                     }
                                                 } catch (err) {
@@ -511,8 +509,11 @@ const SearchPage = () => {
                                             
                                             // 3. Bulk pipeline update
                                             if (createdIds.length > 0) {
+                                                // Fire and forget the background draft generator for all candidates
+                                                api.generateDraftsBatch(createdIds, "auto").catch(console.error);
+                                                
                                                 await api.bulkAddToPipeline(createdIds);
-                                                success(`Added ${createdIds.length} leads to pipeline`);
+                                                success(`Added ${createdIds.length} leads. AI drafts are generating in the background!`);
                                                 
                                                 // Remove added candidates from search results
                                                 setResults(prev => prev.filter(r => {

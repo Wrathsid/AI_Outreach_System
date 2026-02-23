@@ -3,12 +3,15 @@ Drafts router - Draft management and AI generation.
 """
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import List, Dict, Optional
+from pydantic import BaseModel
 import re
 import hashlib
 import uuid
 import json
 from datetime import datetime, timedelta
 import time
+import asyncio
+import logging
 
 import os
 
@@ -18,6 +21,11 @@ from backend.services.embeddings import embeddings_service
 from backend.services.verifier import verify_skills_grounding
 
 router = APIRouter(tags=["Drafts"])
+
+class BatchDraftRequest(BaseModel):
+    contact_type: str = "auto"
+    candidate_ids: List[int]
+    context: Optional[str] = None
 
 # ============================================================
 # R5: VALID CHANNELS

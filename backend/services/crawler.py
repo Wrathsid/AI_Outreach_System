@@ -1,6 +1,7 @@
 import os
 import asyncio
 import random
+import logging
 from typing import List, Generator, Dict
 from dotenv import load_dotenv
 
@@ -116,14 +117,14 @@ class Crawler:
                     if results:
                         yield {"type": "status", "data": f"Found {len(results)} results via SerpAPI"}
                 except Exception as e:
+                    logging.error(f"SerpAPI error: {e}", exc_info=True)
                     yield {"type": "status", "data": f"SerpAPI error: {str(e)[:50]}"}
 
-            # Fallback: DuckDuckGo (if SerpAPI fails or no key)
             if not results:
                 yield {"type": "status", "data": "Trying DuckDuckGo fallback..."}
                 try:
                     def _ddg_search(query):
-                        from ddgs import DDGS
+                        from duckduckgo_search import DDGS
                         with DDGS() as ddgs:
                             try:
                                 return list(ddgs.text(query, max_results=10))
