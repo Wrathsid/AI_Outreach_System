@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/Wrathsid/AI_Outreach_System/main/public/logo.png" alt="Cold Email Discovery Engine Logo" width="150" height="150" style="border-radius: 20%;">
+  <img src="https://raw.githubusercontent.com/Wrathsid/AI_Outreach_System/main/public/logo.png" alt="AI Outreach System Logo" width="150" height="150" style="border-radius: 20%;">
   
-  # ❄️ Cold Email Discovery Engine
+  # ❄️ AI Outreach System
   
   **The "Apple-style" Command Center for high-precision outreach.**  
   *Find leads, verify emails, and draft personalized sequences—all in one calm, focused interface.*
