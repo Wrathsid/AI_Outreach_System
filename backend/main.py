@@ -90,5 +90,11 @@ app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 if __name__ == "__main__":
     import uvicorn
-    # Use 127.0.0.1 to avoid localhost resolution issues
-    uvicorn.run("backend.main:app", host="127.0.0.1", port=8000, reload=True)
+    import os
+    # Read port from environment variable for cloud deployment
+    port = int(os.getenv("PORT", 8000))
+    # Use 0.0.0.0 for external access in production, 127.0.0.1 for local
+    host = os.getenv("HOST", "0.0.0.0")
+    
+    logger.info(f"Starting server on {host}:{port}")
+    uvicorn.run("backend.main:app", host=host, port=port, reload=False if os.getenv("ENV") == "production" else True)

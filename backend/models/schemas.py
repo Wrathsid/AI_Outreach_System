@@ -181,6 +181,7 @@ class UserSettings(BaseModel):
     full_name: str = ""
     company: str = ""
     role: str = ""
+    avatar_url: Optional[str] = None
 
 
 # ==================== DISCOVERY MODELS ====================

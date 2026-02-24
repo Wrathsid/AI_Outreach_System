@@ -489,7 +489,7 @@ const SearchPage = () => {
                     
                     {/* Example Chips (Zero State) */}
                     {!role && results.length === 0 && !isScanning && (
-                        <div className="flex flex-wrap items-center justify-center gap-3 mt-6 animate-in fade-in slide-in-from-top-2 duration-700 delay-150">
+                        <div className="flex flex-wrap items-center justify-center gap-3 mt-6 animate-in fade-in slide-in-from-top-2 duration-700 delay-150 pointer-events-auto">
                             <span className="text-slate-600 text-sm mr-1">Try:</span>
                             {EXAMPLE_CHIPS.map((chip, i) => (
                                 <button

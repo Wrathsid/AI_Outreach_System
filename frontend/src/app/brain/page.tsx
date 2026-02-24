@@ -197,6 +197,25 @@ export default function PersonalBrain() {
   const [isSavingName, setIsSavingName] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [skillWeights, setSkillWeights] = useState<Record<string, 'low' | 'medium' | 'core'>>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('cortex_skill_weights');
+        if (stored) return JSON.parse(stored);
+      } catch { /* ignore */ }
+    }
+    return {};
+  });
+
+  const cycleWeight = (skill: string) => {
+    setSkillWeights(prev => {
+      const current = prev[skill] || 'medium';
+      const next: 'low' | 'medium' | 'core' = current === 'low' ? 'medium' : current === 'medium' ? 'core' : 'low';
+      const updated: Record<string, 'low' | 'medium' | 'core'> = { ...prev, [skill]: next };
+      try { localStorage.setItem('cortex_skill_weights', JSON.stringify(updated)); } catch { /* ignore */ }
+      return updated;
+    });
+  };
 
   const loadBrainContext = useCallback(async () => {
     const context = await api.getBrainContext();
@@ -551,20 +570,37 @@ export default function PersonalBrain() {
                 
                 <div className="flex flex-wrap gap-2">
                   <AnimatePresence mode="popLayout">
-                    {selectedSkills.map((skill) => (
-                      <motion.button
-                        key={skill}
-                        layout
-                        initial={{ opacity: 0, scale: 0.8 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.8 }}
-                        onClick={() => toggleSkill(skill)}
-                        className="group/chip flex items-center gap-1.5 px-3 py-1.5 bg-cyan-500/8 hover:bg-red-500/10 text-cyan-400 hover:text-red-400 rounded-lg text-xs font-mono border border-cyan-500/15 hover:border-red-500/30 transition-all duration-200 cursor-pointer"
-                      >
-                        {skill}
-                        <X size={10} className="opacity-0 group-hover/chip:opacity-100 transition-opacity" />
-                      </motion.button>
-                    ))}
+                    {selectedSkills.map((skill) => {
+                      const weight = skillWeights[skill] || 'medium';
+                      const weightStyles = {
+                        low: 'border-slate-500/20 bg-slate-500/5 text-slate-400',
+                        medium: 'border-cyan-500/15 bg-cyan-500/8 text-cyan-400',
+                        core: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400 shadow-[0_0_10px_-3px_rgba(16,185,129,0.3)]',
+                      };
+                      const weightLabels = { low: 'L', medium: 'M', core: '★' };
+                      return (
+                        <motion.div
+                          key={skill}
+                          layout
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
+                          className={`group/chip flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono border transition-all duration-200 ${weightStyles[weight]}`}
+                        >
+                          <button
+                            onClick={() => cycleWeight(skill)}
+                            className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[9px] font-bold hover:bg-white/20 transition-colors shrink-0"
+                            title={`Weight: ${weight} — click to cycle`}
+                          >
+                            {weightLabels[weight]}
+                          </button>
+                          <span>{skill}</span>
+                          <button onClick={() => toggleSkill(skill)} className="ml-0.5 opacity-0 group-hover/chip:opacity-100 transition-opacity">
+                            <X size={10} />
+                          </button>
+                        </motion.div>
+                      );
+                    })}
                   </AnimatePresence>
                 </div>
               </motion.div>

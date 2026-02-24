@@ -3,11 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';
-import { ArrowLeft, RefreshCw, Trash2, Mail, ExternalLink, ChevronDown } from 'lucide-react';
+import { ArrowLeft, RefreshCw, Trash2, Mail, ExternalLink, ChevronDown, Clock } from 'lucide-react';
 import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PipelineSkeleton } from '@/components/SkeletonLoaders';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'snoozed'] as const;
 
@@ -29,7 +30,7 @@ const StatusBadge = ({ candidate, onStatusChange }: { candidate: Candidate; onSt
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open); }}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${style.bg} ${style.text} border border-white/5 hover:border-white/10 transition-all`}
       >
-        <div className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+        {status === 'snoozed' ? <Clock size={12} /> : <div className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />}
         {style.label}
         <ChevronDown size={12} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -79,7 +80,7 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
         layout
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="group flex items-center gap-5 p-5 rounded-xl border border-white/5 bg-[#12121a] hover:bg-[#16162a] hover:border-white/10 transition-all cursor-pointer"
+        className="group flex items-center gap-5 p-5 rounded-xl border border-white/5 bg-[#12121a] hover:bg-[#16162a] hover:border-primary/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 cursor-pointer"
       >
         {/* Avatar */}
         <div className="relative shrink-0">
@@ -104,9 +105,12 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
               {cleanDisplayName(candidate.name)}
             </h4>
             {candidate.match_score > 0 && (
-              <span className={`text-xs font-bold px-2 py-0.5 rounded border shrink-0 ${
-                candidate.match_score >= 80 ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'
-              }`}>
+              <span 
+                className={`text-xs font-bold px-2 py-0.5 rounded border shrink-0 cursor-help ${
+                  candidate.match_score >= 80 ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'
+                }`}
+                title="Based on skills overlap, role alignment, and activity signals"
+              >
                 {candidate.match_score}%
               </span>
             )}
@@ -236,8 +240,8 @@ const CandidatesPage = () => {
     <main className="flex-1 h-full overflow-y-auto overflow-x-hidden flex flex-col relative w-full bg-[#0a0a0f]">
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/5 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/5 blur-[100px]" />
+        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/5 blur-[120px] animate-ambient-drift" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/5 blur-[100px] animate-ambient-drift-slow" />
       </div>
 
       {/* Header */}
@@ -280,9 +284,7 @@ const CandidatesPage = () => {
       <div className="flex-1 px-6 md:px-8 pb-8 z-10">
         <div className="max-w-[900px] mx-auto space-y-2">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <RefreshCw className="animate-spin text-primary" size={24} />
-            </div>
+            <PipelineSkeleton />
           ) : filteredCandidates.length === 0 ? (
             <div className="text-center py-20">
               <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">

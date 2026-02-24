@@ -27,7 +27,12 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Batch Progress State
-  const [batchTask, setBatchTask] = useState<string | null>(null);
+  const [batchTask, setBatchTask] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('active_batch_task');
+    }
+    return null;
+  });
   const [batchProgress, setBatchProgress] = useState<{ total: number, completed: number, failed: number, status: string } | null>(null);
 
   const loadData = useCallback(async (isRefresh = false) => {
@@ -39,14 +44,6 @@ const Dashboard = () => {
     setActivity(activityData);
     setStats(statsData);
     setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    // Check for active batch task
-    const storedTask = localStorage.getItem('active_batch_task');
-    if (storedTask) {
-      setBatchTask(storedTask);
-    }
   }, []);
 
   useEffect(() => {
@@ -89,10 +86,13 @@ const Dashboard = () => {
   }, []);
 
   const formatTimeAgo = (dateStr: string) => {
+    if (!dateStr) return 'just now';
     const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return 'just now';
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     const diffHours = Math.floor(diffMins / 60);
     if (diffHours < 24) return `${diffHours}h ago`;
@@ -207,10 +207,18 @@ const Dashboard = () => {
                         <p className="text-slate-400 text-xs">Last 7 Days</p>
                      </div>
                   </div>
-                  <div className="text-right">
-                     <p className="text-2xl font-bold text-white"><CountUp target={stats.people_found} /></p>
-                     <p className="text-slate-500 text-xs text-right">Total Leads</p>
-                  </div>
+                   <div className="text-right">
+                      {stats.people_found === 0 ? (
+                        <Link href="/search" className="text-sm text-primary hover:text-primary/80 transition-colors font-medium">
+                          Start searching →
+                        </Link>
+                      ) : (
+                        <>
+                          <p className="text-2xl font-bold text-white"><CountUp target={stats.people_found} /></p>
+                          <p className="text-slate-400 text-xs text-right">Total Leads</p>
+                        </>
+                      )}
+                   </div>
                </div>
                
                <div className="flex-1 w-full min-h-0">
@@ -337,8 +345,11 @@ const Dashboard = () => {
                     ))}
                   </StaggerContainer>
                 ) : (
-                  <div className="text-center p-8 text-slate-500">
-                    <p>No activity yet. Add candidates to get started!</p>
+                  <div className="text-center p-8">
+                    <p className="text-slate-400 text-sm mb-2">No activity yet.</p>
+                    <Link href="/search" className="text-primary hover:text-primary/80 text-sm font-medium transition-colors">
+                      Search a role like &quot;Frontend Engineer&quot; to get started →
+                    </Link>
                   </div>
                 )}
               </div>

@@ -4,15 +4,22 @@ Settings router - User settings, brain context, and profile management.
 import re
 import io
 import json
-from fastapi import APIRouter, UploadFile, File
+import uuid
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi.responses import FileResponse
 from typing import List
 from datetime import datetime
 from pypdf import PdfReader
+from pathlib import Path
 
 from backend.config import get_supabase, generate_with_gemini, logger
 from backend.models.schemas import UserSettings
 
 router = APIRouter(tags=["Settings"])
+
+# Local avatar storage directory
+AVATAR_DIR = Path(__file__).resolve().parent.parent / "static" / "avatars"
+AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # ==================== USER SETTINGS ====================
@@ -25,7 +32,7 @@ def get_settings():
         result = supabase.table("user_settings").select("*").eq("id", 1).execute()
         if result.data:
             return result.data[0]
-    return {"full_name": "", "company": "", "role": ""}
+    return {"full_name": "", "company": "", "role": "", "avatar_url": None}
 
 
 @router.put("")
@@ -33,15 +40,127 @@ def update_settings(settings: UserSettings):
     """Update user settings."""
     supabase = get_supabase()
     if supabase:
-        supabase.table("user_settings").upsert({
+        data = {
             "id": 1,
             "full_name": settings.full_name,
             "company": settings.company,
             "role": settings.role,
             "updated_at": datetime.now().isoformat()
-        }).execute()
+        }
+        if settings.avatar_url is not None:
+            data["avatar_url"] = settings.avatar_url
+        supabase.table("user_settings").upsert(data).execute()
         return {"status": "updated"}
     return {"status": "not persisted"}
+
+
+@router.post("/avatar")
+async def upload_avatar(file: UploadFile = File(...)):
+    """Upload profile avatar. Supports JPG/PNG, max 2MB."""
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/jpg"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Only JPG and PNG files are allowed.")
+    
+    content = await file.read()
+    
+    # Validate file size (2MB)
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 2MB.")
+    
+    ext = "jpg" if "jpeg" in (file.content_type or "") or "jpg" in (file.content_type or "") else "png"
+    filename = f"avatar_{uuid.uuid4().hex[:8]}.{ext}"
+    
+    supabase = get_supabase()
+    avatar_url = None
+    
+    # Try Supabase Storage first
+    if supabase:
+        try:
+            # Upload to Supabase Storage bucket 'avatars'
+            storage_path = f"user_1/{filename}"
+            supabase.storage.from_("avatars").upload(
+                storage_path, content,
+                file_options={"content-type": file.content_type, "upsert": "true"}
+            )
+            public_url = supabase.storage.from_("avatars").get_public_url(storage_path)
+            avatar_url = public_url
+            logger.info(f"Avatar uploaded to Supabase Storage: {avatar_url}")
+        except Exception as e:
+            logger.warning(f"Supabase Storage upload failed (falling back to local): {e}")
+    
+    # Fallback to local storage
+    if not avatar_url:
+        file_path = AVATAR_DIR / filename
+        with open(file_path, "wb") as f:
+            f.write(content)
+        avatar_url = f"/settings/avatar/file/{filename}"
+        logger.info(f"Avatar saved locally: {file_path}")
+    
+    # Update user_settings with avatar_url
+    if supabase:
+        try:
+            supabase.table("user_settings").upsert({
+                "id": 1,
+                "avatar_url": avatar_url,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
+        except Exception as e:
+            logger.error(f"Failed to save avatar URL to DB: {e}")
+    
+    return {"avatar_url": avatar_url, "status": "uploaded"}
+
+
+@router.delete("/avatar")
+def remove_avatar():
+    """Remove profile avatar."""
+    supabase = get_supabase()
+    if supabase:
+        try:
+            # Get current avatar URL
+            result = supabase.table("user_settings").select("avatar_url").eq("id", 1).execute()
+            if result.data and result.data[0].get("avatar_url"):
+                old_url = result.data[0]["avatar_url"]
+                # Try to delete from Supabase Storage
+                if "supabase" in old_url:
+                    try:
+                        path = old_url.split("/avatars/")[-1] if "/avatars/" in old_url else None
+                        if path:
+                            supabase.storage.from_("avatars").remove([path])
+                    except Exception:
+                        pass
+                # Try to delete local file
+                elif old_url.startswith("/settings/avatar/file/"):
+                    local_name = old_url.split("/")[-1]
+                    local_path = AVATAR_DIR / local_name
+                    if local_path.exists():
+                        local_path.unlink()
+            
+            # Clear avatar_url in DB
+            supabase.table("user_settings").update({
+                "avatar_url": None,
+                "updated_at": datetime.now().isoformat()
+            }).eq("id", 1).execute()
+        except Exception as e:
+            logger.error(f"Failed to remove avatar: {e}")
+    return {"status": "removed"}
+
+
+@router.get("/avatar/file/{filename}")
+def serve_avatar(filename: str):
+    """Serve locally stored avatar files."""
+    # Sanitize filename to prevent path traversal attacks
+    safe_name = Path(filename).name  # strips any '../' or directory components
+    if safe_name != filename or '..' in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    file_path = AVATAR_DIR / safe_name
+    # Ensure the resolved path is within AVATAR_DIR
+    if not str(file_path.resolve()).startswith(str(AVATAR_DIR.resolve())):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Avatar not found")
+    media_type = "image/jpeg" if safe_name.endswith(".jpg") else "image/png"
+    return FileResponse(str(file_path), media_type=media_type)
 
 
 # ==================== BRAIN CONTEXT ====================
@@ -253,11 +372,31 @@ def delete_account():
             supabase.table("drafts").delete().neq("id", 0).execute()
             supabase.table("candidates").delete().neq("id", 0).execute()
             
+            # Clean up avatar files before resetting settings
+            try:
+                avatar_result = supabase.table("user_settings").select("avatar_url").eq("id", 1).execute()
+                if avatar_result.data and avatar_result.data[0].get("avatar_url"):
+                    old_url = avatar_result.data[0]["avatar_url"]
+                    if "supabase" in old_url and "/avatars/" in old_url:
+                        try:
+                            path = old_url.split("/avatars/")[-1]
+                            supabase.storage.from_("avatars").remove([path])
+                        except Exception:
+                            pass
+                    elif old_url.startswith("/settings/avatar/file/"):
+                        local_name = old_url.split("/")[-1]
+                        local_path = AVATAR_DIR / local_name
+                        if local_path.exists():
+                            local_path.unlink()
+            except Exception:
+                pass
+
             # Reset Settings & Brain to defaults (don't delete rows to keep ID 1 valid)
             supabase.table("user_settings").update({
                 "full_name": None,
                 "company": None,
                 "role": None,
+                "avatar_url": None,
                 "updated_at": datetime.now().isoformat()
             }).eq("id", 1).execute()
 

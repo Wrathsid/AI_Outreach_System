@@ -128,29 +128,41 @@ const Sidebar = () => {
               <Link 
                 href={item.href} 
                 onClick={() => setIsMobileOpen(false)}
-                className="relative"
+                className="relative group/nav block"
               >
                 <motion.div
                   className={`
+                    relative flex items-center gap-3 p-3 rounded-xl transition-all duration-200
                     ${isActive(item.href) 
-                      ? 'bg-primary/20 text-white shadow-[0_0_20px_-5px_rgba(37,99,235,0.3)]' 
-                      : 'text-white/40 hover:text-white hover:bg-white/5'
+                      ? 'bg-primary/15 text-white' 
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                     }
                   `}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
+                  {/* Left glowing accent bar */}
                   {isActive(item.href) && (
                     <motion.div
-                      className="absolute inset-0 rounded-xl bg-primary/20 shadow-[0_0_15px_-3px_rgba(25,25,230,0.4)]"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_8px_2px_rgba(59,130,246,0.5)]"
+                      layoutId="activeBar"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  {isActive(item.href) && (
+                    <motion.div
+                      className="absolute inset-0 rounded-xl bg-primary/10 shadow-[0_0_20px_-5px_rgba(59,130,246,0.25)]"
                       layoutId="activeNav"
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     />
                   )}
-                  <item.icon size={24} className="relative z-10" />
+                  <item.icon size={22} className="relative z-10 shrink-0" />
                   <span className="md:hidden text-sm font-medium relative z-10">{item.label}</span>
-                  <span className="hidden md:block absolute left-14 bg-black/80 px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">{item.label}</span>
                 </motion.div>
+                {/* Tooltip on hover (desktop) */}
+                <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 rounded-lg bg-[#1a1a2e] border border-white/10 text-xs text-white font-medium opacity-0 group-hover/nav:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-50 shadow-xl">
+                  {item.label}
+                </div>
               </Link>
             </motion.div>
           ))}

@@ -477,4 +477,33 @@
       background-position: 0% 100%;
     }
   }
+
+  /* Ambient glow animation for background orbs */
+  @keyframes ambient-drift {
+    0%,
+    100% {
+      transform: translate(0, 0) scale(1);
+      opacity: 0.5;
+    }
+    25% {
+      transform: translate(15px, -20px) scale(1.05);
+      opacity: 0.7;
+    }
+    50% {
+      transform: translate(-10px, 10px) scale(0.95);
+      opacity: 0.4;
+    }
+    75% {
+      transform: translate(5px, 15px) scale(1.02);
+      opacity: 0.6;
+    }
+  }
+
+  .animate-ambient-drift {
+    animation: ambient-drift 20s ease-in-out infinite;
+  }
+
+  .animate-ambient-drift-slow {
+    animation: ambient-drift 30s ease-in-out infinite reverse;
+  }
 }

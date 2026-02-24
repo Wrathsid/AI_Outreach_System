@@ -94,6 +94,7 @@ export interface UserSettings {
   full_name: string;
   company: string;
   role: string;
+  avatar_url?: string | null;
 }
 
 // API Functions
@@ -117,6 +118,30 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
       });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+
+  uploadAvatar: async (file: File): Promise<{ avatar_url: string; status: string } | null> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetchWithAuth(`${API_BASE}/settings/avatar`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  removeAvatar: async (): Promise<boolean> => {
+    try {
+      const res = await fetchWithAuth(`${API_BASE}/settings/avatar`, { method: 'DELETE' });
       return res.ok;
     } catch {
       return false;
