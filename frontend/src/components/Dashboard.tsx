@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RefreshCw, Mail, UserSearch, ArrowRight, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
-import { api, ActivityLog, DashboardStats, Candidate } from '@/lib/api';
-import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
+import { RefreshCw, Mail, UserSearch, Loader2, PieChart as PieIcon, BarChart3 } from 'lucide-react';
+import { api, ActivityLog, DashboardStats } from '@/lib/api';
 import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn, HoverSpotlight } from './Animations';
 import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -15,7 +14,7 @@ const Dashboard = () => {
 
 
   const [activity, setActivity] = useState<ActivityLog[]>([]);
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
+
   const [stats, setStats] = useState<DashboardStats>({ 
     weekly_goal_percent: 0, 
     people_found: 0, 
@@ -27,30 +26,62 @@ const Dashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
+  // Batch Progress State
+  const [batchTask, setBatchTask] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ total: number, completed: number, failed: number, status: string } | null>(null);
+
   const loadData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setLoading(true);
-    const [activityData, statsData, candidatesData] = await Promise.all([
+    const [activityData, statsData] = await Promise.all([
       api.getActivity(),
-      api.getStats(),
-      api.getCandidates()
+      api.getStats()
     ]);
     setActivity(activityData);
     setStats(statsData);
-    setCandidates(candidatesData);
     setLoading(false);
   }, []);
+
+  useEffect(() => {
+    // Check for active batch task
+    const storedTask = localStorage.getItem('active_batch_task');
+    if (storedTask) {
+      setBatchTask(storedTask);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!batchTask) return;
+
+    const interval = setInterval(async () => {
+      const status = await api.getBatchStatus(batchTask);
+      if (status) {
+        setBatchProgress(status);
+        if (status.status === 'done' || status.status === 'failed') {
+          clearInterval(interval);
+          setTimeout(() => {
+            setBatchTask(null);
+            setBatchProgress(null);
+            localStorage.removeItem('active_batch_task');
+            loadData(true); // Refresh dashboard when done
+          }, 3000);
+        }
+      } else {
+        clearInterval(interval);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [batchTask, loadData]);
 
   useEffect(() => {
     let isMounted = true;
     Promise.all([
       api.getActivity(),
-      api.getStats(),
-      api.getCandidates()
-    ]).then(([activityData, statsData, candidatesData]) => {
+      api.getStats()
+    ]).then(([activityData, statsData]) => {
       if (isMounted) {
         setActivity(activityData);
         setStats(statsData);
-        setCandidates(candidatesData);
         setLoading(false);
       }
     });
@@ -137,6 +168,29 @@ const Dashboard = () => {
             </div>
           </section>
         </FadeUp>
+
+        {/* Batch Progress Bar */}
+        {batchProgress && (
+           <FadeUp delay={0.1}>
+             <div className="w-full bg-blue-500/10 border border-blue-500/30 rounded-2xl p-4 flex items-center gap-4">
+               <Loader2 className="animate-spin text-blue-400" size={24} />
+               <div className="flex-1">
+                 <div className="flex justify-between items-center mb-1">
+                   <h3 className="text-white font-medium text-sm">
+                     {batchProgress.status === 'done' ? 'Draft Generation Complete!' : 'Generating AI Drafts...'}
+                   </h3>
+                   <span className="text-blue-400 text-xs font-mono">{batchProgress.completed} / {batchProgress.total}</span>
+                 </div>
+                 <div className="w-full bg-black/40 rounded-full h-2 overflow-hidden">
+                   <div 
+                     className={`${batchProgress.status === 'done' ? 'bg-emerald-500' : 'bg-blue-500'} h-full rounded-full transition-all duration-500`}
+                     style={{ width: `${(batchProgress.completed / batchProgress.total) * 100}%` }}
+                   ></div>
+                 </div>
+               </div>
+             </div>
+           </FadeUp>
+        )}
 
         {/* Analytics Grid */}
         <StaggerContainer className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -244,56 +298,6 @@ const Dashboard = () => {
 
 
 
-        {/* Recent Leads / Pipeline Preview */}
-        {candidates.length > 0 && (
-            <FadeUp delay={0.3}>
-                <section className="mt-4">
-                    <div className="flex justify-between items-center mb-4 ml-2">
-                        <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider">New Leads</h3>
-                         <Link href="/candidates" className="text-xs text-primary hover:text-white transition-colors">View All</Link>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {candidates.slice(0, 3).map((candidate, i) => (
-                             <motion.div 
-                                key={candidate.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 * i }}
-                             >
-                              <HoverSpotlight className="rounded-2xl">
-                                <div className="glass-panel p-5 border border-white/5 hover:border-primary/30 transition-all group relative overflow-hidden h-full z-10">
-                                  <div className="absolute top-0 right-0 p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      <ArrowRight className="text-primary -rotate-45 group-hover:rotate-0 transition-transform" size={16} />
-                                  </div>
-                                  <div className="flex items-start gap-4">
-                                      <div className="w-10 h-10 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                                          {getNameInitial(candidate.name)}
-                                      </div>
-                                      <div>
-                                          <h4 className="text-white font-medium truncate pr-6">{cleanDisplayName(candidate.name)}</h4>
-                                          <p className="text-slate-400 text-xs truncate">{candidate.title}</p>
-                                          <p className="text-slate-500 text-xs mt-1">{candidate.company}</p>
-                                          
-                                          <div className="mt-3 flex items-center gap-2">
-                                              <div className="text-[10px] bg-white/5 px-2 py-1 rounded text-slate-300 border border-white/5">
-                                                  {candidate.email ? 'Email Found' : 'No Email'}
-                                              </div>
-                                              {candidate.match_score > 0 && (
-                                                  <div className="text-[10px] bg-green-500/10 px-2 py-1 rounded text-green-400 border border-green-500/10">
-                                                      {candidate.match_score}% Match
-                                                  </div>
-                                              )}
-                                          </div>
-                                      </div>
-                                  </div>
-                                </div>
-                              </HoverSpotlight>
-                             </motion.div>
-                        ))}
-                    </div>
-                </section>
-            </FadeUp>
-        )}
 
         {/* Activity Feed */}
         <FadeUp delay={0.4}>

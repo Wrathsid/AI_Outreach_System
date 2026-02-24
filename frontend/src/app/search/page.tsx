@@ -6,6 +6,7 @@ import { API_BASE, api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
 import { useToast } from '@/context/ToastContext';
+import { createClient } from '@/lib/supabase';
 
 // Reuse ScanResult type or similar
 interface ScanResult {
@@ -143,6 +144,12 @@ const SearchPage = () => {
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isAdding, setIsAdding] = useState(false);
     
+    // Advanced Filters State
+    const [size, setSize] = useState('');
+    const [revenue, setRevenue] = useState('');
+    const [tech, setTech] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+    
     // Rotating Placeholder Logic
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
     useEffect(() => {
@@ -197,20 +204,33 @@ const SearchPage = () => {
     ).slice(0, 5);
 
     // Simple scan handler (HR Search default)
-    const handleScan = async () => {
-        if (!role) return;
+    const handleScan = async (roleOverride?: string) => {
+        const searchRole = roleOverride || role;
+        if (!searchRole) return;
         setShowSuggestions(false);
         setIsScanning(true);
         setStatusMessage('Initializing deep scan...');
         setResults([]);
         
         try {
-            const queryParams = new URLSearchParams({ 
-                role,
+            const p: Record<string, string> = { 
+                role: searchRole,
                 broad_mode: broadMode.toString(),
-                icp_context: "Focus on AI engineers, recruitment leads, and agency owners in the US/Europe." // Example default context
-            });
-            const response = await fetch(`${API_BASE}/discover/hr-search?${queryParams.toString()}`);
+                icp_context: "Focus on AI engineers, recruitment leads, and agency owners in the US/Europe." 
+            };
+            if (size) p.size = size;
+            if (revenue) p.revenue = revenue;
+            if (tech) p.tech = tech;
+            const queryParams = new URLSearchParams(p);
+
+            const supabase = createClient();
+            const { data: { session } } = await supabase.auth.getSession();
+            const headers = new Headers();
+            if (session?.access_token) {
+                headers.set('Authorization', `Bearer ${session.access_token}`);
+            }
+
+            const response = await fetch(`${API_BASE}/discover/hr-search?${queryParams.toString()}`, { headers });
             
             if (!response.body) throw new Error("No response body");
             
@@ -354,7 +374,7 @@ const SearchPage = () => {
                                     
                                     {(role.length > 2) && (
                                         <button 
-                                            onClick={handleScan}
+                                            onClick={() => handleScan()}
                                             disabled={isScanning || !role}
                                             className="bg-primary hover:bg-blue-600 text-white rounded-full px-5 py-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20 flex items-center gap-2"
                                         >
@@ -377,6 +397,56 @@ const SearchPage = () => {
                             <FadeUp delay={0.1} className="mt-4 text-center">
                                 <p className="text-sm text-slate-400 font-mono animate-pulse">{statusMessage}</p>
                             </FadeUp>
+                        )}
+
+                        {/* Advanced Filters Toggle */}
+                        {role && results.length === 0 && !isScanning && (
+                             <div className="mt-4 px-2 flex justify-end animate-in fade-in slide-in-from-top-2">
+                                 <button
+                                     onClick={() => setShowFilters(!showFilters)}
+                                     className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
+                                 >
+                                     <Settings2 size={12} />
+                                     {showFilters ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
+                                 </button>
+                             </div>
+                        )}
+
+                        {/* Advanced Filters UI */}
+                        {showFilters && role && results.length === 0 && !isScanning && (
+                            <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-4 pointer-events-auto">
+                                <select 
+                                    value={size} 
+                                    onChange={(e) => setSize(e.target.value)}
+                                    className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer appearance-none"
+                                >
+                                    <option value="" className="bg-[#0a0a0f]">Company Size</option>
+                                    <option value="1-10" className="bg-[#0a0a0f]">1-10 employees</option>
+                                    <option value="11-50" className="bg-[#0a0a0f]">11-50 employees</option>
+                                    <option value="51-200" className="bg-[#0a0a0f]">51-200 employees</option>
+                                    <option value="201-500" className="bg-[#0a0a0f]">201-500 employees</option>
+                                    <option value="500+" className="bg-[#0a0a0f]">500+ employees</option>
+                                </select>
+
+                                <select 
+                                    value={revenue} 
+                                    onChange={(e) => setRevenue(e.target.value)}
+                                    className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer appearance-none"
+                                >
+                                    <option value="" className="bg-[#0a0a0f]">Revenue</option>
+                                    <option value="$1M-$10M" className="bg-[#0a0a0f]">$1M - $10M</option>
+                                    <option value="$10M-$50M" className="bg-[#0a0a0f]">$10M - $50M</option>
+                                    <option value="$50M+" className="bg-[#0a0a0f]">$50M+</option>
+                                </select>
+
+                                <input 
+                                    type="text" 
+                                    value={tech} 
+                                    onChange={(e) => setTech(e.target.value)}
+                                    placeholder="Tech Stack (e.g. React)"
+                                    className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 transition-colors"
+                                />
+                            </div>
                         )}
 
                         {/* Dropdown Suggestions */}
@@ -424,7 +494,7 @@ const SearchPage = () => {
                             {EXAMPLE_CHIPS.map((chip, i) => (
                                 <button
                                     key={i}
-                                    onClick={() => { setRole(chip); handleScan(); }}
+                                    onClick={() => { setRole(chip); setTimeout(() => handleScan(chip), 50); }}
                                     className="text-sm text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-1 rounded-full transition-colors border border-white/5 hover:border-white/20"
                                 >
                                     {chip}
@@ -510,7 +580,11 @@ const SearchPage = () => {
                                             // 3. Bulk pipeline update
                                             if (createdIds.length > 0) {
                                                 // Fire and forget the background draft generator for all candidates
-                                                api.generateDraftsBatch(createdIds, "auto").catch(console.error);
+                                                api.generateDraftsBatch(createdIds, "auto").then((res) => {
+                                                    if (res?.task_id) {
+                                                        localStorage.setItem('active_batch_task', res.task_id);
+                                                    }
+                                                }).catch(console.error);
                                                 
                                                 await api.bulkAddToPipeline(createdIds);
                                                 success(`Added ${createdIds.length} leads. AI drafts are generating in the background!`);

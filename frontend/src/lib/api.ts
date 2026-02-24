@@ -1,5 +1,18 @@
 // API Client for Intelligent Outreach Backend
-// export const API_BASE = 'http://localhost:8000'; // Hardcoded for now until env var logic is stricter
+import { createClient } from '@/lib/supabase';
+
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  
+  const headers = new Headers(options.headers || {});
+  if (session?.access_token) {
+    headers.set('Authorization', `Bearer ${session.access_token}`);
+  }
+  
+  return fetch(url, { ...options, headers });
+}
+
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
 
 // Types
@@ -87,19 +100,19 @@ export interface UserSettings {
 export const api = {
   // Health check
   async health() {
-    const res = await fetch(`${API_BASE}/`);
+    const res = await fetchWithAuth(`${API_BASE}/`);
     return res.json();
   },
 
   // Settings
   getSettings: async (): Promise<UserSettings> => {
-    const res = await fetch(`${API_BASE}/settings`);
+    const res = await fetchWithAuth(`${API_BASE}/settings`);
     return res.json();
   },
   
   updateSettings: async (settings: UserSettings): Promise<boolean> => {
     try {
-      const res = await fetch(`${API_BASE}/settings`, {
+      const res = await fetchWithAuth(`${API_BASE}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
@@ -113,7 +126,7 @@ export const api = {
   // Discovery
   discoverCandidates: async (role: string): Promise<unknown[]> => {
     try {
-        const res = await fetch(`${API_BASE}/discover?role=${encodeURIComponent(role)}`);
+        const res = await fetchWithAuth(`${API_BASE}/discover?role=${encodeURIComponent(role)}`);
         if (!res.ok) throw new Error('API error');
         return res.json();
     } catch {
@@ -122,7 +135,7 @@ export const api = {
   },
 
   crawlWebsite: async (url: string): Promise<unknown> => {
-    const res = await fetch(`${API_BASE}/discover/crawl`, {
+    const res = await fetchWithAuth(`${API_BASE}/discover/crawl`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ domain: url })
@@ -131,7 +144,7 @@ export const api = {
   },
 
   guessEmailPattern: async (firstName: string, lastName: string, domain: string): Promise<unknown> => {
-    const res = await fetch(`${API_BASE}/discover/pattern`, {
+    const res = await fetchWithAuth(`${API_BASE}/discover/pattern`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ first_name: firstName, last_name: lastName, domain })
@@ -141,7 +154,7 @@ export const api = {
 
   // Candidates
   async pruneCandidates(days: number = 7): Promise<unknown> {
-    const response = await fetch(`${API_BASE}/candidates/prune?days=${days}`, {
+    const response = await fetchWithAuth(`${API_BASE}/candidates/prune?days=${days}`, {
       method: "DELETE",
     });
     return response.json();
@@ -149,7 +162,7 @@ export const api = {
 
   async getCandidates(): Promise<Candidate[]> {
     try {
-      const res = await fetch(`${API_BASE}/candidates`);
+      const res = await fetchWithAuth(`${API_BASE}/candidates`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -159,7 +172,7 @@ export const api = {
 
   async getCandidate(id: number): Promise<Candidate | null> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/${id}`);
+      const res = await fetchWithAuth(`${API_BASE}/candidates/${id}`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -169,7 +182,7 @@ export const api = {
 
   async createCandidate(candidate: Omit<Candidate, 'id'>): Promise<Candidate | null> {
     try {
-      const res = await fetch(`${API_BASE}/candidates`, {
+      const res = await fetchWithAuth(`${API_BASE}/candidates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(candidate),
@@ -184,7 +197,7 @@ export const api = {
 
   async updateCandidateStatus(id: number, status: string): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/${id}/status?status=${status}`, {
+      const res = await fetchWithAuth(`${API_BASE}/candidates/${id}/status?status=${status}`, {
         method: 'PATCH',
       });
       return res.ok;
@@ -195,7 +208,7 @@ export const api = {
 
   async deleteCandidate(id: number): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/${id}`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`${API_BASE}/candidates/${id}`, { method: 'DELETE' });
       return res.ok;
     } catch {
       return false;
@@ -204,7 +217,7 @@ export const api = {
 
   async deleteAllCandidates(): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/all/delete`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`${API_BASE}/candidates/all/delete`, { method: 'DELETE' });
       return res.ok;
     } catch {
       return false;
@@ -214,7 +227,7 @@ export const api = {
   // UX Improvements: Bulk Operations & Sent Tracking
   async bulkAddToPipeline(candidateIds: number[]): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/bulk-add`, {
+      const res = await fetchWithAuth(`${API_BASE}/candidates/bulk-add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ candidate_ids: candidateIds }),
@@ -227,7 +240,7 @@ export const api = {
 
   async getSentCandidates(): Promise<Candidate[]> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/sent`);
+      const res = await fetchWithAuth(`${API_BASE}/candidates/sent`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -237,7 +250,7 @@ export const api = {
 
   async markAsSent(candidateId: number): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/${candidateId}/mark-sent`, {
+      const res = await fetchWithAuth(`${API_BASE}/candidates/${candidateId}/mark-sent`, {
         method: 'PATCH',
       });
       return res.ok;
@@ -248,7 +261,7 @@ export const api = {
 
   async markAsReplied(candidateId: number): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/candidates/${candidateId}/mark-replied`, {
+      const res = await fetchWithAuth(`${API_BASE}/candidates/${candidateId}/mark-replied`, {
         method: 'PATCH',
       });
       return res.ok;
@@ -260,7 +273,7 @@ export const api = {
   // Drafts
   async getDrafts(): Promise<Draft[]> {
     try {
-      const res = await fetch(`${API_BASE}/drafts`);
+      const res = await fetchWithAuth(`${API_BASE}/drafts`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -270,7 +283,7 @@ export const api = {
 
   async deleteAllDrafts(): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/drafts`, { method: 'DELETE' });
+      const res = await fetchWithAuth(`${API_BASE}/drafts`, { method: 'DELETE' });
       return res.ok;
     } catch {
       return false;
@@ -279,7 +292,7 @@ export const api = {
 
   async generateDraft(candidateId: number, context: string = '', contactType: 'auto' | 'email' | 'linkedin' = 'auto'): Promise<{ type: 'email' | 'linkedin'; subject?: string; body?: string; message?: string; char_count?: number; draft_id?: number } | null> {
     try {
-      const res = await fetch(`${API_BASE}/drafts/generate/${candidateId}?context=${encodeURIComponent(context)}&contact_type=${contactType}`, {
+      const res = await fetchWithAuth(`${API_BASE}/drafts/generate/${candidateId}?context=${encodeURIComponent(context)}&contact_type=${contactType}`, {
         method: 'POST',
       });
       if (!res.ok) throw new Error('API error');
@@ -289,9 +302,33 @@ export const api = {
     }
   },
 
+  async generateDraftsBatch(candidateIds: number[], context: string = ''): Promise<{ message: string, task_id?: string } | null> {
+    try {
+      const res = await fetchWithAuth(`${API_BASE}/drafts/generate-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidate_ids: candidateIds, context })
+      });
+      if (!res.ok) throw new Error('API error');
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
+  async getBatchStatus(taskId: string): Promise<{ total: number, completed: number, failed: number, status: string } | null> {
+    try {
+      const res = await fetchWithAuth(`${API_BASE}/drafts/batch/${taskId}/status`);
+      if (!res.ok) throw new Error('API error');
+      return res.json();
+    } catch {
+      return null;
+    }
+  },
+
   async polishDraft(text: string): Promise<string | null> {
     try {
-      const res = await fetch(`${API_BASE}/drafts/polish`, {
+      const res = await fetchWithAuth(`${API_BASE}/drafts/polish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -307,7 +344,7 @@ export const api = {
   // Send Email
   async sendEmail(to: string, subject: string, body: string, candidateId?: number): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/emails/send-legacy`, {
+      const res = await fetchWithAuth(`${API_BASE}/emails/send-legacy`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to, subject, body, candidate_id: candidateId }),
@@ -320,7 +357,7 @@ export const api = {
 
   async getSentEmails(): Promise<{ emails: unknown[] }> {
     try {
-      const res = await fetch(`${API_BASE}/emails/sent`);
+      const res = await fetchWithAuth(`${API_BASE}/emails/sent`);
       return res.json();
     } catch {
       return { emails: [] };
@@ -330,7 +367,7 @@ export const api = {
   // Activity & Stats
   async getActivity(): Promise<ActivityLog[]> {
     try {
-      const res = await fetch(`${API_BASE}/stats/activity`);
+      const res = await fetchWithAuth(`${API_BASE}/stats/activity`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -340,7 +377,7 @@ export const api = {
 
   async getStats(): Promise<DashboardStats> {
     try {
-      const res = await fetch(`${API_BASE}/stats`);
+      const res = await fetchWithAuth(`${API_BASE}/stats`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -350,7 +387,7 @@ export const api = {
 
   async getFunnelStats(): Promise<FunnelStats | null> {
     try {
-      const res = await fetch(`${API_BASE}/stats/funnel`);
+      const res = await fetchWithAuth(`${API_BASE}/stats/funnel`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -361,7 +398,7 @@ export const api = {
   // Brain Context
   async updateSkills(skills: string[]): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/settings/brain/skills`, {
+      const res = await fetchWithAuth(`${API_BASE}/settings/brain/skills`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(skills),
@@ -374,7 +411,7 @@ export const api = {
 
   async getBrainContext(): Promise<{ formality: number; detail_level: number; use_emojis: boolean; resume_url?: string; extracted_skills?: string[] }> {
     try {
-      const res = await fetch(`${API_BASE}/settings/brain`);
+      const res = await fetchWithAuth(`${API_BASE}/settings/brain`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -384,7 +421,7 @@ export const api = {
 
   async updateBrainContext(formality: number, detailLevel: number, useEmojis: boolean): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/settings/brain?formality=${formality}&detail_level=${detailLevel}&use_emojis=${useEmojis}`, {
+      const res = await fetchWithAuth(`${API_BASE}/settings/brain?formality=${formality}&detail_level=${detailLevel}&use_emojis=${useEmojis}`, {
         method: 'PUT',
       });
       return res.ok;
@@ -395,7 +432,7 @@ export const api = {
 
   async verifyLinkedIn(url: string): Promise<{ valid: boolean; message: string }> {
     try {
-      const res = await fetch(`${API_BASE}/settings/verify-linkedin?url=${encodeURIComponent(url)}`, {
+      const res = await fetchWithAuth(`${API_BASE}/settings/verify-linkedin?url=${encodeURIComponent(url)}`, {
           method: 'POST'
       });
       if (!res.ok) throw new Error('API error');
@@ -408,7 +445,7 @@ export const api = {
   // AI Extraction
   extractOpportunity: async (text: string): Promise<ExtractedOpportunity | null> => {
     try {
-      const res = await fetch(`${API_BASE}/settings/extract-opportunity`, {
+      const res = await fetchWithAuth(`${API_BASE}/settings/extract-opportunity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -424,7 +461,7 @@ export const api = {
   // Gmail OAuth
   async getGmailStatus(userId: number = 1): Promise<{ connected: boolean; email?: string }> {
     try {
-      const res = await fetch(`${API_BASE}/auth/gmail/status?user_id=${userId}`);
+      const res = await fetchWithAuth(`${API_BASE}/auth/gmail/status?user_id=${userId}`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -434,7 +471,7 @@ export const api = {
 
   async getGmailAuthUrl(userId: number = 1): Promise<string | null> {
     try {
-      const res = await fetch(`${API_BASE}/auth/google?user_id=${userId}`);
+      const res = await fetchWithAuth(`${API_BASE}/auth/google?user_id=${userId}`);
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
       return data.auth_url;
@@ -445,7 +482,7 @@ export const api = {
   // Automation
   async launchAutomation(candidateId: number): Promise<{ status: string; detail?: string }> {
     try {
-      const res = await fetch(`${API_BASE}/automation/launch/${candidateId}`, {
+      const res = await fetchWithAuth(`${API_BASE}/automation/launch/${candidateId}`, {
         method: 'POST',
       });
       if (!res.ok) throw new Error('API error');
@@ -458,7 +495,7 @@ export const api = {
   // Account Management
   async deleteAccount(): Promise<boolean> {
     try {
-      const res = await fetch(`${API_BASE}/settings/account`, {
+      const res = await fetchWithAuth(`${API_BASE}/settings/account`, {
         method: 'DELETE',
       });
       return res.ok;

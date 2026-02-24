@@ -2,14 +2,15 @@
 Cold Emailing Backend - FastAPI Application
 Main entry point with router registration.
 """
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import JSONResponse
 from time import time
 from collections import defaultdict
 from typing import Dict
 
 from backend.config import setup_cors
-from backend.routers import candidates, drafts, discovery, emails, stats, settings, auth, followups, automation
+from backend.routers import candidates, drafts, discovery, emails, stats, settings, auth, automation
+from backend.dependencies import get_current_user
 
 # ============================================================
 # RATE LIMITING (Priority 6)
@@ -74,16 +75,17 @@ def read_root():
         "supabase": "connected" if get_supabase() else "not configured"
     }
 
-# Register routers
-app.include_router(candidates.router, prefix="/candidates", tags=["Candidates"])
-app.include_router(drafts.router, prefix="/drafts", tags=["Drafts"])
-app.include_router(discovery.router, prefix="/discover", tags=["Discovery"])
-app.include_router(emails.router, prefix="/emails", tags=["Emails"])
-app.include_router(stats.router, prefix="/stats", tags=["Stats"])
-app.include_router(settings.router, prefix="/settings", tags=["Settings"])
+# Include routers with Dependencies where Auth is required
+app.include_router(candidates.router, prefix="/candidates", tags=["Candidates"], dependencies=[Depends(get_current_user)])
+app.include_router(drafts.router, prefix="/drafts", tags=["Drafts"], dependencies=[Depends(get_current_user)])
+app.include_router(discovery.router, prefix="/discover", tags=["Discovery"], dependencies=[Depends(get_current_user)])
+app.include_router(emails.router, prefix="/emails", tags=["Emails"], dependencies=[Depends(get_current_user)])
+app.include_router(stats.router, prefix="/stats", tags=["Stats"], dependencies=[Depends(get_current_user)])
+app.include_router(settings.router, prefix="/settings", tags=["Settings"], dependencies=[Depends(get_current_user)])
+app.include_router(automation.router, prefix="/automation", tags=["Automation"], dependencies=[Depends(get_current_user)])
+
+# Auth router contains public callbacks, do not secure globally
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
-app.include_router(followups.router, prefix="/followups", tags=["Follow-ups"])
-app.include_router(automation.router, prefix="/automation", tags=["Automation"])
 
 
 if __name__ == "__main__":

@@ -14,7 +14,6 @@ from backend.models.schemas import (
 from backend.services.email_generator import EmailGenerator
 from backend.services.email_verifier import verify_email, verify_emails_batch
 from backend.services.email_sender import EmailSender
-from backend.services.followup_scheduler import FollowUpScheduler
 from backend.services.embeddings import embeddings_service
 from backend.services.throttle import throttle_service
 import asyncio
@@ -271,9 +270,6 @@ async def send_draft(draft_id: int):
             "status": "contacted",
             "sent_at": datetime.now().isoformat()
         }).eq("id", candidate.get("id")).execute()
-        
-        scheduler = FollowUpScheduler(supabase)
-        await scheduler.schedule_follow_ups(candidate.get("id"))
         
         supabase.table("activity_log").insert({
             "action_type": "email_sent",

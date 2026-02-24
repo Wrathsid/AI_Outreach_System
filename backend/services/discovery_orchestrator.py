@@ -19,7 +19,7 @@ class DiscoveryOrchestrator:
         self.crawler = Crawler()
         self.scorer = ConfidenceScorer()
 
-    async def discover_leads_stream(self, role: str, limit: int = 20, broad_mode: bool = False, icp_context: str = None) -> Generator[str, None, None]:
+    async def discover_leads_stream(self, role: str, limit: int = 20, broad_mode: bool = False, icp_context: str = None, company_size: str = None, revenue: str = None, tech: str = None) -> Generator[str, None, None]:
         """
         Async Stream with Parallel Verification.
         Crawl runs -> Queue -> Workers (Threaded Verification) -> Output
@@ -48,7 +48,7 @@ class DiscoveryOrchestrator:
             tasks = []
             try:
                 # Iterate Async Crawler
-                async for raw in self.crawler.crawl_stream(role, limit, broad_mode):
+                async for raw in self.crawler.crawl_stream(role, limit, broad_mode, company_size, revenue, tech):
                     if raw["type"] == "status":
                         await result_queue.put(json.dumps(raw) + "\n")
                     elif raw["type"] == "raw_result":

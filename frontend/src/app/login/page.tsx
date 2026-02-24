@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase';
 import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -18,26 +19,18 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    // SIMULATED AUTHENTICATION
-    // Reject specific email for testing invalid credentials
-    if (email === 'fail@test.com') {
-      setTimeout(() => {
-        setError("Invalid credentials");
-        setLoading(false);
-      }, 800);
-      return;
-    }
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-    // Accept any other credentials for now
-    if (email && password) {
-        setTimeout(() => {
-            localStorage.setItem('isAuthenticated', 'true');
-            router.push('/');
-            router.refresh();
-        }, 800); // Fake delay
+    if (error) {
+      setError(error.message);
+      setLoading(false);
     } else {
-        setError("Please enter email and password");
-        setLoading(false);
+      router.push('/');
+      router.refresh();
     }
   };
 

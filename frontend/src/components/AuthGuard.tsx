@@ -2,16 +2,30 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { createClient } from "@/lib/supabase";
+
+// ⚡ DEV BYPASS: Set to true to skip auth and access app directly for testing
+const DEV_BYPASS = true;
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [authorized, setAuthorized] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
-    // 1. Check if user is authenticated
-    const isAuthenticated = localStorage.getItem("isAuthenticated") === "true";
+    // In dev bypass mode, allow everything immediately
+    if (DEV_BYPASS) {
+      setAuthorized(true);
+      setIsLoaded(true);
+      return;
+    }
+
+    const checkAuth = async () => {
+      // 1. Check if user is authenticated via Supabase session
+      const { data: { session } } = await supabase.auth.getSession();
+      const isAuthenticated = !!session;
     
     // 2. Define public paths
     const publicPaths = ["/login", "/signup"];
@@ -34,13 +48,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       nextAuthorized = true;
     }
     
-    // Wrap in requestAnimationFrame to avoid "cascading render" lint error
-    // by making the state updates asynchronous.
-    requestAnimationFrame(() => {
       setAuthorized(nextAuthorized);
       setIsLoaded(true);
-    });
-  }, [pathname, router]);
+    };
+
+    checkAuth();
+  }, [pathname, router, supabase.auth]);
 
   // Prevent flashing of protected content and blank screen on initial mount
   if (!isLoaded) {

@@ -1249,7 +1249,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         if c['_data_quality'] <= 1:
             logger.warning(f"Low data quality ({c['_data_quality']}/4) for candidate {candidate_id}. Using smart template.")
             signal = extract_primary_signal(c)
-            intent = IntentType.DIRECT
+            intent = IntentType.OPPORTUNITY
             fallback_text = generate_fallback_draft(
                 c, sender_intro, signal['signal'],
                 intent.value, contact_type
@@ -1354,13 +1354,13 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
              role_context = "DevOps / Site Reliability Engineer" # Force specific context
              task_instruction = "Generate Message 2: Recruiter DM. Follow STRICT rules (make it extremely long, ~2000 characters)."
         else:
-             intent = IntentType.DIRECT # Default for specific people / hiring managers
+             intent = IntentType.OPPORTUNITY # Default: always job-seeking outreach, never generic networking
              # If title is generic recruiter, assume DevOps role
              candidate_title = (c.get('title') or '').lower()
              role_context = "DevOps / Site Reliability Engineer"
              if candidate_title and "recruiter" not in candidate_title and "talent" not in candidate_title:
                  role_context = c.get('title') or 'DevOps / SRE Role'
-             task_instruction = "Generate Message 2: Recruiter or Manager DM. Highly detailed, long-form pitch."
+             task_instruction = "Generate Message 2: Job Opportunity DM. You are reaching out to explore job opportunities — NOT to network or connect. Be direct about looking for roles."
 
         # SELECT PROMPT BASED ON INTENT
         if intent == IntentType.OPPORTUNITY:
@@ -1378,22 +1378,26 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             - No emojis. Only the message.
             '''
         else:
-            # STANDARD MASTER PROMPT FOR OTHERS
+            # JOB-SEEKING MASTER PROMPT FOR ALL CONTACTS
             prompt = f'''
-            # MASTER PROMPT (DYNAMIC PERSONA VERSION)
+            # MASTER PROMPT (JOB-SEEKING VERSION)
             
-            You are generating a LinkedIn Connection Request.
+            You are generating a LinkedIn message for someone ACTIVELY LOOKING FOR JOB OPPORTUNITIES.
+            This is NOT a networking or connecting message — it is a targeted job application outreach.
             
             INPUT:
             1. SENDER: {user_bio}
             2. RECIPIENT: {c.get('name') or 'a professional'} ({c.get('title') or 'role not specified'}) at {c.get('company') or 'not specified'}
-            3. ROLE/CONTEXT: {role_context}
+            3. TARGET ROLE: {role_context}
             
             TASK: {task_instruction}
-            - Write a detailed, multi-paragraph message.
-            - Extensively mention "{role_context}".
-            - End with soft CTA.
-            - No emojis. Sound conversational. Only the message text.
+            - Write a detailed, multi-paragraph message asking about job opportunities.
+            - Clearly state you are looking for {role_context} roles.
+            - Mention specific skills relevant to the role.
+            - Ask if they are hiring or know of open positions.
+            - Do NOT write a generic "looking to connect" or "expand my network" message.
+            - End with a clear CTA asking about opportunities or to review your profile.
+            - No emojis. Sound professional but direct. Only the message text.
             '''
 
         # Q5: Inject channel tone lock into prompt

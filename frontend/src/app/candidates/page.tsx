@@ -27,7 +27,7 @@ const StatusBadge = ({ candidate, onStatusChange }: { candidate: Candidate; onSt
     <div className="relative">
       <button
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOpen(!open); }}
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium ${style.bg} ${style.text} border border-white/5 hover:border-white/10 transition-all`}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium ${style.bg} ${style.text} border border-white/5 hover:border-white/10 transition-all`}
       >
         <div className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
         {style.label}
@@ -56,7 +56,7 @@ const StatusBadge = ({ candidate, onStatusChange }: { candidate: Candidate; onSt
                       onStatusChange(candidate.id, opt);
                       setOpen(false);
                     }}
-                    className={`w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-white/5 transition-colors ${status === opt ? 'bg-white/5' : ''}`}
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm hover:bg-white/5 transition-colors ${status === opt ? 'bg-white/5' : ''}`}
                   >
                     <div className={`w-1.5 h-1.5 rounded-full ${optStyle.dot}`} />
                     <span className={optStyle.text}>{optStyle.label}</span>
@@ -79,11 +79,11 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
         layout
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="group flex items-center gap-4 p-4 rounded-xl border border-white/5 bg-[#12121a] hover:bg-[#16162a] hover:border-white/10 transition-all cursor-pointer"
+        className="group flex items-center gap-5 p-5 rounded-xl border border-white/5 bg-[#12121a] hover:bg-[#16162a] hover:border-white/10 transition-all cursor-pointer"
       >
         {/* Avatar */}
         <div className="relative shrink-0">
-          <div className="w-11 h-11 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-sm border border-white/10 overflow-hidden shadow-inner">
+          <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-base border border-white/10 overflow-hidden shadow-inner">
             {candidate.avatar_url ? (
               <NextImage src={candidate.avatar_url} alt={cleanDisplayName(candidate.name)} width={44} height={44} className="w-full h-full object-cover" />
             ) : (
@@ -100,18 +100,18 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-medium text-slate-200 truncate group-hover:text-white transition-colors">
+            <h4 className="text-base font-semibold text-slate-200 truncate group-hover:text-white transition-colors">
               {cleanDisplayName(candidate.name)}
             </h4>
             {candidate.match_score > 0 && (
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${
+              <span className={`text-xs font-bold px-2 py-0.5 rounded border shrink-0 ${
                 candidate.match_score >= 80 ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-slate-800 text-slate-500 border-slate-700'
               }`}>
                 {candidate.match_score}%
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 truncate mt-0.5">
+          <p className="text-sm text-slate-400 truncate mt-0.5">
             {candidate.title || 'No Title'} {candidate.company ? `· ${candidate.company}` : ''}
           </p>
         </div>
@@ -119,20 +119,20 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
         {/* Email indicator */}
         <div className="hidden sm:flex items-center gap-2 shrink-0">
           {candidate.email ? (
-            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400/70 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/10">
+            <div className="flex items-center gap-1.5 text-sm text-emerald-400/70 bg-emerald-500/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/10">
               <Mail size={12} />
               <span className="hidden md:inline">Email Found</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 bg-white/5 px-2 py-1 rounded-lg border border-white/5">
+            <div className="flex items-center gap-1.5 text-sm text-slate-500 bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/5">
               <Mail size={12} />
               <span className="hidden md:inline">No Email</span>
             </div>
           )}
         </div>
 
-        {/* Status */}
-        <div className="shrink-0">
+        {/* Status — onClick stops bubbling to prevent Link navigation */}
+        <div className="shrink-0" onClick={(e) => { e.stopPropagation(); }}>
           <StatusBadge candidate={candidate} onStatusChange={onStatusChange} />
         </div>
 
@@ -152,14 +152,14 @@ const FilterTabs = ({ active, counts, onChange }: { active: string; counts: Reco
       <button
         key={key}
         onClick={() => onChange(key)}
-        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
           active === key 
             ? 'bg-white/10 text-white shadow-sm' 
             : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
         }`}
       >
         {label}
-        <span className="ml-1.5 text-[10px] opacity-60">
+        <span className="ml-1.5 text-xs opacity-60">
           {key === 'all' ? Object.values(counts).reduce((a, b) => a + b, 0) : (counts[key] || 0)}
         </span>
       </button>
@@ -247,9 +247,9 @@ const CandidatesPage = () => {
             <ArrowLeft size={20} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
               Pipeline
-              <span className="text-slate-500 font-normal text-sm">/ {candidates.length} Leads</span>
+              <span className="text-slate-500 font-normal text-base">/ {candidates.length} Leads</span>
             </h1>
           </div>
         </div>

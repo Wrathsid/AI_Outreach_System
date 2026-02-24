@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase';
 import { Loader2, Mail, Lock, ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -18,12 +19,19 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    // SIMULATED AUTHENTICATION
-    setTimeout(() => {
-        localStorage.setItem('isAuthenticated', 'true');
-        router.push('/');
-        router.refresh();
-    }, 800);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    } else {
+      router.push('/');
+      router.refresh();
+    }
   };
 
   return (

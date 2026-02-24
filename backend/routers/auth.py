@@ -8,7 +8,6 @@ from datetime import datetime
 from backend.config import get_supabase
 from backend.models.schemas import GmailSendRequest
 from backend.services.gmail_oauth import get_gmail_service
-from backend.services.followup_scheduler import FollowUpScheduler
 
 router = APIRouter(tags=["Authentication"])
 
@@ -139,8 +138,6 @@ async def send_draft_via_gmail(draft_id: int, user_id: int = 1):
             "candidate_id": draft["candidate_id"]
         }).execute()
         
-        scheduler = FollowUpScheduler(supabase)
-        await scheduler.schedule_follow_ups(draft["candidate_id"])
         
         return {
             "success": True,

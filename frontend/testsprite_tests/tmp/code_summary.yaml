@@ -1,11 +1,16 @@
 version: "2"
 type: frontend
 tech_stack:
-  - react
-  - nextjs
-  - tailwindcss
   - typescript
+  - react
+  - next.js
+  - tailwindcss
+  - supabase
 routes:
+  - path: /
+    file: src/app/page.tsx
+    auth_required: true
+    description: Dashboard and pipeline overview
   - path: /login
     file: src/app/login/page.tsx
     auth_required: false
@@ -13,88 +18,65 @@ routes:
   - path: /signup
     file: src/app/signup/page.tsx
     auth_required: false
-    description: User signup page
-  - path: /
-    file: src/app/page.tsx
+    description: User sign up page
+  - path: /search
+    file: src/app/search/page.tsx
     auth_required: true
-    description: Dashboard and Command Center for cold emailing
+    description: AI lead discovery and search page
+  - path: /candidates
+    file: src/app/candidates/page.tsx
+    auth_required: true
+    description: Saved candidates and drafts pipeline
 features:
-  - name: User Login
-    description: Login with email and password credentials
+  - name: User Authentication
+    description: Login and sign up using Supabase Email auth
     files:
       - src/app/login/page.tsx
+      - src/app/signup/page.tsx
+      - src/components/AuthGuard.tsx
+      - src/lib/supabase.ts
     entry_route: /login
     user_interactions:
       - Fill email input field
       - Fill password input field
-      - Click Sign In button to submit
-      - See error message on invalid credentials "fail@test.com"
-      - Redirect to Dashboard on success (simulated auth)
-    api_calls: []
-    auth_required: false
-  - name: User Signup
-    description: Create an account
-    files:
-      - src/app/signup/page.tsx
-    entry_route: /signup
-    user_interactions:
-      - Fill email input field
-      - Fill password input field
-      - Click Sign Up button to submit
-      - Redirect to Dashboard on success (simulated auth)
-    api_calls: []
-    auth_required: false
-  - name: Search Leads
-    description: Search for candidates via command palette and view results
-    files:
-      - src/components/CommandPalette.tsx
-      - src/app/page.tsx
-    entry_route: /
-    user_interactions:
-      - Focus search input
-      - Enter search query (e.g., "Software Engineer")
-      - View list of candidate results
-      - See empty state if no results found
+      - Click Login/Signup button
+      - See error message on invalid credentials
+      - Redirects to dashboard on success
     api_calls:
       - method: POST
-        endpoint: http://localhost:8000/api/discovery/search
-    auth_required: true
-  - name: View Candidate Details
-    description: Click on a candidate to view their profile details
+        endpoint: supabase.auth
+    auth_required: false
+  - name: Search and Discover Leads
+    description: Find candidates using AI intent and filters
     files:
-      - src/app/page.tsx
-    entry_route: /
+      - src/app/search/page.tsx
+      - src/lib/api.ts
+    entry_route: /search
     user_interactions:
-      - Click on a candidate from search results
-      - View core profile sections (experience, education)
-    api_calls: []
-    auth_required: true
-  - name: Manage Pipeline
-    description: Add candidates to the outreach pipeline
-    files:
-      - src/app/page.tsx
-    entry_route: /
-    user_interactions:
-      - Click 'Add to Pipeline' button for a candidate
-      - Verify candidate appears in pipeline view
-      - Prevent adding duplicate candidates
-    api_calls: []
-    auth_required: true
-  - name: Generate Draft
-    description: Generate an outreach draft for a candidate using AI
-    files:
-      - src/app/page.tsx
-    entry_route: /
-    user_interactions:
-      - Select outreach channel (LinkedIn, Email)
-      - Select message type
-      - Click 'Generate Draft'
-      - View generated draft text
+      - Type search queries in input box
+      - Toggle advanced search filters (Company Size, Revenue, Tech Stack)
+      - Click Scan button
+      - View list of results
+      - Select multiple results and add to pipeline
     api_calls:
+      - method: GET
+        endpoint: /api/discover/hr-search
       - method: POST
-        endpoint: http://localhost:8000/api/drafts/generate
+        endpoint: /api/drafts/generate-batch
     auth_required: true
-known_limitations:
-  - issue: Authentication is simulated on frontend
-    location: src/app/login/page.tsx
-    impact: Real user session management is deferred, any valid looking credentials login except specific failure cases
+  - name: Dashboard Stats
+    description: View overall metrics and generated drafts
+    files:
+      - src/app/page.tsx
+      - src/components/Dashboard.tsx
+      - src/lib/api.ts
+    entry_route: /
+    user_interactions:
+      - View stats summary
+      - View progress bar of background tasks
+      - Navigate to leads
+    api_calls:
+      - method: GET
+        endpoint: /api/stats
+    auth_required: true
+known_limitations: []

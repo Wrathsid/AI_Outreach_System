@@ -1,9 +1,9 @@
 [
   {
     "id": "TC001",
-    "title": "Search leads with a valid query shows candidate results",
-    "description": "Verifies that entering a valid job-title query returns a visible list of candidate results on the dashboard.",
-    "category": "Search Leads",
+    "title": "Home page loads after login and shows hero section",
+    "description": "Verifies an authenticated user can reach the Home page and see the hero headline and primary call-to-action.",
+    "category": "Home (Landing) Page",
     "priority": "High",
     "steps": [
       {
@@ -20,32 +20,28 @@
       },
       {
         "type": "action",
-        "description": "Click on the \"Log in\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
         "description": "Verify URL contains \"/\""
       },
       {
-        "type": "action",
-        "description": "Click on the search input in the command palette"
-      },
-      {
-        "type": "action",
-        "description": "Type \"Software Engineer\" into the search input"
+        "type": "assertion",
+        "description": "Verify element \"Hero section\" is visible"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"candidate results list\" is visible"
+        "description": "Verify element \"Primary CTA\" is visible"
       }
     ]
   },
   {
     "id": "TC002",
-    "title": "Search leads after explicitly focusing the search input",
-    "description": "Verifies that the search input can be focused first and then used to search, resulting in visible candidate results.",
-    "category": "Search Leads",
-    "priority": "Medium",
+    "title": "Primary CTA from Home navigates to Search page",
+    "description": "Verifies the primary CTA on the Home hero takes the user to the Search page and relevant content is visible.",
+    "category": "Home (Landing) Page",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
@@ -61,35 +57,31 @@
       },
       {
         "type": "action",
-        "description": "Click on the \"Log in\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify URL contains \"/\""
+        "description": "Verify element \"Primary CTA\" is visible"
       },
       {
         "type": "action",
-        "description": "Click on the search input in the command palette"
+        "description": "Click the \"Primary CTA\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"search input\" is visible"
-      },
-      {
-        "type": "action",
-        "description": "Type \"Software Engineer\" into the search input"
+        "description": "Verify URL contains \"/search\""
       },
       {
         "type": "assertion",
-        "description": "Verify element \"candidate results list\" is visible"
+        "description": "Verify element \"Search page main content\" is visible"
       }
     ]
   },
   {
     "id": "TC003",
-    "title": "Invalid query shows an empty state",
-    "description": "Verifies that an invalid or non-matching query displays an empty state rather than results.",
-    "category": "Search Leads",
+    "title": "Projects link from Home navigates to Candidates page",
+    "description": "Verifies the Projects entry point from the Home page routes to the Candidates page and the main content is visible.",
+    "category": "Home (Landing) Page",
     "priority": "High",
     "steps": [
       {
@@ -106,31 +98,31 @@
       },
       {
         "type": "action",
-        "description": "Click on the \"Log in\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify URL contains \"/\""
+        "description": "Verify element \"Projects\" is visible"
       },
       {
         "type": "action",
-        "description": "Click on the search input in the command palette"
-      },
-      {
-        "type": "action",
-        "description": "Type \"asdkjhasdkjhasd\" into the search input"
+        "description": "Click the \"Projects\" link"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"empty state\" is visible"
+        "description": "Verify URL contains \"/candidates\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Candidates page main content\" is visible"
       }
     ]
   },
   {
     "id": "TC004",
-    "title": "Whitespace-only query shows empty state (edge case)",
-    "description": "Verifies that entering only whitespace does not show results and instead shows the empty state.",
-    "category": "Search Leads",
+    "title": "Home page hero remains visible after scroll and returns to top via header/home control",
+    "description": "Verifies basic landing page stability by scrolling and ensuring the hero content can be reached again via an on-page Home control.",
+    "category": "Home (Landing) Page",
     "priority": "Medium",
     "steps": [
       {
@@ -147,31 +139,31 @@
       },
       {
         "type": "action",
-        "description": "Click on the \"Log in\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify URL contains \"/\""
+        "description": "Verify element \"Hero section\" is visible"
       },
       {
         "type": "action",
-        "description": "Click on the search input in the command palette"
+        "description": "Scroll to the bottom of the page"
       },
       {
         "type": "action",
-        "description": "Type \"     \" into the search input"
+        "description": "Click the \"Home\" link in the header navigation"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"empty state\" is visible"
+        "description": "Verify element \"Hero section\" is visible"
       }
     ]
   },
   {
     "id": "TC005",
-    "title": "Search is case-insensitive for common queries",
-    "description": "Verifies that a query with different casing still returns candidate results.",
-    "category": "Search Leads",
+    "title": "Lazy-loaded internal section link opens the section successfully",
+    "description": "Verifies that clicking an internal link to a lazily-loaded section reveals that section content without errors.",
+    "category": "Home (Landing) Page",
     "priority": "Medium",
     "steps": [
       {
@@ -188,31 +180,31 @@
       },
       {
         "type": "action",
-        "description": "Click on the \"Log in\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
-        "description": "Verify URL contains \"/\""
+        "description": "Verify element \"Hero section\" is visible"
       },
       {
         "type": "action",
-        "description": "Click on the search input in the command palette"
-      },
-      {
-        "type": "action",
-        "description": "Type \"software engineer\" into the search input"
+        "description": "Click an internal link to a lazily-loaded section (for example \"About\")"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"candidate results list\" is visible"
+        "description": "Verify element \"About section\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Retry\" is not visible"
       }
     ]
   },
   {
     "id": "TC006",
-    "title": "New search replaces previous results (no stale list)",
-    "description": "Verifies that after a successful search, entering a non-matching query shows the empty state instead of stale results.",
-    "category": "Search Leads",
+    "title": "Custom cursor is visible on dashboard after login",
+    "description": "Verifies the custom cursor overlay is active on the dashboard page after a successful login.",
+    "category": "Custom Cursor",
     "priority": "High",
     "steps": [
       {
@@ -236,32 +228,53 @@
         "description": "Verify URL contains \"/\""
       },
       {
-        "type": "action",
-        "description": "Click on the search input in the command palette"
-      },
-      {
-        "type": "action",
-        "description": "Type \"Software Engineer\" into the search input"
-      },
-      {
         "type": "assertion",
-        "description": "Verify element \"candidate results list\" is visible"
-      },
-      {
-        "type": "action",
-        "description": "Type \"qzzqzzqzz-no-results\" into the search input"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"empty state\" is visible"
+        "description": "Verify element \"custom cursor\" is visible"
       }
     ]
   },
   {
     "id": "TC007",
-    "title": "Search handles long query input gracefully (edge case)",
-    "description": "Verifies that entering a long query does not break the UI and results area or empty state remains visible.",
-    "category": "Search Leads",
+    "title": "Custom cursor remains visible after navigating from dashboard to Search",
+    "description": "Verifies the custom cursor overlay persists and remains active after in-app navigation to another authenticated route.",
+    "category": "Custom Cursor",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on the \"Search\" navigation link/menu item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/search\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"custom cursor\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Custom cursor remains visible after navigating from Search to Candidates",
+    "description": "Verifies the custom cursor overlay persists and remains active after navigating between authenticated pages.",
+    "category": "Custom Cursor",
     "priority": "Low",
     "steps": [
       {
@@ -281,65 +294,28 @@
         "description": "Click on the \"Log in\" button"
       },
       {
-        "type": "assertion",
-        "description": "Verify URL contains \"/\""
+        "type": "action",
+        "description": "Click on the \"Search\" navigation link/menu item"
       },
       {
         "type": "action",
-        "description": "Click on the search input in the command palette"
-      },
-      {
-        "type": "action",
-        "description": "Type \"Software Engineer Software Engineer Software Engineer Software Engineer Software Engineer\" into the search input"
+        "description": "Click on the \"Candidates\" navigation link/menu item"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"candidate results list\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC008",
-    "title": "Add a candidate to the pipeline from the dashboard",
-    "description": "Verifies a user can add a candidate to the outreach pipeline and see them appear in the pipeline view.",
-    "category": "Manage Pipeline",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Login\" button"
+        "description": "Verify URL contains \"/candidates\""
       },
       {
         "type": "assertion",
-        "description": "Verify URL contains \"/\""
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Add to Pipeline\" button for a candidate"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify candidate appears in pipeline view"
+        "description": "Verify element \"custom cursor\" is visible"
       }
     ]
   },
   {
     "id": "TC009",
-    "title": "Prevent adding the same candidate to the pipeline twice",
-    "description": "Verifies the UI prevents duplicates when the user attempts to add the same candidate multiple times.",
-    "category": "Manage Pipeline",
+    "title": "Custom cursor overlay does not prevent clicking a primary CTA on dashboard",
+    "description": "Verifies the custom cursor overlay does not intercept pointer events and a primary call-to-action on the dashboard remains clickable.",
+    "category": "Custom Cursor",
     "priority": "High",
     "steps": [
       {
@@ -356,32 +332,28 @@
       },
       {
         "type": "action",
-        "description": "Click the \"Login\" button"
+        "description": "Click on the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on a primary call-to-action button on the dashboard"
       },
       {
         "type": "assertion",
         "description": "Verify URL contains \"/\""
       },
       {
-        "type": "action",
-        "description": "Click the \"Add to Pipeline\" button for a candidate"
-      },
-      {
         "type": "assertion",
-        "description": "Verify candidate appears in pipeline view"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Add to Pipeline\" button for the same candidate again"
+        "description": "Verify element \"custom cursor\" is visible"
       }
     ]
   },
   {
     "id": "TC010",
-    "title": "Duplicate add attempt shows a visible prevention message or disabled state",
-    "description": "Verifies that when a duplicate add is attempted, the user gets visible feedback that the duplicate is prevented.",
-    "category": "Manage Pipeline",
-    "priority": "Medium",
+    "title": "Smooth wheel scrolling on dashboard provides premium animated flow",
+    "description": "Verifies that scrolling with a mouse wheel on the dashboard moves content smoothly and remains usable.",
+    "category": "Smooth Scrolling (Lenis)",
+    "priority": "High",
     "steps": [
       {
         "type": "action",
@@ -397,7 +369,7 @@
       },
       {
         "type": "action",
-        "description": "Click the \"Login\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
@@ -405,23 +377,56 @@
       },
       {
         "type": "action",
-        "description": "Click the \"Add to Pipeline\" button for a candidate"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Add to Pipeline\" button for the same candidate again"
+        "description": "Scroll down"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Already in pipeline\" is visible"
+        "description": "Verify text \"Skills\" is visible"
       }
     ]
   },
   {
     "id": "TC011",
-    "title": "Add to Pipeline control is visible for at least one candidate on the dashboard",
-    "description": "Verifies the dashboard exposes the primary call-to-action to add a candidate to the pipeline.",
-    "category": "Manage Pipeline",
+    "title": "Anchor link click scrolls smoothly to section on dashboard",
+    "description": "Verifies that clicking an in-page anchor link scrolls to the target section and the content is visible.",
+    "category": "Smooth Scrolling (Lenis)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Projects\" link in the page header/navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Projects\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Anchor link remains functional after manual scrolling",
+    "description": "Verifies that after the user scrolls down, clicking an anchor link still navigates to the correct section.",
+    "category": "Smooth Scrolling (Lenis)",
     "priority": "Medium",
     "steps": [
       {
@@ -438,23 +443,146 @@
       },
       {
         "type": "action",
-        "description": "Click the \"Login\" button"
+        "description": "Click the \"Log in\" button"
       },
       {
         "type": "assertion",
         "description": "Verify URL contains \"/\""
       },
       {
+        "type": "action",
+        "description": "Scroll down"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"About\" link in the page header/navigation"
+      },
+      {
         "type": "assertion",
-        "description": "Verify element \"Add to Pipeline\" is visible"
+        "description": "Verify text \"About\" is visible"
       }
     ]
   },
   {
-    "id": "TC012",
-    "title": "Candidate remains visible in pipeline view after page refresh",
-    "description": "Verifies that after adding a candidate, the pipeline view still shows the candidate after reloading the page (within the simulated auth behavior).",
-    "category": "Manage Pipeline",
+    "id": "TC013",
+    "title": "Keyboard navigation scrolling keeps content accessible (Page Down)",
+    "description": "Verifies that keyboard-based scrolling works and content sections become visible without breaking layout.",
+    "category": "Smooth Scrolling (Lenis)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Press \"PageDown\" key"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Experience\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Rapid repeated scrolling does not break page usability",
+    "description": "Verifies that multiple consecutive scroll actions still allow the user to reach content and interact with the page.",
+    "category": "Smooth Scrolling (Lenis)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Scroll down"
+      },
+      {
+        "type": "action",
+        "description": "Scroll down"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Contact\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Mobile-like constrained view: scrolling remains accessible even if smooth scrolling degrades",
+    "description": "Verifies that in a constrained scenario the page remains scrollable and content remains accessible (fallback acceptable).",
+    "category": "Smooth Scrolling (Lenis)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Scroll down"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Contact\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Anchor navigation still reaches target section after extended scrolling to lower page",
+    "description": "Verifies that after reaching lower parts of the page, clicking an anchor link reliably scrolls to another section.",
+    "category": "Smooth Scrolling (Lenis)",
     "priority": "Low",
     "steps": [
       {
@@ -471,47 +599,6 @@
       },
       {
         "type": "action",
-        "description": "Click the \"Login\" button"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify URL contains \"/\""
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Add to Pipeline\" button for a candidate"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify candidate appears in pipeline view"
-      },
-      {
-        "type": "action",
-        "description": "Navigate to /"
-      }
-    ]
-  },
-  {
-    "id": "TC013",
-    "title": "Generate a draft for the Email outreach channel",
-    "description": "Verifies a user can log in, choose Email as the outreach channel, generate a draft, and see generated text.",
-    "category": "Generate Draft",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
         "description": "Click the \"Log in\" button"
       },
       {
@@ -520,158 +607,269 @@
       },
       {
         "type": "action",
-        "description": "Select \"Email\" as the outreach channel"
+        "description": "Scroll down"
       },
       {
         "type": "action",
-        "description": "Click \"Generate Draft\""
+        "description": "Scroll down"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Skills\" link in the page header/navigation"
       },
       {
         "type": "assertion",
-        "description": "Verify element \"generated draft text\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC014",
-    "title": "Generate a draft for the LinkedIn outreach channel",
-    "description": "Verifies a user can generate a draft when the LinkedIn outreach channel is selected.",
-    "category": "Generate Draft",
-    "priority": "High",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Log in\" button"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify URL contains \"/\""
-      },
-      {
-        "type": "action",
-        "description": "Select \"LinkedIn\" as the outreach channel"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Generate Draft\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"generated draft text\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC015",
-    "title": "Generate a draft after selecting a specific message type",
-    "description": "Verifies draft generation works when a message type is chosen before generating.",
-    "category": "Generate Draft",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Log in\" button"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify URL contains \"/\""
-      },
-      {
-        "type": "action",
-        "description": "Select \"Email\" as the outreach channel"
-      },
-      {
-        "type": "action",
-        "description": "Select a message type from the message type dropdown"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Generate Draft\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"generated draft text\" is visible"
-      }
-    ]
-  },
-  {
-    "id": "TC016",
-    "title": "Switch outreach channel and generate again",
-    "description": "Verifies the user can change the outreach channel and generate a new draft successfully.",
-    "category": "Generate Draft",
-    "priority": "Medium",
-    "steps": [
-      {
-        "type": "action",
-        "description": "Navigate to /login"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
-      },
-      {
-        "type": "action",
-        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
-      },
-      {
-        "type": "action",
-        "description": "Click the \"Log in\" button"
-      },
-      {
-        "type": "assertion",
-        "description": "Verify URL contains \"/\""
-      },
-      {
-        "type": "action",
-        "description": "Select \"Email\" as the outreach channel"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Generate Draft\""
-      },
-      {
-        "type": "action",
-        "description": "Select \"LinkedIn\" as the outreach channel"
-      },
-      {
-        "type": "action",
-        "description": "Click \"Generate Draft\""
-      },
-      {
-        "type": "assertion",
-        "description": "Verify element \"generated draft text\" is visible"
+        "description": "Verify text \"Skills\" is visible"
       }
     ]
   },
   {
     "id": "TC017",
-    "title": "Attempt to generate without selecting an outreach channel",
-    "description": "Verifies the UI prevents generation or prompts the user when no outreach channel is selected.",
-    "category": "Generate Draft",
+    "title": "ErrorBoundary shows friendly fallback UI on dashboard simulated render error and allows reload recovery",
+    "description": "Verifies the global ErrorBoundary catches a simulated rendering error on the dashboard and recovers via Reload back to the dashboard.",
+    "category": "Error Boundary",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email or username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Simulate error\" or \"Trigger error\" control on the page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Something went wrong\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Reload\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "ErrorBoundary Reload button reloads the app and returns user to dashboard",
+    "description": "Verifies clicking Reload on the ErrorBoundary screen reloads the app and returns to the dashboard route.",
+    "category": "Error Boundary",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email or username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Simulate error\" or \"Trigger error\" control on the page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Reload\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Reload\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "After Reload recovery, dashboard content renders again (no fallback remains)",
+    "description": "Verifies that after using Reload on the ErrorBoundary, the dashboard renders normally and the error UI is no longer shown.",
+    "category": "Error Boundary",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email or username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Simulate error\" or \"Trigger error\" control on the page"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Reload\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Something went wrong\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "ErrorBoundary fallback on /search shows minimal production-safe details and blocks broken section",
+    "description": "Verifies that when a render error occurs on the search page, the ErrorBoundary shows a minimal-details fallback and prevents use of the broken section.",
+    "category": "Error Boundary",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email or username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Search\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/search\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Something went wrong\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Stack\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC021",
+    "title": "ErrorBoundary fallback on /search provides retry and user can attempt recovery",
+    "description": "Verifies the /search ErrorBoundary UI provides a recovery action (Retry/Reload) that the user can click.",
+    "category": "Error Boundary",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email or username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Search\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Something went wrong\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Reload\" is visible"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Reload\" button"
+      }
+    ]
+  },
+  {
+    "id": "TC022",
+    "title": "ErrorBoundary fallback offers a contact/help option on /search error",
+    "description": "Verifies the error fallback provides a visible contact/help option for users when a section fails.",
+    "category": "Error Boundary",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email or username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Search\" navigation item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Something went wrong\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Contact\" or \"Get help\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC023",
+    "title": "Dashboard initial render is visible quickly and remains usable while background preloading runs",
+    "description": "Verifies the initial authenticated route shows visible content promptly and does not block interaction while idle preloading occurs.",
+    "category": "Performance Optimization (Lazy loading & Preload)",
     "priority": "High",
     "steps": [
       {
@@ -695,16 +893,746 @@
         "description": "Verify URL contains \"/\""
       },
       {
+        "type": "assertion",
+        "description": "Verify element \"Dashboard\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC024",
+    "title": "Preloaded route: Navigate from Dashboard to Candidates and verify it loads successfully",
+    "description": "Verifies that after landing on the Dashboard and waiting briefly (idle), navigating to /candidates succeeds and shows page content.",
+    "category": "Performance Optimization (Lazy loading & Preload)",
+    "priority": "High",
+    "steps": [
+      {
         "type": "action",
-        "description": "Click \"Generate Draft\""
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Wait for 2 seconds"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Candidates\" in the primary navigation"
       },
       {
         "type": "assertion",
-        "description": "Verify text \"Select outreach channel\" is visible"
+        "description": "Verify URL contains \"/candidates\""
       },
       {
         "type": "assertion",
-        "description": "Verify element \"generated draft text\" is not visible"
+        "description": "Verify element \"Saved candidates\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC025",
+    "title": "Preloaded route: Navigate from Dashboard to Search and verify it loads successfully",
+    "description": "Verifies that after idle time, navigating to /search succeeds and shows page content without getting stuck on a loader.",
+    "category": "Performance Optimization (Lazy loading & Preload)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Wait for 2 seconds"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the primary navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/search\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Search\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC026",
+    "title": "Navigation after idle: Candidates route shows no friendly load error during normal preloading",
+    "description": "Ensures that normal navigation to a preloaded route does not show a visible load error message.",
+    "category": "Performance Optimization (Lazy loading & Preload)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Wait for 2 seconds"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Candidates\" in the primary navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/candidates\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Retry\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC027",
+    "title": "Search with advanced filters and add multiple results to pipeline",
+    "description": "Verifies a user can run a scan using advanced filters, view results, select multiple items, and add them to the pipeline.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/search\""
+      },
+      {
+        "type": "action",
+        "description": "Type \"B2B SaaS CFO\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click to open \"Advanced filters\""
+      }
+    ]
+  },
+  {
+    "id": "TC028",
+    "title": "Apply Company Size filter and scan shows results list",
+    "description": "Verifies applying the Company Size advanced filter affects the scan flow and produces a visible results list.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"VP Engineering\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click to open \"Advanced filters\""
+      },
+      {
+        "type": "action",
+        "description": "Select a Company Size option (for example, \"51-200\") from the Company Size dropdown"
+      }
+    ]
+  },
+  {
+    "id": "TC029",
+    "title": "Apply Revenue filter and scan shows results list",
+    "description": "Verifies applying the Revenue advanced filter and scanning displays a results list area.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Head of Marketing\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click to open \"Advanced filters\""
+      },
+      {
+        "type": "action",
+        "description": "Select a Revenue option (for example, \"$1M-$10M\") from the Revenue dropdown"
+      }
+    ]
+  },
+  {
+    "id": "TC030",
+    "title": "Apply Tech Stack filter and scan shows results list",
+    "description": "Verifies applying a Tech Stack filter and scanning displays the results list.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"DevOps lead\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click to open \"Advanced filters\""
+      },
+      {
+        "type": "action",
+        "description": "Select a Tech Stack option (for example, \"AWS\") from the Tech Stack dropdown"
+      }
+    ]
+  },
+  {
+    "id": "TC031",
+    "title": "Run scan and verify results list is visible",
+    "description": "Verifies clicking Scan after entering a query shows a visible list of results (or a clearly defined results area).",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Fintech startup founder\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Scan\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"Results list\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC032",
+    "title": "Select multiple results and add to pipeline then verify in Candidates page",
+    "description": "Verifies selected search results can be added to the pipeline and appear on the Candidates page.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Series A SaaS\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Scan\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the selection checkbox for the first result"
+      },
+      {
+        "type": "action",
+        "description": "Click the selection checkbox for the second result"
+      }
+    ]
+  },
+  {
+    "id": "TC033",
+    "title": "Attempt to add to pipeline with no selection shows guidance",
+    "description": "Verifies the UI prevents adding to pipeline when nothing is selected and shows a visible guidance message.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Product manager\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Scan\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Add to pipeline\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Select at least one\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC034",
+    "title": "Empty result set shows empty state guidance to refine query",
+    "description": "Verifies that when no results are found, the page shows an empty state with guidance to refine the query.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"asldkjasldkjqweoiu impossible query\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Scan\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"No results\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC035",
+    "title": "Scan error shows error message and guidance",
+    "description": "Verifies that when the scan fails, an error message with guidance is displayed on the Search page.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Type \"Healthcare leads\" into the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Scan\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Something went wrong\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC036",
+    "title": "Search input validation: scanning with empty query shows prompt",
+    "description": "Verifies the user is prompted to enter a query when attempting to scan with an empty search input.",
+    "category": "Search and Discover (AI lead discovery)",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click on \"Search\" in the main navigation"
+      },
+      {
+        "type": "action",
+        "description": "Click the search input box"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Scan\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Enter a search query\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC037",
+    "title": "View dashboard stats summary and background task progress after login",
+    "description": "Verifies that an authenticated user can see the dashboard stats summary and the background task progress indicator.",
+    "category": "Dashboard Stats",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Stats\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"stats summary\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"background task progress bar\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC038",
+    "title": "Navigate from dashboard to candidates via leads link",
+    "description": "Verifies that the dashboard provides a working leads link that takes the user into the candidates pipeline page.",
+    "category": "Dashboard Stats",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Leads\" link on the dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/candidates\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Candidates\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Drafts\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC039",
+    "title": "Candidates pipeline page shows saved candidates and drafts after navigating from dashboard",
+    "description": "Verifies that after using the dashboard quick link, the candidates page presents the saved candidates and drafts pipeline sections.",
+    "category": "Dashboard Stats",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Leads\" link on the dashboard"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"saved candidates list\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"drafts pipeline section\" is visible"
+      }
+    ]
+  },
+  {
+    "id": "TC040",
+    "title": "Dashboard loads with stats summary visible (non-error state)",
+    "description": "Verifies the normal successful dashboard rendering where key metrics are visible without an unavailable message.",
+    "category": "Dashboard Stats",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"stats summary\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"background task progress bar\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Metrics are temporarily unavailable\" is not visible"
+      }
+    ]
+  },
+  {
+    "id": "TC041",
+    "title": "Progress indicator is present and labeled on the dashboard",
+    "description": "Verifies that the background tasks progress area is visible and clearly indicated to the user.",
+    "category": "Dashboard Stats",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_USER}}\" into the email/username field"
+      },
+      {
+        "type": "action",
+        "description": "Type \"{{LOGIN_PASSWORD}}\" into the password field"
+      },
+      {
+        "type": "action",
+        "description": "Click the \"Log in\" button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify URL contains \"/\""
+      },
+      {
+        "type": "assertion",
+        "description": "Verify text \"Background tasks\" is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify element \"background task progress bar\" is visible"
       }
     ]
   }

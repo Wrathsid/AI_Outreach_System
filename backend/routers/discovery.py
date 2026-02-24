@@ -82,20 +82,20 @@ def predict_pattern(request: PatternRequest):
 
 
 @router.get("/hr-search")
-async def discovery_hr_search(role: str = "Recruiter", company: str = "", broad_mode: bool = False, icp_context: str = None):
+async def discovery_hr_search(role: str = "Recruiter", company: str = "", broad_mode: bool = False, icp_context: str = None, size: str = None, revenue: str = None, tech: str = None):
     """Method 1 & 3: Advanced HR Search (V2 Architecture)."""
     query = f"{role} {company}".strip()
     return StreamingResponse(
-        orchestrator.discover_leads_stream(query, limit=30, broad_mode=broad_mode, icp_context=icp_context),
+        orchestrator.discover_leads_stream(query, limit=30, broad_mode=broad_mode, icp_context=icp_context, company_size=size, revenue=revenue, tech=tech),
         media_type="application/x-ndjson"
     )
 
 
 @router.get("")
-def discover_candidates(role: str):
+def discover_candidates(role: str, size: str = None, revenue: str = None, tech: str = None):
     """Deep web scan for candidates (Legacy Wrapper)."""
     results = []
-    for line in orchestrator.discover_leads_stream(role, limit=15):
+    for line in orchestrator.discover_leads_stream(role, limit=15, company_size=size, revenue=revenue, tech=tech):
         try:
             msg = json.loads(line)
             if msg['type'] == 'result':
@@ -106,15 +106,15 @@ def discover_candidates(role: str):
 
 
 @router.get("/stream")
-async def discover_candidates_stream(role: str):
+async def discover_candidates_stream(role: str, size: str = None, revenue: str = None, tech: str = None):
     """Deep web scan with real-time updates."""
     return StreamingResponse(
-        _search_leads_generator(role),
+        _search_leads_generator(role, size, revenue, tech),
         media_type="application/x-ndjson"
     )
 
 
-async def _search_leads_generator(role: str):
+async def _search_leads_generator(role: str, size: str = None, revenue: str = None, tech: str = None):
     """Wrapper to inject AI correction before streaming."""
     corrected_role = role
     
@@ -130,5 +130,5 @@ async def _search_leads_generator(role: str):
     except Exception as e:
         yield json.dumps({"type": "error", "data": f"AI Error: {str(e)}"}) + "\n"
 
-    for item in orchestrator.discover_leads_stream(corrected_role):
+    for item in orchestrator.discover_leads_stream(corrected_role, company_size=size, revenue=revenue, tech=tech):
         yield item

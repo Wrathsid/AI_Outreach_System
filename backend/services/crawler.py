@@ -17,12 +17,16 @@ class Crawler:
         self.seen_urls = set()
         self.serpapi_key = os.getenv("SERPAPI_KEY")
 
-    def get_queries_for_role(self, role: str) -> List[str]:
+    def get_queries_for_role(self, role: str, company_size: str = None, revenue: str = None, tech: str = None) -> List[str]:
         """
         Generate specialized search queries targeting HR/recruiters hiring for this role.
         Focus on people POSTING jobs, not people looking for jobs.
         """
         role_lower = role.lower()
+        filter_str = ""
+        if tech: filter_str += f' "{tech}"'
+        if company_size: filter_str += f' "{company_size}"'
+        if revenue: filter_str += f' "{revenue}"'
         
         # Tech Roles - Target tech recruiters and hiring managers
         tech_keywords = ['eng', 'dev', 'soft', 'data', 'cloud', 'security', 'full stack', 'qa', 'sre', 'devops', 'ml', 'ai']
@@ -43,41 +47,50 @@ class Crawler:
                 f'site:linkedin.com/in \"talent acquisition\" \"technology\"',
             ]
         elif is_creative:
-            return [
+            base_queries = [
                 f'site:linkedin.com/posts \"hiring\" \"{role}\" recruiter',
                 f'site:linkedin.com \"we are hiring\" \"{role}\" HR',
                 f'site:linkedin.com/in \"creative recruiter\" \"{role}\"',
             ]
         else:
-            return [
+            base_queries = [
                 # General recruiters and hiring managers
-                f'site:linkedin.com/posts \"hiring\" \"{role}\"',
-                f'site:linkedin.com \"we are hiring\" \"{role}\"',
-                f'site:linkedin.com/in \"recruiter\" \"{role}\"',
+                f'site:linkedin.com/posts "hiring" "{role}"',
+                f'site:linkedin.com "we are hiring" "{role}"',
+                f'site:linkedin.com/in "recruiter" "{role}"',
             ]
+            
+        return [q + filter_str for q in base_queries]
 
-    def get_broad_queries(self, role: str) -> List[str]:
+    def get_broad_queries(self, role: str, company_size: str = None, revenue: str = None, tech: str = None) -> List[str]:
         """
         Broad Reach Mode: High volume queries targeting hiring posts.
         """
-        return [
+        filter_str = ""
+        if tech: filter_str += f' "{tech}"'
+        if company_size: filter_str += f' "{company_size}"'
+        if revenue: filter_str += f' "{revenue}"'
+        
+        base_queries = [
             f'site:linkedin.com/posts \"hiring {role}\"',
             f'site:linkedin.com \"we\'re hiring\" \"{role}\"',
-            f'\"hiring manager\" \"{role}\" email',
-            f'\"talent acquisition\" \"{role}\" contact',
-            f'\"recruiter\" \"{role}\" hiring',
+            f'"hiring manager" "{role}" email',
+            f'"talent acquisition" "{role}" contact',
+            f'"recruiter" "{role}" hiring',
         ]
+        return [q + filter_str for q in base_queries]
 
-    async def crawl_stream(self, role: str, limit: int = 20, broad_mode: bool = False) -> Generator[Dict, None, None]:
+    async def crawl_stream(self, role: str, limit: int = 20, broad_mode: bool = False, company_size: str = None, revenue: str = None, tech: str = None) -> Generator[Dict, None, None]:
         """
         Async Generator: Yields raw search results using SerpAPI.
         """
         if broad_mode:
-            queries = self.get_broad_queries(role)
+            queries = self.get_broad_queries(role, company_size, revenue, tech)
         else:
-            queries = self.get_queries_for_role(role)
+            queries = self.get_queries_for_role(role, company_size, revenue, tech)
 
         count = 0
+        self.seen_urls = set()  # Reset per-request to avoid cross-search deduplication
         mode_text = "Broad Mode" if broad_mode else "Precision Mode"
         yield {"type": "status", "data": f"Starting {mode_text} search for '{role}'..."}
 
@@ -124,12 +137,11 @@ class Crawler:
                 yield {"type": "status", "data": "Trying DuckDuckGo fallback..."}
                 try:
                     def _ddg_search(query):
-                        from duckduckgo_search import DDGS
-                        with DDGS() as ddgs:
-                            try:
-                                return list(ddgs.text(query, max_results=10))
-                            except:
-                                return []
+                        from ddgs import DDGS
+                        try:
+                            return list(DDGS().text(query, max_results=10))
+                        except:
+                            return []
                     
                     ddg_results = await asyncio.to_thread(_ddg_search, q)
                     if ddg_results:

@@ -4,14 +4,14 @@
   "scope": "codebase",
   "localEndpoint": "http://localhost:3000",
   "executionArgs": {
-    "projectName": "cold_email_frontend",
-    "projectPath": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\Cold emailing\\frontend",
+    "projectName": "frontend",
+    "projectPath": "c:\\Users\\Siddharth\\OneDrive\\Desktop\\Cold emailing\\frontend",
     "testIds": [],
     "additionalInstruction": "",
     "envs": {
       "API_KEY": "sk-user-NQcLxugG8FJCjuTd4Ibcl0qTI1a1vtkNjdgG-RarnUsIvUZeLVSX7DFmFc93Q-eWOdeQSmpzmEthjFyQWRgo9SjlTy16011TKw5oLG9dEby6Jqc0cw3jYN1Ir3KbDk-Xbh8"
     }
   },
-  "serverPort": 65247,
-  "proxy": "http://0d657db1-574d-4cee-8a31-7fb809990a3c:hDM7wijYYZkrs06SR2OMTRL13cjlZiBb@tun.testsprite.com:8080"
+  "serverPort": 54494,
+  "proxy": "http://54f0c8a7-c95f-4fcc-8a8e-ad8651992f4c:LeSak2Be6TVtYxJlRssxZUXc4jW7wWqn@tun.testsprite.com:8080"
 }

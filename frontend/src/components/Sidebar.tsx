@@ -2,15 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Settings, Brain, Menu, X, Users, Search } from 'lucide-react';
+import { Home, Settings, Brain, Menu, X, Users, Search, LogOut } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 import { MagneticHover } from './Animations';
 
 const Sidebar = () => {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const router = useRouter();
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -65,7 +73,7 @@ const Sidebar = () => {
           fixed md:relative z-50 md:z-auto
           flex flex-col gap-6 w-[240px] md:w-[88px] h-screen md:h-[calc(100vh-32px)] 
           md:my-4 md:ml-4 glass-panel md:rounded-2xl items-center py-8 shrink-0 
-          shadow-glass border-r-0
+          shadow-glass border-r border-r-white/10
         `}
         initial={false}
         animate={{ 
@@ -175,6 +183,20 @@ const Sidebar = () => {
               <span className="md:hidden text-sm font-medium">Settings</span>
             </motion.div>
           </Link>
+          
+          {/* Logout Button */}
+          <motion.button
+            onClick={() => {
+              setIsMobileOpen(false);
+              handleLogout();
+            }}
+            className="w-full p-3 rounded-xl text-red-400 hover:text-white hover:bg-red-500/20 transition-colors mb-2 flex items-center gap-3"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <LogOut size={24} />
+            <span className="md:hidden text-sm font-medium">Log out</span>
+          </motion.button>
         </motion.div>
       </motion.nav>
     </>

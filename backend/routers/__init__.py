@@ -1,14 +1,13 @@
 # Routers package
-from . import candidates, drafts, discovery, emails, stats, settings, auth, followups, automation
+from . import candidates, drafts, discovery, emails, stats, settings, auth, automation
 
 __all__ = [
     "candidates",
-    "drafts", 
+    "drafts",
     "discovery",
     "emails",
     "stats",
     "settings",
     "auth",
-    "followups",
     "automation",
 ]
