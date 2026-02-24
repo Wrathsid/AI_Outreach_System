@@ -98,7 +98,7 @@ class DiscoveryOrchestrator:
         url = data.get("url", "")
         
         # A. Identity Extraction
-        name = "Candidate"
+        name = ""  # Empty until we find a real name
         role = search_role
         company = "Unknown"
         
@@ -121,7 +121,7 @@ class DiscoveryOrchestrator:
                 name = snippet_info["name"]
             
             # Layer 2: Fallback — extract from URL slug only if snippet didn't find a name
-            if name == "Candidate":
+            if not name:
                 url_info = parse_linkedin_post_url(url)
                 if url_info.get("name"):
                     name = url_info["name"]
@@ -202,7 +202,7 @@ class DiscoveryOrchestrator:
         email = EmailPatterns.extract(body) or EmailPatterns.extract(title)
         
         # C. Context Enrichment
-        if email and name == "Candidate":
+        if email and not name:
             context_info = extract_context_info(body, email)
             if context_info["role"]: role = context_info["role"]
         
@@ -264,9 +264,23 @@ class DiscoveryOrchestrator:
         
         # Check if this is a hiring post (not just a profile)
         hiring_keywords = ["we are hiring", "we're hiring", "join our team", "hiring for", 
-                          "now hiring", "open position", "job opening", "looking for"]
+                          "now hiring", "open position", "job opening", "looking for",
+                          "apply now", "open role", "job opportunity", "career opportunity"]
         is_hiring_post = any(keyword in title.lower() for keyword in hiring_keywords)
         is_hiring_post = is_hiring_post or any(keyword in body.lower() for keyword in hiring_keywords)
+        
+        # Classify result type: "job_posting" vs "person"
+        # A result is a job posting if:
+        #   - It contains hiring keywords in title/body
+        #   - OR the name is still empty (no identifiable person)
+        #   - AND it passed our HR filter
+        result_type = "job_posting" if is_hiring_post else "person"
+        
+        # Fix the name for job postings — never show empty or generic names
+        if not name and result_type == "job_posting":
+            name = "Hiring Team"
+        elif not name:
+            name = "Unknown"
         
         # FILTER: Reject if not HR and not a hiring post
         if hr_score < 0.50 and not is_hiring_post:
@@ -286,7 +300,8 @@ class DiscoveryOrchestrator:
             "summary": body[:1000] if body else "",
             "is_hr": is_hr,
             "hr_score": hr_score,
-            "resonance_score": 0.0
+            "resonance_score": 0.0,
+            "result_type": result_type,  # "job_posting" or "person"
         }
         
         # I. Resonance Ranking (Phase 3)

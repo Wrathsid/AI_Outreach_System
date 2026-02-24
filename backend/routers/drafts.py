@@ -37,8 +37,8 @@ VALID_CHANNELS = {"email", "linkedin"}
 # Q5: CHANNEL TONE LOCK
 # ============================================================# Q5: Enforce tone guidelines per channel
 CHANNEL_TONE = {
-    "linkedin": "TONE: Highly detailed, professional, and comprehensive. Write a long, multi-paragraph message. Aim for around 300 words (approx 2000 characters).",
-    "email": "TONE: Professional but 'typed', not 'composed'. Slightly asymmetrical rhythm. Keep it under 100 words."
+    "linkedin": "TONE: This is a JOB APPLICATION message. Write as someone seeking employment. Be professional, detailed, and direct about wanting to work there. Aim for ~300 words (~2000 characters). Never sound like a networking or connection request.",
+    "email": "TONE: Professional but 'typed', not 'composed'. Slightly asymmetrical rhythm. Keep it under 100 words. Focus on the job opportunity."
 }
 
 # ============================================================
@@ -109,8 +109,10 @@ def assemble_prompt(sections: dict) -> str:
 # Q2: PERSONA ANCHOR
 # ============================================================
 PERSONA_ANCHOR = """
-PERSONA: You are Siddharth Chavan, a DevOps-focused engineer.
+PERSONA: You are Siddharth Chavan, a DevOps-focused engineer actively looking for job opportunities.
 You speak as yourself — first person, direct, technical but approachable.
+You are a JOB APPLICANT. Every message you write is a job application or inquiry about open positions.
+You never write generic networking messages or "looking to connect" messages.
 You never introduce yourself in third person.
 You never say "the candidate" when referring to yourself.
 """
@@ -198,8 +200,8 @@ def clean_candidate_data(candidate: dict) -> dict:
     name_cleaned = re.sub(r'#\w+', '', raw_name).strip()
     # Remove excess whitespace and special chars
     name_cleaned = re.sub(r'[^a-zA-Z\s\-\'.]+', '', name_cleaned).strip()
-    # Remove 'Unknown' placeholder
-    if not name_cleaned or name_cleaned.lower() in ('unknown', 'n/a', 'none', 'hiring team'):
+    # Remove 'Unknown' placeholder (but keep 'Hiring Team' — it's a valid label for job postings)
+    if not name_cleaned or name_cleaned.lower() in ('unknown', 'n/a', 'none'):
         name_cleaned = None
     cleaned['name'] = name_cleaned
     
@@ -667,6 +669,52 @@ def calculate_asymmetry_score(text: str) -> float:
 
 
 
+def _detect_hiring_context(candidate: dict) -> dict:
+    """Analyze candidate data to determine if this is a hiring post or a person profile.
+    
+    Returns: {'is_hiring_post': bool, 'hiring_role': str or None, 'recipient_role': str}
+    """
+    summary = (candidate.get('summary') or '').lower()
+    title = (candidate.get('title') or '').lower()
+    name = (candidate.get('name') or '').lower()
+    
+    hiring_keywords = [
+        'we are hiring', "we're hiring", 'join our team', 'hiring for',
+        'now hiring', 'open position', 'job opening', 'looking for',
+        'apply now', 'open role', 'job opportunity', 'career opportunity',
+        'we need', 'join us', 'urgent hiring', 'immediate opening'
+    ]
+    
+    is_hiring_post = any(kw in summary for kw in hiring_keywords)
+    is_hiring_post = is_hiring_post or any(kw in title for kw in hiring_keywords)
+    
+    # Also check if the name itself suggests hiring (e.g., "Hr Priya Hiring")
+    name_hiring_hints = ['hiring', 'hr ', 'recruiter', 'talent']
+    if any(hint in name for hint in name_hiring_hints):
+        is_hiring_post = True
+    
+    # If it's a hiring post, the title is likely the ROLE BEING HIRED, not the person's role
+    hiring_role = None
+    if is_hiring_post and candidate.get('title'):
+        hiring_role = candidate.get('title')  # e.g., "Frontend Developer" is the role they're hiring for
+    
+    # Determine what the RECIPIENT's actual role is
+    if is_hiring_post:
+        # The person is a recruiter/HR — they're posting about a role, not working in it
+        if any(w in title for w in ['recruit', 'talent', 'hr ', 'hiring']):
+            recipient_role = 'recruiter'  # Explicitly a recruiter
+        else:
+            recipient_role = 'hiring_manager'  # Posting about hiring but title doesn't say recruiter
+    else:
+        recipient_role = 'professional'  # A regular person in their stated role
+    
+    return {
+        'is_hiring_post': is_hiring_post,
+        'hiring_role': hiring_role,
+        'recipient_role': recipient_role
+    }
+
+
 def extract_primary_signal(candidate: dict) -> Dict[str, str]:
     """Extract ONE strong signal from candidate context.
     
@@ -679,8 +727,19 @@ def extract_primary_signal(candidate: dict) -> Dict[str, str]:
     company = candidate.get('company') or ''  # None-safe
     summary = candidate.get('summary') or ''  # None-safe
     
-    # Priority 3: Hiring/recruiting focus
-    if title and any(word in title.lower() for word in ['recruit', 'talent', 'hiring']):
+    # NEW: Detect hiring context
+    hiring_ctx = _detect_hiring_context(candidate)
+    
+    # Priority 4 (HIGHEST): This is a hiring post — signal = they're hiring for X role
+    if hiring_ctx['is_hiring_post'] and hiring_ctx.get('hiring_role'):
+        signals.append({
+            'type': 'hiring_post',
+            'value': f"Hiring for {hiring_ctx['hiring_role']}",
+            'priority': 4
+        })
+    
+    # Priority 3: Hiring/recruiting focus (title says recruiter)
+    elif title and any(word in title.lower() for word in ['recruit', 'talent', 'hiring']):
         domain = 'technical roles' if 'tech' in title.lower() else 'hiring'
         signals.append({
             'type': 'hiring_focus',
@@ -688,16 +747,17 @@ def extract_primary_signal(candidate: dict) -> Dict[str, str]:
             'priority': 3
         })
     
-    # Priority 2: Technical role
-    tech_keywords = ['engineer', 'developer', 'designer', 'product', 'architect', 'lead']
-    for keyword in tech_keywords:
-        if title and keyword in title.lower():
-            signals.append({
-                'type': 'technical_role',
-                'value': f"{keyword.capitalize()} at {company}" if company else f"{keyword.capitalize()}",
-                'priority': 2
-            })
-            break
+    # Priority 2: Technical role (ONLY if NOT a hiring post)
+    if not hiring_ctx['is_hiring_post']:
+        tech_keywords = ['engineer', 'developer', 'designer', 'product', 'architect', 'lead']
+        for keyword in tech_keywords:
+            if title and keyword in title.lower():
+                signals.append({
+                    'type': 'technical_role',
+                    'value': f"{keyword.capitalize()} at {company}" if company else f"{keyword.capitalize()}",
+                    'priority': 2
+                })
+                break
     
     # Priority 1: Interesting summary snippet (first sentence only)
     if summary and len(signals) == 0:
@@ -741,6 +801,7 @@ def generate_fallback_draft(candidate: dict, sender_intro: str, signal: str, int
     
     IMPORTANT: All templates must produce human-quality output even with
     minimal/missing data. Never output 'Unknown' or hashtags.
+    Context-aware: detects hiring posts and generates appropriate templates.
     """
     import random
     
@@ -749,6 +810,7 @@ def generate_fallback_draft(candidate: dict, sender_intro: str, signal: str, int
     first_name = raw_name.split()[0] if raw_name and not raw_name.startswith('#') else None
     company = candidate.get('company') or None
     title = candidate.get('title') or None
+    summary = candidate.get('summary') or ''
     sender_first = sender_intro.split()[0] if sender_intro else 'Siddharth'
     
     # Determine what info we actually have
@@ -756,12 +818,30 @@ def generate_fallback_draft(candidate: dict, sender_intro: str, signal: str, int
     has_company = company is not None and company.lower() not in ('unknown', 'n/a')
     has_title = title is not None and title.lower() not in ('unknown', 'n/a')
     
-    # Build greeting
-    greeting = f"Hi {first_name}" if has_name else "Hi there"
+    # DETECT HIRING CONTEXT from candidate data
+    hiring_ctx = _detect_hiring_context(candidate)
+    is_hiring_post = hiring_ctx['is_hiring_post']
+    hiring_role = hiring_ctx.get('hiring_role') or title
+    
+    # Build greeting (skip 'Hr' or 'Hiring' as first names)
+    if has_name and first_name.lower() not in ('hiring', 'hr', 'team'):
+        greeting = f"Hi {first_name}"
+    else:
+        greeting = "Hi there"
     
     # ============ LINKEDIN TEMPLATES (with data-quality awareness) ============
     if contact_type == "linkedin":
-        # BEST: Have name + company/title
+        # HIRING POST TEMPLATES — these take priority over all other branches
+        if is_hiring_post and has_title:
+            role_label = hiring_role or title
+            company_label = company if has_company else "your team"
+            options = [
+                f"{greeting}, I noticed your post about hiring for a {role_label} position. I am a DevOps engineer with a strong background in cloud infrastructure, automation, and site reliability, and I am very interested in this opportunity.\n\nThroughout my career, I have focused on building scalable and resilient systems. I have extensive experience with Infrastructure as Code using Terraform, container orchestration with Kubernetes, and implementing comprehensive CI/CD pipelines that allow teams to ship code faster without compromising stability. I treat every deployment as a software engineering problem, ensuring everything is version-controlled, tested, and repeatable.\n\nI believe my skills in cloud architecture, Linux systems, and automation align well with what {company_label} is looking for. I would love the opportunity to discuss how my background can contribute to the goals of this role. Would you be open to reviewing my profile or scheduling a brief call?",
+                f"{greeting}, came across your post about the {role_label} opening at {company_label}. I wanted to reach out directly to express my interest and share a bit about my relevant background.\n\nI am an infrastructure engineer deeply passionate about automation and reliability. My experience spans managing complex cloud environments on AWS and GCP, designing zero-downtime deployment strategies, and building observability stacks with Prometheus and Grafana. I am a firm believer in the SRE philosophy of treating operations as a software challenge.\n\nThe {role_label} role you posted about resonates strongly with my career trajectory. I am confident that my hands-on experience with DevOps tooling and cloud-native architectures can add real value to your engineering team. Would you be available for a quick conversation about this opportunity, or would it be best if I sent over my resume?",
+                f"{greeting}, saw that {company_label} is looking for a {role_label}. I am actively looking for my next opportunity in cloud infrastructure and DevOps, and this position seems like a great match for my skill set.\n\nOver the past several years, I have built deep expertise in designing and maintaining highly available cloud systems. I excel at writing automation in Python and Bash, managing Kubernetes clusters at scale, and implementing security best practices across the entire deployment pipeline. I am driven by the challenge of turning complex manual processes into elegant, automated workflows.\n\nI am very enthusiastic about this opportunity and would welcome the chance to discuss how my experience aligns with the requirements. Could we connect to talk further, or would you prefer I share my resume directly?",
+            ]
+            return random.choice(options)
+        
         # BEST: Have name + company/title
         if has_name and has_company:
             if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
@@ -1304,7 +1384,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                     "variant_id": variant_id, "is_fallback": True
                 }
 
-        skills = ", ".join(brain.get("extracted_skills", [])) or "Technical Hiring"
+        skills = ", ".join(brain.get("extracted_skills", [])) or "DevOps, Cloud Infrastructure, Linux, CI/CD, Automation"
 
         # 3. CONTEXT COMPRESSION & MEMORY (Priority 2, 13)
         signal = extract_primary_signal(c)
@@ -1319,85 +1399,179 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         logger.info(f"Primary signal: {signal['signal']} | Avoid: {signal['avoid']}")
 
         # 4. Build Prompt (Optimization 11, 12, 17)
-        # Fetch biased parameters from history (Learning Loop - Phase 2)
         biased_params = get_biased_parameters(supabase)
         logger.info(f"Biasing suggestions: {biased_params}")
 
+        # CONTEXT-AWARE CLASSIFICATION
+        hiring_ctx = _detect_hiring_context(c)
+        is_hiring_post = hiring_ctx['is_hiring_post']
+        hiring_role = hiring_ctx.get('hiring_role')
+        recipient_role = hiring_ctx['recipient_role']
+        
+        # Detect POST TYPE: LinkedIn Jobs section vs hiring post vs profile
+        linkedin_url = c.get('linkedin_url') or ''
+        post_type = 'profile'  # default
+        if '/jobs/' in linkedin_url or '/job/' in linkedin_url:
+            post_type = 'linkedin_job'  # From LinkedIn Jobs section
+            is_hiring_post = True  # Always a hiring post
+        elif '/posts/' in linkedin_url or '/feed/' in linkedin_url:
+            post_type = 'linkedin_post'  # Regular LinkedIn post
+        elif '/in/' in linkedin_url:
+            post_type = 'linkedin_profile'  # Profile page
+        
+        logger.info(f"Context: is_hiring_post={is_hiring_post}, hiring_role={hiring_role}, recipient_role={recipient_role}, post_type={post_type}")
+        
         # Determine if Recipient is Company (Hiring Team) or Person
         is_company_recipient = False
         if c.get('name') == "Hiring Team" or (c.get('company') and c.get('name') and c.get('company').lower() in c.get('name').lower()):
              is_company_recipient = True
         
-        # Context Bands (Refinement 74)
-        # Simplify context for cleaner prompting
+        # Context Bands
         context_band = "LOW"
         if len(brain.get("extracted_skills", [])) > 2 and c.get('title'):
             context_band = "MEDIUM"
         if signal.get('signal') and not signal.get('is_generic'):
             context_band = "HIGH"
 
-        # User Bio & Context
-        user_bio = """
-        Name: Siddharth Chavan
-        Role: DevOps-focused engineer
-        Key Skills: Cloud operations, Linux systems, automation, sustaining production environments.
-        Value Prop: I enjoy working close to infrastructure and ensuring systems remain stable, secure, and scalable.
-        Current Status: Applying skills through hands-on projects, upskilling in DevOps/Cloud.
-        """
+        # ============================================================
+        # DYNAMIC USER BIO — Built from Brain/Cortex skills
+        # ============================================================
+        sender_name = settings.get('full_name', 'Siddharth Chavan')
+        sender_company = settings.get('company', '')
+        sender_role = settings.get('role', 'DevOps Engineer')
+        
+        user_bio = f"""
+        Name: {sender_name}
+        Role: {sender_role}
+        Key Skills: {skills}
+        {f'Current Company: {sender_company}' if sender_company else ''}
+        Status: Actively looking for opportunities where I can apply these skills.
+        """.strip()
 
+        # Get post context (first 800 chars for richer understanding)
+        post_context = (c.get('summary') or '')[:800].strip()
+
+        # ============================================================
+        # INTENT ROUTING (Post-type aware)
+        # ============================================================
         if is_company_recipient:
-             intent = IntentType.SOFT # Company page DMs should be soft
+             intent = IntentType.SOFT
              role_context = c.get('title') or 'DevOps / SRE Role'
-             task_instruction = "Generate Message 1: Company Page DM. Exploratory, highly detailed context."
+             task_instruction = "Generate a job inquiry message to a company page. Be respectful but direct about seeking opportunities."
+        elif is_hiring_post:
+             intent = IntentType.OPPORTUNITY
+             role_context = "DevOps / Site Reliability Engineer"
+             if post_type == 'linkedin_job':
+                 task_instruction = f"Generate a JOB APPLICATION message. This is from a LinkedIn JOBS listing for '{hiring_role or c.get('title')}'. Write as if APPLYING for this specific position. Be specific about relevant skills."
+             else:
+                 task_instruction = f"Generate a JOB APPLICATION message. The recipient POSTED about hiring for '{hiring_role or c.get('title')}'. Express genuine interest in the position they mentioned. Reference specifics from their post."
         elif (c.get('title') and ("recruiter" in c.get('title').lower() or "talent" in c.get('title').lower())):
-             intent = IntentType.OPPORTUNITY # Recruiters get the new Opportunity intent
-             role_context = "DevOps / Site Reliability Engineer" # Force specific context
-             task_instruction = "Generate Message 2: Recruiter DM. Follow STRICT rules (make it extremely long, ~2000 characters)."
+             intent = IntentType.OPPORTUNITY
+             role_context = "DevOps / Site Reliability Engineer"
+             task_instruction = "Generate a JOB-SEEKING message to a recruiter. Ask directly if they have DevOps/SRE/Cloud openings. Be clear you are looking for work, not just networking."
         else:
-             intent = IntentType.OPPORTUNITY # Default: always job-seeking outreach, never generic networking
-             # If title is generic recruiter, assume DevOps role
+             intent = IntentType.OPPORTUNITY
              candidate_title = (c.get('title') or '').lower()
              role_context = "DevOps / Site Reliability Engineer"
              if candidate_title and "recruiter" not in candidate_title and "talent" not in candidate_title:
                  role_context = c.get('title') or 'DevOps / SRE Role'
-             task_instruction = "Generate Message 2: Job Opportunity DM. You are reaching out to explore job opportunities — NOT to network or connect. Be direct about looking for roles."
+             task_instruction = "Generate a JOB OPPORTUNITY message. You are reaching out to explore job opportunities — NOT to network. Ask about openings at their company."
 
-        # SELECT PROMPT BASED ON INTENT
+        # ============================================================
+        # PROMPT CONSTRUCTION (Job-Application Focused)
+        # ============================================================
         if intent == IntentType.OPPORTUNITY:
-            # USER PROMPT FOR RECRUITERS
+            # Build context block based on post type
+            if is_hiring_post:
+                if post_type == 'linkedin_job':
+                    context_block = f"""
+            SOURCE: LinkedIn JOBS listing
+            CRITICAL: This is a formal JOB POSTING from the Jobs section on LinkedIn.
+            - The listing is for: {hiring_role or c.get('title')}
+            - The recipient posted this job at: {c.get('company') or 'their company'}
+            - Write as if you are APPLYING FOR THIS JOB. This is a job application, not a connection request.
+            - Reference the specific role and why your skills ({skills}) make you a strong candidate.
+            - DO NOT say 'looking to connect' or 'expand my network'.
+            - DO say 'I am interested in the {hiring_role or c.get('title')} position' or 'applying for the role'.
+            
+            JOB DESCRIPTION:
+            {post_context}
+            """
+                else:
+                    context_block = f"""
+            SOURCE: LinkedIn POST about hiring
+            CRITICAL: This person WROTE A POST about hiring. They are a {recipient_role}.
+            - They posted about hiring for: {hiring_role or c.get('title')}
+            - They are NOT a {hiring_role or c.get('title')} themselves — they are RECRUITING for that role.
+            - DO NOT say 'saw your work as {hiring_role}' — they don't work in that role.
+            - DO reference their post: 'saw your post about the {hiring_role} opening' or 'noticed you are hiring for {hiring_role}'.
+            - Express genuine interest in the position and explain how your skills ({skills}) are relevant.
+            
+            THEIR POST:
+            {post_context}
+            """
+            else:
+                # Regular profile — this person may or may not be hiring
+                context_block = f"""
+            SOURCE: LinkedIn Profile
+            This person is {c.get('name') or 'a professional'}, working as {c.get('title') or 'a professional'} at {c.get('company') or 'their company'}.
+            {f'PROFILE CONTEXT: {post_context}' if post_context else ''}
+            
+            You are reaching out to explore if their company has DevOps/SRE openings.
+            Mention how your skills ({skills}) could add value to their team.
+            """
+            
             prompt = f'''
-            You are generating a LinkedIn Connection Request (focus on extreme detail and length, aiming for 2000 chars).
+            # JOB APPLICATION MESSAGE GENERATOR
             
-            INPUT:
-            - Target Role: {role_context}
-            - Recipient: {c.get('name') or 'Recruiter'} at {c.get('company') or 'a great company'}
+            You are writing a LinkedIn message on behalf of someone ACTIVELY SEEKING A JOB.
+            This is a JOB APPLICATION outreach — NOT a networking or connection request.
             
-            TASK: Generate ONE comprehensive, multi-paragraph message.
-            - Tie {role_context} to the user's infrastructure/cloud skills in great detail.
-            - Do NOT start with "I'm an experienced engineer". Be more conversational.
-            - No emojis. Only the message.
+            == APPLICANT (the person writing this message) ==
+            {user_bio}
+            
+            == RECIPIENT ==
+            Name: {c.get('name') or 'Hiring Professional'}
+            At: {c.get('company') or 'their company'}
+            
+            {context_block}
+            
+            == RULES ==
+            1. TASK: {task_instruction}
+            2. This is a JOB APPLICATION. The applicant wants to WORK at their company.
+            3. Mention specific skills from the applicant's profile: {skills}
+            4. NEVER say: "looking to connect", "expand my network", "great to meet", "love to chat"
+            5. ALWAYS say things like: "interested in the role", "would love to apply", "my skills in X align with", "available for an interview"
+            6. End with a concrete CTA: ask to share resume, schedule a call, or submit application
+            7. Write in first person as {sender_name}. Sound eager but professional.
+            8. Be detailed and comprehensive. Aim for ~300 words / ~2000 characters.
+            9. No emojis. No quotes around the message. Just the message text.
+            10. Do NOT start with "I'm an experienced engineer". Start with a reference to their post/role/company.
             '''
         else:
-            # JOB-SEEKING MASTER PROMPT FOR ALL CONTACTS
+            # SOFT INTENT (Company pages, exploratory)
             prompt = f'''
-            # MASTER PROMPT (JOB-SEEKING VERSION)
+            # JOB INQUIRY MESSAGE
             
-            You are generating a LinkedIn message for someone ACTIVELY LOOKING FOR JOB OPPORTUNITIES.
-            This is NOT a networking or connecting message — it is a targeted job application outreach.
+            You are writing a LinkedIn message to a company or hiring team on behalf of a job seeker.
             
-            INPUT:
-            1. SENDER: {user_bio}
-            2. RECIPIENT: {c.get('name') or 'a professional'} ({c.get('title') or 'role not specified'}) at {c.get('company') or 'not specified'}
-            3. TARGET ROLE: {role_context}
+            == APPLICANT ==
+            {user_bio}
             
-            TASK: {task_instruction}
-            - Write a detailed, multi-paragraph message asking about job opportunities.
-            - Clearly state you are looking for {role_context} roles.
-            - Mention specific skills relevant to the role.
-            - Ask if they are hiring or know of open positions.
-            - Do NOT write a generic "looking to connect" or "expand my network" message.
-            - End with a clear CTA asking about opportunities or to review your profile.
-            - No emojis. Sound professional but direct. Only the message text.
+            == RECIPIENT ==
+            {c.get('name') or 'Hiring Team'} at {c.get('company') or 'the company'}
+            Role listed: {c.get('title') or 'not specified'}
+            {f'CONTEXT: {post_context}' if post_context else ''}
+            
+            == TASK ==
+            {task_instruction}
+            - Write a professional inquiry about open positions.
+            - Mention specific skills: {skills}
+            - Ask if they are currently hiring for roles matching this background.
+            - Sound professional and genuinely interested, not generic.
+            - End with a clear ask: share resume, schedule a call, etc.
+            - Be detailed. Aim for ~250 words.
+            - No emojis. Only the message text.
             '''
 
         # Q5: Inject channel tone lock into prompt

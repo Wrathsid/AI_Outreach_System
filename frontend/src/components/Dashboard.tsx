@@ -223,30 +223,30 @@ const Dashboard = () => {
                
                <div className="flex-1 w-full min-h-0">
                   <ResponsiveContainer width="100%" height="100%">
-                     <BarChart data={stats.recent_leads}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
-                        <XAxis 
-                           dataKey="date" 
-                           axisLine={false} 
-                           tickLine={false} 
-                           tick={{fill: '#94a3b8', fontSize: 10}}
-                           tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', {weekday: 'short'})} 
-                           dy={10}
-                        />
-                        <Tooltip 
-                           contentStyle={{backgroundColor: '#1e1e2e', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px'}}
-                           itemStyle={{color: '#fff'}}
-                           cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                        />
-                        <Bar 
-                           dataKey="count" 
-                           fill="#3b82f6" 
-                           radius={[4, 4, 0, 0]} 
-                           barSize={30}
-                           animationDuration={1500}
-                        />
-                     </BarChart>
-                  </ResponsiveContainer>
+                      <BarChart data={stats.recent_leads}>
+                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                         <XAxis 
+                            dataKey="date" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{fill: '#94a3b8', fontSize: 10}}
+                            tickFormatter={(value: string) => new Date(value).toLocaleDateString('en-US', {weekday: 'short'})} 
+                            dy={10}
+                         />
+                         <Tooltip 
+                            contentStyle={{backgroundColor: '#1e1e2e', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px'}}
+                            itemStyle={{color: '#fff'}}
+                            cursor={{fill: 'rgba(255,255,255,0.05)'}}
+                         />
+                         <Bar 
+                            dataKey="count" 
+                            fill="#3b82f6" 
+                            radius={[4, 4, 0, 0]} 
+                            barSize={30}
+                            animationDuration={1500}
+                         />
+                      </BarChart>
+                   </ResponsiveContainer>
                </div>
               </div>
             </HoverSpotlight>
@@ -269,28 +269,28 @@ const Dashboard = () => {
                
                <div className="flex-1 w-full min-h-0 relative">
                   <ResponsiveContainer width="100%" height="100%">
-                     <PieChart>
-                        <Pie
-                           data={stats.top_industries}
-                           cx="50%"
-                           cy="50%"
-                           innerRadius={60}
-                           outerRadius={80}
-                           paddingAngle={5}
-                           dataKey="value"
-                        >
-                           {stats.top_industries.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={[
-                                 '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'
-                              ][index % 5]} stroke="rgba(0,0,0,0)" />
-                           ))}
-                        </Pie>
-                        <Tooltip 
-                           contentStyle={{backgroundColor: '#1e1e2e', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px'}}
-                           itemStyle={{color: '#fff'}}
-                        />
-                     </PieChart>
-                  </ResponsiveContainer>
+                      <PieChart>
+                         <Pie
+                            data={stats.top_industries}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                         >
+                            {stats.top_industries.map((entry, index) => (
+                               <Cell key={`cell-${index}`} fill={[
+                                  '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b'
+                               ][index % 5]} stroke="rgba(0,0,0,0)" />
+                            ))}
+                         </Pie>
+                         <Tooltip 
+                            contentStyle={{backgroundColor: '#1e1e2e', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px'}}
+                            itemStyle={{color: '#fff'}}
+                         />
+                      </PieChart>
+                   </ResponsiveContainer>
                   {/* Center Text */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                      <div className="text-center">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Mail, Check, Github, Linkedin, Settings2, Sparkles, Building2 } from 'lucide-react';
+import { Search, Loader2, Mail, Check, Github, Linkedin, Settings2, Sparkles, Building2, Briefcase, User } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
@@ -21,6 +21,7 @@ interface ScanResult {
     is_hr?: boolean;
     hr_score?: number;
     resonance_score?: number;
+    result_type?: 'job_posting' | 'person';  // Classification from backend
 }
 
 // Common roles for auto-complete
@@ -509,7 +510,12 @@ const SearchPage = () => {
                     <div className="w-full mt-8 space-y-4 pb-20 override-scroll">
                         {/* Sort info / Action Bar */}
                         <div className="flex justify-between items-center mb-2 px-2 text-[10px] text-slate-500 font-medium uppercase tracking-widest animate-in fade-in">
-                            <span>{results.length} Leads found</span>
+                            <span>
+                                {results.filter(r => r.result_type !== 'job_posting').length} People
+                                {results.filter(r => r.result_type === 'job_posting').length > 0 && (
+                                    <> · {results.filter(r => r.result_type === 'job_posting').length} Job Postings</>
+                                )}
+                            </span>
                             <span className="flex items-center gap-1.5 text-primary">
                                 <Sparkles size={10} />
                                 sorted by resonance
@@ -653,9 +659,23 @@ const SearchPage = () => {
                                                     <h3 className="text-lg font-medium text-white truncate pr-4">
                                                         {r.name}
                                                     </h3>
-                                                    {/* Source Badge (Subtle) */}
-                                                    <div className="shrink-0 flex items-center gap-1.5 text-[10px] text-slate-500 opacity-60">
-                                                        {r.linkedin_url.includes('github') ? <Github size={10} /> : <Linkedin size={10} />}
+                                                    {/* Type Badge */}
+                                                    <div className="shrink-0 flex items-center gap-1.5">
+                                                        {r.result_type === 'job_posting' ? (
+                                                            <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
+                                                                <Briefcase size={10} />
+                                                                Job Posting
+                                                            </span>
+                                                        ) : (
+                                                            <span className="flex items-center gap-1 text-[10px] font-semibold text-blue-400 bg-blue-400/10 border border-blue-400/20 px-2 py-0.5 rounded-full">
+                                                                <User size={10} />
+                                                                Person
+                                                            </span>
+                                                        )}
+                                                        {/* Source Badge (Subtle) */}
+                                                        <span className="text-[10px] text-slate-500 opacity-60">
+                                                            {r.linkedin_url.includes('github') ? <Github size={10} /> : <Linkedin size={10} />}
+                                                        </span>
                                                     </div>
                                                 </div>
                                                 <div className="text-sm text-slate-400 truncate flex items-center gap-2">
