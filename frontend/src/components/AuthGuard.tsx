@@ -17,7 +17,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // In dev bypass mode, allow everything immediately
     if (DEV_BYPASS) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAuthorized(true);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoaded(true);
       return;
     }

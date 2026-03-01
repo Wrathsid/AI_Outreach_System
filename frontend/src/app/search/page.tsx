@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2, Briefcase, User } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
+import { ALL_SKILLS } from '@/data/skillsCatalog';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
 import { useToast } from '@/context/ToastContext';
@@ -60,6 +61,11 @@ const SearchPage = () => {
     const [isScanning, setIsScanning] = useState(false);
     const [results, setResults] = useState<ScanResult[]>([]);
     const [isAdding, setIsAdding] = useState(false);
+    
+    // Suggestions State
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+    const [showSuggestions, setShowSuggestions] = useState(false);
     
     // Rotating Placeholder Logic
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -205,11 +211,48 @@ const SearchPage = () => {
                             <input 
                                 type="text" 
                                 value={role}
-                                onChange={(e) => setRole(e.target.value)}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    setRole(val);
+                                    if (val.length > 0) {
+                                        const filtered = ALL_SKILLS.filter(skill => skill.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
+                                        setSuggestions(filtered);
+                                        setShowSuggestions(true);
+                                        setActiveSuggestionIndex(-1);
+                                    } else {
+                                        setShowSuggestions(false);
+                                    }
+                                }}
+                                onFocus={() => {
+                                    if (role.length > 0 && suggestions.length > 0) setShowSuggestions(true);
+                                }}
+                                onBlur={() => {
+                                    // Delay hiding to allow click events on suggestions to fire
+                                    setTimeout(() => setShowSuggestions(false), 200);
+                                }}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && role) {
+                                    if (e.key === 'ArrowDown') {
                                         e.preventDefault();
-                                        handleScan();
+                                        if (showSuggestions && suggestions.length > 0) {
+                                            setActiveSuggestionIndex(prev => prev < suggestions.length - 1 ? prev + 1 : prev);
+                                        }
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        if (showSuggestions && suggestions.length > 0) {
+                                            setActiveSuggestionIndex(prev => prev > 0 ? prev - 1 : -1);
+                                        }
+                                    } else if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        if (showSuggestions && activeSuggestionIndex >= 0) {
+                                            setRole(suggestions[activeSuggestionIndex]);
+                                            setShowSuggestions(false);
+                                            setActiveSuggestionIndex(-1);
+                                        } else if (role) {
+                                            setShowSuggestions(false);
+                                            handleScan();
+                                        }
+                                    } else if (e.key === 'Escape') {
+                                        setShowSuggestions(false);
                                     }
                                 }}
                                 className="flex-1 bg-transparent border-none outline-none text-white px-4 py-4 text-lg placeholder-slate-500"
@@ -243,6 +286,39 @@ const SearchPage = () => {
                             )}
                         </div>
                         
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && suggestions.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-3 bg-[#0f0f1a]/95 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden shadow-2xl z-50 flex flex-col py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                                {suggestions.map((suggestion, index) => {
+                                    // Highlight matching part
+                                    const matchIndex = suggestion.toLowerCase().indexOf(role.toLowerCase());
+                                    const beforeMatch = suggestion.slice(0, matchIndex);
+                                    const matchText = suggestion.slice(matchIndex, matchIndex + role.length);
+                                    const afterMatch = suggestion.slice(matchIndex + role.length);
+
+                                    return (
+                                        <button
+                                            key={suggestion}
+                                            className={`px-6 py-3 cursor-pointer transition-colors flex items-center gap-3 text-left w-full ${index === activeSuggestionIndex ? 'bg-primary/20 text-white' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+                                            onClick={() => {
+                                                setRole(suggestion);
+                                                setShowSuggestions(false);
+                                                setActiveSuggestionIndex(-1);
+                                            }}
+                                            onMouseEnter={() => setActiveSuggestionIndex(index)}
+                                        >
+                                            <Search size={16} className={index === activeSuggestionIndex ? 'text-primary' : 'text-slate-500'} />
+                                            <span className="text-base">
+                                                {beforeMatch}
+                                                <span className="text-primary font-semibold">{matchText}</span>
+                                                {afterMatch}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+
                         {/* Status Message */}
                         {isScanning && statusMessage && (
                             <FadeUp delay={0.1} className="mt-4 text-center">

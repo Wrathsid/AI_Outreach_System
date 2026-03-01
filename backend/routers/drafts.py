@@ -30,15 +30,14 @@ class BatchDraftRequest(BaseModel):
 # ============================================================
 # R5: VALID CHANNELS
 # ============================================================
-VALID_CHANNELS = {"email", "linkedin"}
+VALID_CHANNELS = {"linkedin"}
 
 
 # ============================================================
 # Q5: CHANNEL TONE LOCK
-# ============================================================# Q5: Enforce tone guidelines per channel
+# ============================================================
 CHANNEL_TONE = {
-    "linkedin": "TONE: This is a JOB APPLICATION message. Write as someone seeking employment. Be professional, detailed, and direct about wanting to work there. Aim for ~300 words (~2000 characters). Never sound like a networking or connection request.",
-    "email": "TONE: Professional but 'typed', not 'composed'. Slightly asymmetrical rhythm. Keep it under 100 words. Focus on the job opportunity."
+    "linkedin": "TONE: This is a JOB APPLICATION message. Write as someone seeking employment. Be professional, detailed, and direct about wanting to work there. Aim for ~300 words (~2000 characters). Never sound like a networking or connection request."
 }
 
 # ============================================================
@@ -124,12 +123,8 @@ You never say "the candidate" when referring to yourself.
 def validate_structure(text: str, contact_type: str) -> bool:
     """Verify draft has opener -> relevance -> CTA structure (Q1)."""
     paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
-    if contact_type == "linkedin":
-        # LinkedIn: at least greeting + body + soft close
-        return len(paragraphs) >= 2
-    else:
-        # Email: at least greeting + 2 body paragraphs + sign-off
-        return len(paragraphs) >= 3
+    # LinkedIn: at least greeting + body + soft close
+    return len(paragraphs) >= 2
 
 
 # ============================================================
@@ -137,21 +132,12 @@ def validate_structure(text: str, contact_type: str) -> bool:
 # ============================================================
 def normalize_length(text: str, contact_type: str) -> str:
     """Hard-trim to channel limits (Q4)."""
-    if contact_type == "linkedin":
-        if len(text) > 2500:
-            trimmed = text[:2450]
-            last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
-            if last_period > 1000:
-                return trimmed[:last_period + 1]
-            return trimmed.rstrip() + "..."
-    else:  # email
-        words = text.split()
-        if len(words) > 150:
-            trimmed = ' '.join(words[:150])
-            last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
-            if last_period > len(trimmed) // 2:
-                return trimmed[:last_period + 1]
-            return trimmed.rstrip() + "..."
+    if len(text) > 2500:
+        trimmed = text[:2450]
+        last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
+        if last_period > 1000:
+            return trimmed[:last_period + 1]
+        return trimmed.rstrip() + "..."
     return text
 
 
@@ -363,20 +349,13 @@ def score_draft(text: str, contact_type: str, candidate_context: dict = None) ->
         return 0.0
 
     # Length sweet spot
-    if contact_type == "linkedin":
-        length = len(text)
-        if 1500 <= length <= 2500:
-            score += 20
-        elif length < 1000:
-            score -= 10
-        elif length > 2500:
-            score -= 15
-    else:  # Email
-        word_count = len(text.split())
-        if 80 <= word_count <= 120:
-            score += 15
-        elif word_count > 150:
-            score -= 20
+    length = len(text)
+    if 1500 <= length <= 2500:
+        score += 20
+    elif length < 1000:
+        score -= 10
+    elif length > 2500:
+        score -= 15
     
     # Question count (exactly 1 is ideal)
     question_count = text.count("?")
