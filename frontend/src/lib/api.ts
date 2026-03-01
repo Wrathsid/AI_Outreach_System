@@ -1,6 +1,35 @@
 // API Client for Intelligent Outreach Backend
 import { createClient } from '@/lib/supabase';
 
+// ── In-memory request cache ──────────────────────────────────────────
+// Prevents duplicate fetches during navigation and page transitions.
+// Each entry expires after its TTL (ms).
+interface CacheEntry { data: unknown; timestamp: number; }
+const apiCache = new Map<string, CacheEntry>();
+const DEFAULT_CACHE_TTL = 30_000; // 30 seconds
+
+export function getCached<T>(key: string): T | null {
+  const entry = apiCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > DEFAULT_CACHE_TTL) {
+    apiCache.delete(key);
+    return null;
+  }
+  return entry.data as T;
+}
+
+export function setCache(key: string, data: unknown, ttl = DEFAULT_CACHE_TTL) {
+  apiCache.set(key, { data, timestamp: Date.now() });
+  // Auto evict after TTL
+  setTimeout(() => apiCache.delete(key), ttl);
+}
+
+export function invalidateCache(key?: string) {
+  if (key) apiCache.delete(key);
+  else apiCache.clear();
+}
+// ─────────────────────────────────────────────────────────────────────
+
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
   const supabase = createClient();
   const { data: { session } } = await supabase.auth.getSession();
@@ -366,19 +395,7 @@ export const api = {
     }
   },
 
-  // Send Email
-  async sendEmail(to: string, subject: string, body: string, candidateId?: number): Promise<boolean> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/emails/send-legacy`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to, subject, body, candidate_id: candidateId }),
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  },
+
 
   async getSentEmails(): Promise<{ emails: unknown[] }> {
     try {

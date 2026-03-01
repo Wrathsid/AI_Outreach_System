@@ -1,134 +1,63 @@
 """
 Discovery router - Lead discovery and search endpoints.
 """
-import json
 from fastapi import APIRouter
-from fastapi.responses import StreamingResponse
 
-from backend.config import generate_with_gemini, logger
-from backend.models.schemas import ExtractionRequest, CrawlRequest, PatternRequest
-from backend.services.discovery_orchestrator import DiscoveryOrchestrator
+from backend.config import logger
 
 router = APIRouter(tags=["Discovery"])
 
-# Initialize Orchestrator
-orchestrator = DiscoveryOrchestrator()
 
 
-@router.post("/extract-opportunity")
-async def extract_opportunity(request: ExtractionRequest):
-    """Extract key info from job description text."""
-    # generate_with_gemini handles missing model internally
+
+import uuid
+from fastapi import Request
+
+@router.post("/temporal-discover")
+async def start_temporal_discovery(request: Request, role: str, limit: int = 20):
+    """Start a Temporal workflow for discovery."""
+    client = request.app.state.temporal_client
+    if not client:
+        return {"status": "error", "message": "Temporal client not connected"}
+        
+    job_id = f"discovery-{uuid.uuid4()}"
+    
     try:
-        response = await generate_with_gemini(
-            request.text, 
-            system_prompt="Extract the core value proposition and key requirement from this text. Summarize it in one concise sentence starting with 'Opportunity to...' or 'Seeking...'"
+        from backend.temporal.workflows import DiscoveryWorkflow
+        
+        # Start the workflow in the background. Does not block!
+        handle = await client.start_workflow(
+            DiscoveryWorkflow.run,
+            args=[role, limit],
+            id=job_id,
+            task_queue="discovery-task-queue"
         )
-        return {"opportunity": response if response else "Could not extract context"}
+        return {"status": "running", "job_id": job_id}
     except Exception as e:
-        logger.error(f"Extraction Error: {e}")
-        return {"opportunity": "Could not extract context"}
+        logger.error(f"Failed to start workflow: {e}")
+        return {"status": "error", "message": str(e)}
 
-
-@router.post("/crawl")
-async def crawl_domain(request: CrawlRequest):
-    """Crawl a domain to extract text content."""
-    # Simple implementation using httpx for now
-    import httpx
-    from bs4 import BeautifulSoup
-    
+@router.get("/temporal-discover/{job_id}")
+async def get_temporal_discovery_status(request: Request, job_id: str):
+    """Check the status of a Temporal discovery workflow."""
+    client = request.app.state.temporal_client
+    if not client:
+         return {"status": "error", "message": "Temporal client not connected"}
+         
     try:
-        url = request.domain
-        if not url.startswith("http"):
-            url = f"https://{url}"
-            
-        async with httpx.AsyncClient(follow_redirects=True, timeout=10.0) as client:
-            resp = await client.get(url)
-            
-        soup = BeautifulSoup(resp.text, 'html.parser')
+        handle = client.get_workflow_handle(job_id)
+        description = await handle.describe()
         
-        # Remove scripts and styles
-        for script in soup(["script", "style"]):
-            script.decompose()
+        from temporalio.client import WorkflowExecutionStatus
+        
+        # If it's done, we can get the result
+        if description.status == WorkflowExecutionStatus.COMPLETED:
+            results = await handle.result()
+            return {"status": "completed", "results": results}
+        elif description.status == WorkflowExecutionStatus.FAILED:
+            return {"status": "failed", "message": "Workflow failed"}
+        else:
+            return {"status": "running"}
             
-        text = soup.get_text(separator=' ', strip=True)
-        # Limit text length
-        return {"text": text[:5000], "status": "success"}
     except Exception as e:
-        return {"text": "", "status": "error", "message": str(e)}
-
-
-@router.post("/pattern")
-def predict_pattern(request: PatternRequest):
-    """Predict email pattern for a person."""
-    from backend.services.email_generator import EmailGenerator
-    
-    # Use EmailGenerator to guess pattern
-    # It takes name and company. Domain in request is often company domain.
-    # We can try to infer company from domain if pattern request has it.
-    
-    company = request.domain
-    if "." in company:
-        company = company.split(".")[0]
-        
-    name = f"{request.first_name} {request.last_name}".strip()
-    
-    guess = EmailGenerator.get_best_guess(name, company)
-    
-    if guess:
-        return {"pattern": guess["pattern"], "email": guess["email"], "confidence": guess["confidence"]}
-    else:
-        return {"pattern": None, "email": None, "confidence": 0}
-
-
-@router.get("/hr-search")
-async def discovery_hr_search(role: str = "Recruiter", company: str = "", broad_mode: bool = False, icp_context: str = None, size: str = None, revenue: str = None, tech: str = None):
-    """Method 1 & 3: Advanced HR Search (V2 Architecture)."""
-    query = f"{role} {company}".strip()
-    return StreamingResponse(
-        orchestrator.discover_leads_stream(query, limit=30, broad_mode=broad_mode, icp_context=icp_context, company_size=size, revenue=revenue, tech=tech),
-        media_type="application/x-ndjson"
-    )
-
-
-@router.get("")
-def discover_candidates(role: str, size: str = None, revenue: str = None, tech: str = None):
-    """Deep web scan for candidates (Legacy Wrapper)."""
-    results = []
-    for line in orchestrator.discover_leads_stream(role, limit=15, company_size=size, revenue=revenue, tech=tech):
-        try:
-            msg = json.loads(line)
-            if msg['type'] == 'result':
-                results.append(msg['data'])
-        except Exception:
-            pass
-    return results
-
-
-@router.get("/stream")
-async def discover_candidates_stream(role: str, size: str = None, revenue: str = None, tech: str = None):
-    """Deep web scan with real-time updates."""
-    return StreamingResponse(
-        _search_leads_generator(role, size, revenue, tech),
-        media_type="application/x-ndjson"
-    )
-
-
-async def _search_leads_generator(role: str, size: str = None, revenue: str = None, tech: str = None):
-    """Wrapper to inject AI correction before streaming."""
-    corrected_role = role
-    
-    try:
-        suggestion = await generate_with_gemini(
-            role,
-            system_prompt="You are a spell checker. Correct the job title or search term. Return ONLY the corrected term. No quotes, no explanation. If correct, return original."
-        )
-        
-        if suggestion and len(suggestion) < 50 and suggestion.lower() != role.lower():
-            yield json.dumps({"type": "status", "data": f"Auto-corrected: '{role}' -> '{suggestion}'"}) + "\n"
-            corrected_role = suggestion
-    except Exception as e:
-        yield json.dumps({"type": "error", "data": f"AI Error: {str(e)}"}) + "\n"
-
-    for item in orchestrator.discover_leads_stream(corrected_role, company_size=size, revenue=revenue, tech=tech):
-        yield item
+        return {"status": "error", "message": str(e)}

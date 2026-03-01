@@ -1,3 +1,9 @@
+<h1 align="center">Hello Dosto 👋</h1>
+
+<p align="center">
+  <img src="https://readme-typing-svg.herokuapp.com?size=28&duration=2500&color=0E75B6&center=true&vCenter=true&width=600&lines=Aspiring+DevOps+Engineer;Linux+Enthusiast;AWS+%26+Cloud+Security+Learner;Building+Automation+%26+DevOps+Projects" />
+</p>
+
 <div align="center">
   <img src="https://raw.githubusercontent.com/Wrathsid/AI_Outreach_System/main/public/logo.png" alt="AI Outreach System Logo" width="150" height="150" style="border-radius: 20%;">
   

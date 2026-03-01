@@ -2,7 +2,10 @@
 Cold Emailing Backend - FastAPI Application
 Main entry point with router registration.
 """
+import logging
 from fastapi import FastAPI, Request, Depends
+
+logger = logging.getLogger("backend")
 from fastapi.responses import JSONResponse
 from time import time
 from collections import defaultdict
@@ -52,11 +55,29 @@ async def rate_limit_middleware(request: Request, call_next):
     
     return await call_next(request)
 
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Setup Temporal Client
+    from temporalio.client import Client
+    try:
+        logger.info("Connecting to Temporal from FastAPI...")
+        # Explicit IPv4 for Windows Docker stability 
+        app.state.temporal_client = await Client.connect("127.0.0.1:7233")
+        logger.info("Temporal client connected and stored in app state.")
+    except Exception as e:
+        logger.error(f"Failed to connect to Temporal: {e}")
+        app.state.temporal_client = None
+        
+    yield
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Intelligent Outreach Backend",
     description="API for intelligent outreach with AI-powered discovery and drafting",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
 
 # Add rate limiting middleware
@@ -93,8 +114,8 @@ if __name__ == "__main__":
     import os
     # Read port from environment variable for cloud deployment
     port = int(os.getenv("PORT", 8000))
-    # Use 0.0.0.0 for external access in production, 127.0.0.1 for local
-    host = os.getenv("HOST", "0.0.0.0")
-    
-    logger.info(f"Starting server on {host}:{port}")
-    uvicorn.run("backend.main:app", host=host, port=port, reload=False if os.getenv("ENV") == "production" else True)
+    # Use 127.0.0.1 for local dev, 0.0.0.0 for cloud (set HOST env var)
+    host = os.getenv("HOST", "127.0.0.1")
+    is_prod = os.getenv("ENV") == "production"
+    print(f"Starting server on {host}:{port}")
+    uvicorn.run("backend.main:app", host=host, port=port, reload=not is_prod)

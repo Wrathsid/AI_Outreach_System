@@ -134,7 +134,7 @@ const Sidebar = () => {
                   className={`
                     relative flex items-center gap-3 p-3 rounded-xl transition-all duration-200
                     ${isActive(item.href) 
-                      ? 'bg-primary/15 text-white' 
+                      ? 'bg-primary/20 text-white shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
                       : 'text-slate-400 hover:text-white hover:bg-white/5'
                     }
                   `}
@@ -144,25 +144,46 @@ const Sidebar = () => {
                   {/* Left glowing accent bar */}
                   {isActive(item.href) && (
                     <motion.div
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_8px_2px_rgba(59,130,246,0.5)]"
+                      className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-primary shadow-[0_0_12px_rgba(59,130,246,0.8)]"
                       layoutId="activeBar"
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     />
                   )}
                   {isActive(item.href) && (
                     <motion.div
-                      className="absolute inset-0 rounded-xl bg-primary/10 shadow-[0_0_20px_-5px_rgba(59,130,246,0.25)]"
+                      className="absolute inset-0 rounded-xl bg-primary/10 shadow-[0_0_25px_-5px_rgba(59,130,246,0.3)]"
                       layoutId="activeNav"
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                     />
                   )}
-                  <item.icon size={22} className="relative z-10 shrink-0" />
+                  <item.icon 
+                    size={22} 
+                    className={`relative z-10 shrink-0 ${isActive(item.href) ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]' : ''}`} 
+                  />
+                  
+                  {/* Label - visible on mobile OR when active on desktop */}
+                  <AnimatePresence>
+                    {(isActive(item.href) || isMobileOpen) && (
+                      <motion.span 
+                        initial={{ opacity: 0, width: 0, x: -10 }}
+                        animate={{ opacity: 1, width: 'auto', x: 0 }}
+                        exit={{ opacity: 0, width: 0, x: -10 }}
+                        className="hidden md:block text-xs font-semibold relative z-10 whitespace-nowrap overflow-hidden pr-2"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                  
                   <span className="md:hidden text-sm font-medium relative z-10">{item.label}</span>
                 </motion.div>
-                {/* Tooltip on hover (desktop) */}
-                <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-3 px-2.5 py-1.5 rounded-lg bg-[#1a1a2e] border border-white/10 text-xs text-white font-medium opacity-0 group-hover/nav:opacity-100 transition-all duration-200 whitespace-nowrap pointer-events-none z-50 shadow-xl">
-                  {item.label}
-                </div>
+                
+                {/* Tooltip on hover (desktop, only if NOT active) */}
+                {!isActive(item.href) && (
+                  <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-4 px-3 py-1.5 rounded-lg bg-[#0f0f1a] border border-white/20 text-[11px] text-white font-bold opacity-0 group-hover/nav:opacity-100 group-hover/nav:translate-x-1 transition-all duration-300 shadow-2xl z-50 pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-8 before:border-transparent before:border-right-[#0f0f1a]">
+                    {item.label}
+                  </div>
+                )}
               </Link>
             </motion.div>
           ))}

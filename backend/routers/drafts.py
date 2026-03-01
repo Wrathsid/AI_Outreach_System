@@ -1857,3 +1857,64 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         # Fallback Logic (Optimization 10)
         # If AI fails, return basic template based on signal
         print("Falling back to Template Logic...")
+
+from fastapi import Request
+
+@router.post("/generate-batch")
+async def generate_drafts_batch(request: Request, body: dict):
+    """Start a Temporal workflow for batch draft generation."""
+    candidate_ids = body.get("candidate_ids", [])
+    context = body.get("context", "")
+    contact_type = body.get("contact_type", "auto")
+    
+    if not candidate_ids:
+        raise HTTPException(status_code=400, detail="No candidate IDs provided")
+        
+    client = request.app.state.temporal_client
+    if not client:
+        return {"status": "error", "message": "Temporal client not connected"}
+        
+    import uuid
+    task_id = f"batch-draft-{uuid.uuid4()}"
+    
+    try:
+        from backend.temporal.draft_workflows import BatchDraftWorkflow
+        
+        # Start the workflow in the background. Does not block!
+        handle = await client.start_workflow(
+            BatchDraftWorkflow.run,
+            args=[candidate_ids, context, contact_type],
+            id=task_id,
+            task_queue="draft-task-queue"
+        )
+        return {"status": "running", "message": "Batch draft generation started", "task_id": task_id}
+    except Exception as e:
+        logger.error(f"Failed to start batch draft workflow: {e}")
+        return {"status": "error", "message": str(e)}
+
+@router.get("/batch/{task_id}/status")
+async def get_batch_status(request: Request, task_id: str):
+    """Check the status of a Temporal batch draft workflow."""
+    client = request.app.state.temporal_client
+    if not client:
+         return {"status": "error", "message": "Temporal client not connected"}
+         
+    try:
+        handle = client.get_workflow_handle(task_id)
+        description = await handle.describe()
+        
+        from temporalio.client import WorkflowExecutionStatus
+        
+        # Check if it was completed
+        if description.status == WorkflowExecutionStatus.COMPLETED:
+            results = await handle.result()
+            # The workflow returns {"total": X, "successful": Y, "failed": Z, "results": [...]}
+            return {"status": "completed", **results}
+        elif description.status == WorkflowExecutionStatus.FAILED:
+            return {"status": "failed", "message": "Workflow failed"}
+        else:
+            return {"status": "running", "completed": 0, "total": 0} # We don't have partial progress yet
+            
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+

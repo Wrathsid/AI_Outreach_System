@@ -11,7 +11,6 @@ import {
 import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
-import { MessageSkeleton } from '@/components/SkeletonLoaders';
 
 // --- Shared Components ---
 
@@ -257,47 +256,6 @@ export default function MinimalCandidatePage() {
                 )}
             </div>
 
-            {/* Why AI Matched (Trust Pattern) */}
-            {candidate.match_score > 0 && (
-                <div className="pt-4 border-t border-white/5">
-                    <div className="bg-[#131326] rounded-xl border border-white/5 p-4">
-                        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <Sparkles size={12} className="text-primary" />
-                            Why AI Matched This Lead
-                        </h4>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-500">Role Alignment</span>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-primary/60 rounded-full" style={{ width: `${Math.min(candidate.match_score + 10, 100)}%` }} />
-                                    </div>
-                                    <span className="text-xs text-slate-400 font-mono w-8">{Math.min(candidate.match_score + 10, 100)}%</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-500">Skills Overlap</span>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500/60 rounded-full" style={{ width: `${candidate.match_score}%` }} />
-                                    </div>
-                                    <span className="text-xs text-slate-400 font-mono w-8">{candidate.match_score}%</span>
-                                </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-500">Activity Signal</span>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                        <div className="h-full bg-purple-500/60 rounded-full" style={{ width: `${Math.max(candidate.match_score - 5, 20)}%` }} />
-                                    </div>
-                                    <span className="text-xs text-slate-400 font-mono w-8">{Math.max(candidate.match_score - 5, 20)}%</span>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="text-[10px] text-slate-600 mt-3">Scores derived from your Cortex skills, target role, and public activity signals.</p>
-                    </div>
-                </div>
-            )}
         </div>
 
         {/* Right Column: LinkedIn Message (8 Cols) */}

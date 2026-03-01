@@ -1,0 +1,5 @@
+Hi there, came across your post about the frontend developer opening at your team. I wanted to reach out directly to express my interest and share a bit about my relevant background.
+
+I am an infrastructure engineer deeply passionate about automation and reliability. My experience spans managing complex cloud environments on AWS and GCP, designing zero-downtime deployment strategies, and building observability stacks with Prometheus and Grafana. I am a firm believer in the SRE philosophy of treating operations as a software challenge.
+
+The frontend developer role you posted about resonates strongly with my career trajectory. I am confident that my hands-on experience with DevOps tooling and cloud-native architectures can add real value to your engineering team. Would you be available for a quick conversation about this opportunity, or would it be best if I sent over my resume?

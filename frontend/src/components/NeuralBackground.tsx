@@ -12,12 +12,16 @@ export default function NeuralBackground() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // Respect reduced motion preference
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) return;
+
     let w = canvas.width = window.innerWidth;
     let h = canvas.height = window.innerHeight;
     
-    // Neural Nodes
+    // Reduced node count for better performance (was 30)
     const nodes: { x: number, y: number, vx: number, vy: number, radius: number }[] = [];
-    const nodeCount = 30; 
+    const nodeCount = 18; 
     
     for (let i = 0; i < nodeCount; i++) {
         nodes.push({
@@ -29,12 +33,33 @@ export default function NeuralBackground() {
         });
     }
 
-    const draw = () => {
+    // Throttle to ~24fps instead of 60fps
+    const FRAME_INTERVAL = 1000 / 24;
+    let lastFrameTime = 0;
+
+    const draw = (timestamp: number) => {
+        // Skip if tab is hidden
+        if (document.hidden) {
+            animId = requestAnimationFrame(draw);
+            return;
+        }
+
+        // Throttle frame rate
+        const elapsed = timestamp - lastFrameTime;
+        if (elapsed < FRAME_INTERVAL) {
+            animId = requestAnimationFrame(draw);
+            return;
+        }
+        lastFrameTime = timestamp - (elapsed % FRAME_INTERVAL);
+
         ctx.clearRect(0, 0, w, h);
         
         // Update and Draw Nodes
         ctx.fillStyle = 'rgba(100, 200, 255, 0.4)';
-        ctx.strokeStyle = 'rgba(100, 200, 255, 0.15)'; // Faint connection lines
+        ctx.strokeStyle = 'rgba(100, 200, 255, 0.15)';
+
+        // Reduced connection distance (was 150)
+        const connectionDist = 120;
 
         nodes.forEach((node, i) => {
             node.x += node.vx;
@@ -55,11 +80,11 @@ export default function NeuralBackground() {
                 const dy = node.y - other.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
 
-                if (dist < 150) {
+                if (dist < connectionDist) {
                     ctx.beginPath();
                     ctx.moveTo(node.x, node.y);
                     ctx.lineTo(other.x, other.y);
-                    ctx.lineWidth = 1 - (dist / 150);
+                    ctx.lineWidth = 1 - (dist / connectionDist);
                     ctx.stroke();
                 }
             }
@@ -73,11 +98,20 @@ export default function NeuralBackground() {
         h = canvas.height = window.innerHeight;
     };
 
+    // Pause when tab is hidden
+    const handleVisibility = () => {
+        if (!document.hidden) {
+            lastFrameTime = performance.now();
+        }
+    };
+
     window.addEventListener('resize', handleResize);
+    document.addEventListener('visibilitychange', handleVisibility);
     let animId = requestAnimationFrame(draw);
 
     return () => {
         window.removeEventListener('resize', handleResize);
+        document.removeEventListener('visibilitychange', handleVisibility);
         cancelAnimationFrame(animId);
     };
   }, []);
@@ -88,7 +122,7 @@ export default function NeuralBackground() {
         <div className="absolute inset-0 bg-[#050508]"></div>
         
         {/* Radial Pulse */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vh] bg-blue-900/10 blur-[120px] rounded-full animate-pulse-glow"></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vh] bg-blue-900/10 blur-[120px] rounded-full animate-pulse-glow will-change-transform"></div>
         
         {/* Canvas Mesh */}
         <canvas ref={canvasRef} className="absolute inset-0 opacity-40" />

@@ -507,3 +507,37 @@
     animation: ambient-drift 30s ease-in-out infinite reverse;
   }
 }
+
+/* =============================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================= */
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* GPU acceleration for animated elements */
+.animate-ambient-drift,
+.animate-ambient-drift-slow,
+.animate-pulse-glow {
+  will-change: transform, opacity;
+  contain: layout style;
+}
+
+/* Virtual scrolling: skip painting off-screen cards/rows */
+.content-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
+/* Paint containment for glass panels */
+.glass-panel,
+.glass-elevated {
+  contain: layout style paint;
+}

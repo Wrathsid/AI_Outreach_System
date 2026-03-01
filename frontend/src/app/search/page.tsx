@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Mail, Check, Github, Linkedin, Settings2, Sparkles, Building2, Briefcase, User } from 'lucide-react';
+import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2, Briefcase, User } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
@@ -24,89 +24,7 @@ interface ScanResult {
     result_type?: 'job_posting' | 'person';  // Classification from backend
 }
 
-// Common roles for auto-complete
-const ROLE_SUGGESTIONS = [
-    // Web Development
-    "Web Developer",
-    "Web Dev",
-    "Frontend Developer",
-    "Frontend Engineer",
-    "Backend Developer",
-    "Backend Engineer",
-    "Full Stack Developer",
-    "Full Stack Engineer",
-    
-    // Software Engineering
-    "Software Engineer",
-    "Software Developer",
-    "Senior Software Engineer",
-    "Lead Software Engineer",
-    "Principal Engineer",
-    
-    // Mobile & Platform
-    "Mobile Developer",
-    "iOS Developer",
-    "Android Developer",
-    "React Native Developer",
-    "Flutter Developer",
-    
-    // DevOps & Infrastructure
-    "DevOps Engineer",
-    "Site Reliability Engineer",
-    "SRE",
-    "Cloud Engineer",
-    "Infrastructure Engineer",
-    "Platform Engineer",
-    
-    // Data & AI
-    "Data Scientist",
-    "Data Engineer",
-    "Machine Learning Engineer",
-    "ML Engineer",
-    "AI Engineer",
-    "Data Analyst",
-    
-    // Design & UX
-    "UI/UX Designer",
-    "Product Designer",
-    "UX Designer",
-    "UI Designer",
-    "Graphic Designer",
-    
-    // Product & Management
-    "Product Manager",
-    "Technical Product Manager",
-    "Project Manager",
-    "Engineering Manager",
-    "CTO",
-    "VP of Engineering",
-    
-    // QA & Testing
-    "QA Engineer",
-    "Test Engineer",
-    "Automation Engineer",
-    
-    // Security
-    "Security Engineer",
-    "Cybersecurity Analyst",
-    
-    // Sales & Marketing
-    "Sales Representative",
-    "Account Executive",
-    "Sales Engineer",
-    "Marketing Manager",
-    "Growth Marketer",
-    "Digital Marketing Manager",
-    
-    // HR & Recruitment
-    "Technical Recruiter",
-    "HR Manager",
-    "Talent Acquisition",
-    
-    // Customer Success
-    "Customer Success Manager",
-    "Support Engineer"
-];
+
 
 const PLACEHOLDERS = [
     "Search roles like 'Frontend Engineer'...",
@@ -141,15 +59,7 @@ const SearchPage = () => {
     const [role, setRole] = useState('');
     const [isScanning, setIsScanning] = useState(false);
     const [results, setResults] = useState<ScanResult[]>([]);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isAdding, setIsAdding] = useState(false);
-    
-    // Advanced Filters State
-    const [size, setSize] = useState('');
-    const [revenue, setRevenue] = useState('');
-    const [tech, setTech] = useState('');
-    const [showFilters, setShowFilters] = useState(false);
     
     // Rotating Placeholder Logic
     const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -160,7 +70,7 @@ const SearchPage = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const [broadMode, setBroadMode] = useState(false);
+
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
     const { success } = useToast();
@@ -198,32 +108,42 @@ const SearchPage = () => {
     
     const [statusMessage, setStatusMessage] = useState('');
 
-    // Filter suggestions based on input
-    const filteredSuggestions = ROLE_SUGGESTIONS.filter(s => 
-        s.toLowerCase().includes(role.toLowerCase()) && 
-        s.toLowerCase() !== role.toLowerCase()
-    ).slice(0, 5);
 
-    // Simple scan handler (HR Search default)
+
+    // Polling logic for Temporal workflow
+    const pollTemporalStatus = async (jobId: string, headers: Headers) => {
+        try {
+            const res = await fetch(`${API_BASE}/discover/temporal-discover/${jobId}`, { headers });
+            const data = await res.json();
+            
+            if (data.status === "completed") {
+                setResults(data.results || []);
+                setStatusMessage('Scan complete.');
+                setIsScanning(false);
+                setTimeout(() => setStatusMessage(''), 3000);
+            } else if (data.status === "failed") {
+                setStatusMessage('Scan failed.');
+                setIsScanning(false);
+            } else {
+                setStatusMessage('Temporal Workflow running... polling status');
+                setTimeout(() => pollTemporalStatus(jobId, headers), 3000); // 3-second poll
+            }
+        } catch (e) {
+            console.error(e);
+            setStatusMessage('Error polling status.');
+            setIsScanning(false);
+        }
+    };
+
+    // Trigger Temporal Scan
     const handleScan = async (roleOverride?: string) => {
         const searchRole = roleOverride || role;
         if (!searchRole) return;
-        setShowSuggestions(false);
         setIsScanning(true);
-        setStatusMessage('Initializing deep scan...');
+        setStatusMessage('Starting durable Temporal scan...');
         setResults([]);
         
         try {
-            const p: Record<string, string> = { 
-                role: searchRole,
-                broad_mode: broadMode.toString(),
-                icp_context: "Focus on AI engineers, recruitment leads, and agency owners in the US/Europe." 
-            };
-            if (size) p.size = size;
-            if (revenue) p.revenue = revenue;
-            if (tech) p.tech = tech;
-            const queryParams = new URLSearchParams(p);
-
             const supabase = createClient();
             const { data: { session } } = await supabase.auth.getSession();
             const headers = new Headers();
@@ -231,47 +151,23 @@ const SearchPage = () => {
                 headers.set('Authorization', `Bearer ${session.access_token}`);
             }
 
-            const response = await fetch(`${API_BASE}/discover/hr-search?${queryParams.toString()}`, { headers });
+            // Fire off the background workflow
+            const response = await fetch(`${API_BASE}/discover/temporal-discover?role=${encodeURIComponent(searchRole)}&limit=15`, { 
+                method: 'POST',
+                headers 
+            });
+            const data = await response.json();
             
-            if (!response.body) throw new Error("No response body");
-            
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = '';
-
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const msg = JSON.parse(line);
-                        if (msg.type === 'result') {
-                            setResults(prev => {
-                                const newResults = [...prev, msg.data];
-                                return newResults.sort((a, b) => (b.resonance_score || 0) - (a.resonance_score || 0));
-                            });
-                        } else if (msg.type === 'status') {
-                            setStatusMessage(msg.data);
-                        } else if (msg.type === 'done') {
-                            setStatusMessage('Scan complete.');
-                        }
-                    } catch (e) {
-                        console.error("Parse error", e);
-                    }
-                }
+            if (data.status === 'running' && data.job_id) {
+                // Begin robust polling
+                pollTemporalStatus(data.job_id, headers);
+            } else {
+                throw new Error("Failed to start workflow");
             }
         } catch (e) {
             console.error(e);
-            setStatusMessage('Scan failed.');
-        } finally {
+            setStatusMessage('Scan failed to start.');
             setIsScanning(false);
-            setTimeout(() => setStatusMessage(''), 3000);
         }
     };
 
@@ -295,7 +191,7 @@ const SearchPage = () => {
                            Find hiring managers, recruiters, or teams by role
                         </h2>
                         <p className="text-slate-400 text-sm">
-                            Scans LinkedIn, GitHub, and public hiring posts
+                            Scans LinkedIn Hiring posts
                         </p>
                     </FadeUp>
                 )}
@@ -309,42 +205,11 @@ const SearchPage = () => {
                             <input 
                                 type="text" 
                                 value={role}
-                                onChange={(e) => {
-                                    setRole(e.target.value);
-                                    setShowSuggestions(true);
-                                    setSelectedIndex(-1);
-                                }}
-                                onFocus={() => {
-                                    setShowSuggestions(true);
-                                    setSelectedIndex(-1);
-                                }}
+                                onChange={(e) => setRole(e.target.value)}
                                 onKeyDown={(e) => {
-                                    if (e.key === 'ArrowDown') {
+                                    if (e.key === 'Enter' && role) {
                                         e.preventDefault();
-                                        if (showSuggestions && filteredSuggestions.length > 0) {
-                                            setSelectedIndex(prev => (prev + 1) % filteredSuggestions.length);
-                                        } else if (!showSuggestions && role) {
-                                            setShowSuggestions(true);
-                                            setSelectedIndex(0);
-                                        }
-                                    } else if (e.key === 'ArrowUp') {
-                                        e.preventDefault();
-                                        if (showSuggestions && filteredSuggestions.length > 0) {
-                                            setSelectedIndex(prev => prev <= 0 ? filteredSuggestions.length - 1 : prev - 1);
-                                        }
-                                    } else if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        if (showSuggestions && selectedIndex >= 0 && selectedIndex < filteredSuggestions.length) {
-                                            setRole(filteredSuggestions[selectedIndex]);
-                                            setShowSuggestions(false);
-                                            setSelectedIndex(-1);
-                                        } else if (role) {
-                                            handleScan();
-                                            setShowSuggestions(false);
-                                        }
-                                    } else if (e.key === 'Escape') {
-                                        setShowSuggestions(false);
-                                        setSelectedIndex(-1);
+                                        handleScan();
                                     }
                                 }}
                                 className="flex-1 bg-transparent border-none outline-none text-white px-4 py-4 text-lg placeholder-slate-500"
@@ -353,26 +218,11 @@ const SearchPage = () => {
                                 autoCorrect="off"
                                 autoComplete="off"
                                 autoCapitalize="off"
-                                role="combobox"
-                                aria-expanded={showSuggestions}
-                                aria-controls="search-suggestions"
-                                aria-activedescendant={selectedIndex >= 0 ? `suggestion-${selectedIndex}` : undefined}
                             />
                             
                             {role && (
                                 <div className="flex items-center gap-2 mr-2 animate-in fade-in slide-in-from-right-4 duration-300">
-                                    <button 
-                                        onClick={() => setBroadMode(!broadMode)}
-                                        title={broadMode ? "Broad Match" : "Precision Match"}
-                                        className={`p-2 rounded-full transition-all border ${
-                                            broadMode 
-                                                ? 'bg-purple-500/20 text-purple-300 border-purple-500/50' 
-                                                : 'bg-white/5 text-slate-400 border-white/5 hover:bg-white/10'
-                                        }`}
-                                    >
-                                        <Settings2 size={16} />
-                                    </button>
-                                    
+
                                     {(role.length > 2) && (
                                         <button 
                                             onClick={() => handleScan()}
@@ -399,95 +249,9 @@ const SearchPage = () => {
                                 <p className="text-sm text-slate-400 font-mono animate-pulse">{statusMessage}</p>
                             </FadeUp>
                         )}
-
-                        {/* Advanced Filters Toggle */}
-                        {role && results.length === 0 && !isScanning && (
-                             <div className="mt-4 px-2 flex justify-end animate-in fade-in slide-in-from-top-2">
-                                 <button
-                                     onClick={() => setShowFilters(!showFilters)}
-                                     className="text-xs text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-                                 >
-                                     <Settings2 size={12} />
-                                     {showFilters ? 'Hide Advanced Filters' : 'Show Advanced Filters'}
-                                 </button>
-                             </div>
-                        )}
-
-                        {/* Advanced Filters UI */}
-                        {showFilters && role && results.length === 0 && !isScanning && (
-                            <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3 animate-in fade-in slide-in-from-top-4 pointer-events-auto">
-                                <select 
-                                    value={size} 
-                                    onChange={(e) => setSize(e.target.value)}
-                                    className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer appearance-none"
-                                >
-                                    <option value="" className="bg-[#0a0a0f]">Company Size</option>
-                                    <option value="1-10" className="bg-[#0a0a0f]">1-10 employees</option>
-                                    <option value="11-50" className="bg-[#0a0a0f]">11-50 employees</option>
-                                    <option value="51-200" className="bg-[#0a0a0f]">51-200 employees</option>
-                                    <option value="201-500" className="bg-[#0a0a0f]">201-500 employees</option>
-                                    <option value="500+" className="bg-[#0a0a0f]">500+ employees</option>
-                                </select>
-
-                                <select 
-                                    value={revenue} 
-                                    onChange={(e) => setRevenue(e.target.value)}
-                                    className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-primary/50 transition-colors cursor-pointer appearance-none"
-                                >
-                                    <option value="" className="bg-[#0a0a0f]">Revenue</option>
-                                    <option value="$1M-$10M" className="bg-[#0a0a0f]">$1M - $10M</option>
-                                    <option value="$10M-$50M" className="bg-[#0a0a0f]">$10M - $50M</option>
-                                    <option value="$50M+" className="bg-[#0a0a0f]">$50M+</option>
-                                </select>
-
-                                <input 
-                                    type="text" 
-                                    value={tech} 
-                                    onChange={(e) => setTech(e.target.value)}
-                                    placeholder="Tech Stack (e.g. React)"
-                                    className="bg-black/40 border border-white/10 rounded-xl p-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-primary/50 transition-colors"
-                                />
-                            </div>
-                        )}
-
-                        {/* Dropdown Suggestions */}
-                        {showSuggestions && role && filteredSuggestions.length > 0 && (
-                            <div 
-                                id="search-suggestions"
-                                role="listbox"
-                                className="absolute top-full left-0 right-0 mt-2 bg-[#0a0a0f] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 z-50"
-                            >
-                                {filteredSuggestions.map((suggestion, index) => (
-                                    <button
-                                        key={index}
-                                        id={`suggestion-${index}`}
-                                        role="option"
-                                        aria-selected={index === selectedIndex}
-                                        onMouseEnter={() => setSelectedIndex(index)}
-                                        onClick={() => {
-                                            setRole(suggestion);
-                                            setShowSuggestions(false);
-                                            setSelectedIndex(-1);
-                                        }}
-                                        className={`w-full text-left px-6 py-3 transition-all duration-200 flex items-center gap-2 ${
-                                            index === selectedIndex 
-                                                ? 'bg-white/10 text-white' 
-                                                : 'text-slate-300 hover:bg-white/5 hover:text-white'
-                                        }`}
-                                    >
-                                        <Search size={14} className="opacity-50" />
-                                        {suggestion}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
                     </div>
-                    
-                    {/* Invisible Spacer to allow scrolling to dropdown */}
-                    {showSuggestions && role && filteredSuggestions.length > 0 && (
-                        <div className="h-64 w-full invisible pointer-events-none" aria-hidden="true" />
-                    )}
-                    
+
+
                     {/* Example Chips (Zero State) */}
                     {!role && results.length === 0 && !isScanning && (
                         <div className="flex flex-wrap items-center justify-center gap-3 mt-6 animate-in fade-in slide-in-from-top-2 duration-700 delay-150 pointer-events-auto">
