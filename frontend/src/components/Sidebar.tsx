@@ -161,29 +161,14 @@ const Sidebar = () => {
                     className={`relative z-10 shrink-0 ${isActive(item.href) ? 'drop-shadow-[0_0_8px_rgba(59,130,246,0.6)]' : ''}`} 
                   />
                   
-                  {/* Label - visible on mobile OR when active on desktop */}
-                  <AnimatePresence>
-                    {(isActive(item.href) || isMobileOpen) && (
-                      <motion.span 
-                        initial={{ opacity: 0, width: 0, x: -10 }}
-                        animate={{ opacity: 1, width: 'auto', x: 0 }}
-                        exit={{ opacity: 0, width: 0, x: -10 }}
-                        className="hidden md:block text-xs font-semibold relative z-10 whitespace-nowrap overflow-hidden pr-2"
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                  
+                  {/* Label - visible only on mobile */}
                   <span className="md:hidden text-sm font-medium relative z-10">{item.label}</span>
                 </motion.div>
                 
-                {/* Tooltip on hover (desktop, only if NOT active) */}
-                {!isActive(item.href) && (
-                  <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-4 px-3 py-1.5 rounded-lg bg-[#0f0f1a] border border-white/20 text-[11px] text-white font-bold opacity-0 group-hover/nav:opacity-100 group-hover/nav:translate-x-1 transition-all duration-300 shadow-2xl z-50 pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-8 before:border-transparent before:border-right-[#0f0f1a]">
-                    {item.label}
-                  </div>
-                )}
+                {/* Tooltip on hover (desktop) */}
+                <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-4 px-3 py-1.5 rounded-lg bg-[#0f0f1a] border border-white/20 text-[11px] text-white font-bold opacity-0 group-hover/nav:opacity-100 group-hover/nav:translate-x-1 transition-all duration-300 shadow-2xl z-50 pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-8 before:border-transparent before:border-right-[#0f0f1a]">
+                  {item.label}
+                </div>
               </Link>
             </motion.div>
           ))}
@@ -201,13 +186,15 @@ const Sidebar = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6 }}
+          className="flex flex-col items-center w-full px-4"
         >
           <Link 
             href="/settings"
             onClick={() => setIsMobileOpen(false)}
+            className="relative group/nav block w-full"
           >
             <motion.div
-              className="p-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors mb-2 flex items-center gap-3"
+              className="p-3 rounded-xl text-white/40 hover:text-white hover:bg-white/5 transition-colors mb-2 flex items-center justify-center md:justify-start gap-3"
               whileHover={{ scale: 1.1, rotate: 90 }}
               whileTap={{ scale: 0.9 }}
               transition={{ type: 'spring', stiffness: 400, damping: 17 }}
@@ -215,22 +202,29 @@ const Sidebar = () => {
               <Settings size={24} />
               <span className="md:hidden text-sm font-medium">Settings</span>
             </motion.div>
+            <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-4 px-3 py-1.5 rounded-lg bg-[#0f0f1a] border border-white/20 text-[11px] text-white font-bold opacity-0 group-hover/nav:opacity-100 group-hover/nav:translate-x-1 transition-all duration-300 shadow-2xl z-50 pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-8 before:border-transparent before:border-right-[#0f0f1a]">
+              Settings
+            </div>
           </Link>
           
           {/* Logout Button */}
-          <motion.button
-            onClick={() => {
-              setIsMobileOpen(false);
-              handleLogout();
-            }}
-            className="w-full p-3 rounded-xl text-red-400 hover:text-white hover:bg-red-500/20 transition-colors mb-2 flex items-center gap-3"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <LogOut size={24} />
-            <span className="md:hidden text-sm font-medium">Log out</span>
-          </motion.button>
-        </motion.div>
+          <div className="relative group/nav block w-full">
+            <motion.button
+              onClick={() => {
+                setIsMobileOpen(false);
+                handleLogout();
+              }}
+              className="w-full p-3 rounded-xl text-red-400 hover:text-white hover:bg-red-500/20 transition-colors mb-2 flex items-center justify-center md:justify-start gap-3"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <LogOut size={24} />
+              <span className="md:hidden text-sm font-medium">Log out</span>
+            </motion.button>
+            <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-4 px-3 py-1.5 rounded-lg bg-[#0f0f1a] border border-white/20 text-[11px] text-white font-bold opacity-0 group-hover/nav:opacity-100 group-hover/nav:translate-x-1 transition-all duration-300 shadow-2xl z-50 pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-8 before:border-transparent before:border-right-[#0f0f1a]">
+              Log out
+            </div>
+          </div>        </motion.div>
       </motion.nav>
     </>
   );
