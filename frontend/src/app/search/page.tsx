@@ -116,29 +116,53 @@ const SearchPage = () => {
 
 
 
-    // Polling logic for Temporal workflow
-    const pollTemporalStatus = async (jobId: string, headers: Headers) => {
-        try {
-            const res = await fetch(`${API_BASE}/discover/temporal-discover/${jobId}`, { headers });
-            const data = await res.json();
-            
-            if (data.status === "completed") {
-                setResults(data.results || []);
-                setStatusMessage('Scan complete.');
-                setIsScanning(false);
-                setTimeout(() => setStatusMessage(''), 3000);
-            } else if (data.status === "failed") {
-                setStatusMessage('Scan failed.');
-                setIsScanning(false);
-            } else {
-                setStatusMessage('Temporal Workflow running... polling status');
-                setTimeout(() => pollTemporalStatus(jobId, headers), 3000); // 3-second poll
+    // Real-time WebSocket logic for Temporal workflow
+    const connectTemporalWebSocket = (jobId: string) => {
+        const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/discover/ws/temporal-discover/${jobId}`;
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+             console.log("WebSocket connected for job", jobId);
+             setStatusMessage('Connected. Real-time scanning in progress...');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                if (data.status === "completed") {
+                    setResults(data.results || []);
+                    setStatusMessage('Scan complete.');
+                    setIsScanning(false);
+                    setTimeout(() => setStatusMessage(''), 3000);
+                    ws.close();
+                } else if (data.status === "failed") {
+                    setStatusMessage('Scan failed: ' + (data.message || 'Workflow failed'));
+                    setIsScanning(false);
+                    ws.close();
+                } else if (data.status === "error") {
+                    setStatusMessage('Error: ' + data.message);
+                    setIsScanning(false);
+                    ws.close();
+                } else {
+                    setStatusMessage('Temporal Workflow running... streaming status');
+                }
+            } catch (e) {
+                console.error("Message error", e);
             }
-        } catch (e) {
-            console.error(e);
-            setStatusMessage('Error polling status.');
+        };
+
+        ws.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+            setStatusMessage('WebSocket connection error. Checking status... ');
             setIsScanning(false);
-        }
+        };
+        
+        ws.onclose = () => {
+            console.log("WebSocket closed");
+            // If component unmounts or completes, it closes
+        };
+        
+        return ws;
     };
 
     // Trigger Temporal Scan
@@ -165,8 +189,8 @@ const SearchPage = () => {
             const data = await response.json();
             
             if (data.status === 'running' && data.job_id) {
-                // Begin robust polling
-                pollTemporalStatus(data.job_id, headers);
+                // Begin WebSocket streaming
+                connectTemporalWebSocket(data.job_id);
             } else {
                 throw new Error("Failed to start workflow");
             }

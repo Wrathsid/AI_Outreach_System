@@ -45,11 +45,13 @@ async def main():
     )
     
     # Worker 2: Draft Queue
+    # We apply rate limits here to ensure we don't exceed API rate limits (e.g., 5 LLM requests/sec)
     worker_drafts = Worker(
         client,
         task_queue="draft-task-queue",
         workflows=[BatchDraftWorkflow],
-        activities=[generate_draft_activity]
+        activities=[generate_draft_activity],
+        max_activities_per_second=5.0
     )
     
     # 3. Start listening until manually stopped (Ctrl+C)

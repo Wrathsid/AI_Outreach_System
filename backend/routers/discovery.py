@@ -11,7 +11,8 @@ router = APIRouter(tags=["Discovery"])
 
 
 import uuid
-from fastapi import Request
+from fastapi import Request, WebSocket, WebSocketDisconnect
+import asyncio
 
 @router.post("/temporal-discover")
 async def start_temporal_discovery(request: Request, role: str, limit: int = 20):
@@ -61,3 +62,47 @@ async def get_temporal_discovery_status(request: Request, job_id: str):
             
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@router.websocket("/ws/temporal-discover/{job_id}")
+async def websocket_discovery_status(websocket: WebSocket, job_id: str):
+    """Stream Temporal workflow status via WebSocket."""
+    await websocket.accept()
+    client = websocket.app.state.temporal_client
+    if not client:
+        await websocket.send_json({"status": "error", "message": "Temporal client not connected"})
+        await websocket.close()
+        return
+        
+    try:
+        handle = client.get_workflow_handle(job_id)
+        from temporalio.client import WorkflowExecutionStatus
+        
+        while True:
+            description = await handle.describe()
+            
+            if description.status == WorkflowExecutionStatus.COMPLETED:
+                results = await handle.result()
+                await websocket.send_json({"status": "completed", "results": results})
+                break
+            elif description.status == WorkflowExecutionStatus.FAILED:
+                await websocket.send_json({"status": "failed", "message": "Workflow failed"})
+                break
+            else:
+                # Still running, optionally push progress if your workflow emits heartbeat/details
+                await websocket.send_json({"status": "running"})
+            
+            await asyncio.sleep(1) # Check every second
+            
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket client disconnected for job {job_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        try:
+            await websocket.send_json({"status": "error", "message": str(e)})
+        except:
+            pass
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass

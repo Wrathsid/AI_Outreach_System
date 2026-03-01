@@ -19,7 +19,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     if (DEV_BYPASS) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAuthorized(true);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsLoaded(true);
       return;
     }
