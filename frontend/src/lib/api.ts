@@ -39,7 +39,12 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
     headers.set('Authorization', `Bearer ${session.access_token}`);
   }
   
-  return fetch(url, { ...options, headers });
+  const fetchOptions = { ...options, headers };
+  if (!fetchOptions.cache && !fetchOptions.next) {
+    fetchOptions.cache = 'no-store';
+  }
+  
+  return fetch(url, fetchOptions);
 }
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';

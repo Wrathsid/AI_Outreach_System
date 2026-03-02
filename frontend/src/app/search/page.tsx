@@ -118,6 +118,9 @@ const SearchPage = () => {
 
     // Real-time WebSocket logic for Temporal workflow
     const connectTemporalWebSocket = (jobId: string) => {
+        // API_BASE is usually 'http://localhost:8000/api'
+        // But the websocket route is registered on the discovery router which is at /discover
+        // So the full path is /api/discover/ws/temporal-discover/{job_id}
         const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/discover/ws/temporal-discover/${jobId}`;
         const ws = new WebSocket(wsUrl);
 
@@ -192,11 +195,17 @@ const SearchPage = () => {
                 // Begin WebSocket streaming
                 connectTemporalWebSocket(data.job_id);
             } else {
-                throw new Error("Failed to start workflow");
+                throw new Error(data.message || "Failed to start workflow");
             }
-        } catch (e) {
-            console.error(e);
-            setStatusMessage('Scan failed to start.');
+        } catch (e: any) {
+            // Next.js dev server intercepts console.error and shows a full-screen overlay.
+            // We handle "Failed to fetch" explicitly to provide a better UX.
+            if (e?.message === 'Failed to fetch') {
+                setStatusMessage('Backend server unreachable. Please ensure the API is running on port 8000.');
+            } else {
+                console.warn("Scan initiation error:", e);
+                setStatusMessage(`Scan failed to start: ${e?.message || 'Unknown error'}`);
+            }
             setIsScanning(false);
         }
     };
@@ -423,15 +432,17 @@ const SearchPage = () => {
                                             const creationPromises = selectedResults.map(async (r) => {
                                                 try {
                                                     const res = await api.createCandidate({
-                                                        name: r.name,
-                                                        title: r.title,
-                                                        company: r.company,
-                                                        linkedin_url: r.linkedin_url,
-                                                        email: r.email,
-                                                        generated_email: r.generated_email,
-                                                        email_confidence: r.email_confidence,
-                                                        summary: r.summary,
-                                                        match_score: r.resonance_score !== undefined ? Math.round(r.resonance_score * 100) : (r.hr_score ? Math.round(r.hr_score * 100) : 50),
+                                                        name: r.name || 'Unknown Candidate',
+                                                        title: r.title || undefined,
+                                                        company: r.company || undefined,
+                                                        linkedin_url: r.linkedin_url || undefined,
+                                                        email: r.email || undefined,
+                                                        generated_email: r.generated_email || undefined,
+                                                        email_confidence: typeof r.email_confidence === 'number' ? r.email_confidence : undefined,
+                                                        summary: r.summary || undefined,
+                                                        match_score: typeof r.resonance_score === 'number' && !isNaN(r.resonance_score) 
+                                                            ? Math.round(r.resonance_score * 100) 
+                                                            : (typeof r.hr_score === 'number' && !isNaN(r.hr_score) ? Math.round(r.hr_score * 100) : 50),
                                                         status: 'new'
                                                     });
                                                     

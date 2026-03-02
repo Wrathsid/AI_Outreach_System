@@ -1,8 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { Toast, ToastType } from '@/components/ui/Toast';
+import React, { createContext, useContext, useCallback, ReactNode } from 'react';
+import { Toaster, toast as sonnerToast } from 'sonner';
 
 interface ToastContextType {
   success: (message: string) => void;
@@ -22,38 +21,28 @@ export const useToast = () => {
 };
 
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [toasts, setToasts] = useState<Array<{ id: string; type: ToastType; message: string }>>([]);
-
-  const addToast = useCallback((type: ToastType, message: string) => {
-    const id = Math.random().toString(36).substring(7);
-    setToasts((prev) => [...prev, { id, type, message }]);
-  }, []);
-
-  const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  }, []);
-
-  const success = useCallback((msg: string) => addToast('success', msg), [addToast]);
-  const error = useCallback((msg: string) => addToast('error', msg), [addToast]);
-  const info = useCallback((msg: string) => addToast('info', msg), [addToast]);
-  const warning = useCallback((msg: string) => addToast('warning', msg), [addToast]);
+  const success = useCallback((msg: string) => sonnerToast.success(msg), []);
+  const error = useCallback((msg: string) => sonnerToast.error(msg), []);
+  const info = useCallback((msg: string) => sonnerToast.info(msg), []);
+  const warning = useCallback((msg: string) => sonnerToast.warning(msg), []);
 
   return (
     <ToastContext.Provider value={{ success, error, info, warning }}>
       {children}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">
-        <AnimatePresence mode="popLayout">
-          {toasts.map((toast) => (
-            <Toast
-              key={toast.id}
-              id={toast.id}
-              type={toast.type}
-              message={toast.message}
-              onClose={removeToast}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
+      <Toaster 
+        theme="dark" 
+        position="bottom-right" 
+        toastOptions={{
+          style: {
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%)',
+            backdropFilter: 'blur(40px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            color: 'white',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+          },
+          className: 'rounded-2xl'
+        }} 
+      />
     </ToastContext.Provider>
   );
 };

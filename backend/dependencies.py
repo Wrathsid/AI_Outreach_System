@@ -7,7 +7,7 @@ logger = logging.getLogger("backend.auth")
 security = HTTPBearer(auto_error=False)
 
 # ⚡ DEV BYPASS: Set to True to skip auth for local testing. Set to False in production.
-DEV_BYPASS = True
+DEV_BYPASS = False
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     # In dev bypass mode, return a fake user so all routes work without a real token

@@ -117,8 +117,7 @@ export default function NeuralBackground() {
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-0">
-        {/* Deep Space Background */}
+    <div className="absolute inset-0 pointer-events-none z-0">
         <div className="absolute inset-0 bg-[#050508]"></div>
         
         {/* Radial Pulse */}

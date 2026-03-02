@@ -41,25 +41,31 @@ class DiscoveryWorkflow:
         if not leads:
             return []
 
-        # --- STEP 2: PARALLEL VERIFICATION & GENERATION ---
+        # --- STEP 2: AI DATA POLISH ---
+        # Instead of saving raw and truncated snippets, we use Gemini to 
+        # reconstruct clean profiles (Names, Titles, Companies, Summaries).
+        polished_leads = await workflow.execute_activity(
+            activities.polish_leads_activity,
+            args=[leads],
+            schedule_to_close_timeout=timedelta(minutes=2)
+        )
+        
+        # --- STEP 3: PARALLEL VERIFICATION & GENERATION ---
         # Instead of doing these one by one, we can tell Temporal to execute
         # the email guessing and SMTP verification activities for ALL leads at the same time.
         
         import asyncio
 
         async def process_lead(lead: dict) -> dict:
-            name = lead.get("title", "Unknown").split("-")[0].strip() # basic guess
-            company = "Unknown" # In a full migration, we use the hr_extractor activity here
+            name = lead.get("name", "Unknown Candidate")
+            company = lead.get("company", "Unknown")
             url = lead.get("url", "")
             
             # Update lead mapping with the fields expected by frontend
-            lead["name"] = name
-            lead["company"] = company
             lead["linkedin_url"] = url
             lead["result_type"] = "person"
             lead["resonance_score"] = 0.5  # placeholder
             lead["email_confidence"] = 0
-            lead["summary"] = lead.get("body", "")
             
             # Predict the email pattern
             guess_result = await workflow.execute_activity(
@@ -89,7 +95,7 @@ class DiscoveryWorkflow:
             return lead
 
         # Run all lead processing concurrently!
-        lead_tasks = [process_lead(lead) for lead in leads]
+        lead_tasks = [process_lead(lead) for lead in polished_leads]
         processed_leads = await asyncio.gather(*lead_tasks)
             
         workflow.logger.info("Discovery Workflow complete!")

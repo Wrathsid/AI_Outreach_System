@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Mail, Check, Clock, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Check, Clock, ArrowRight } from 'lucide-react';
 import { api, Candidate } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
+import { PipelineSkeleton } from '@/components/SkeletonLoaders';
 
 
 
@@ -111,8 +112,8 @@ const SentPage = () => {
 
                 {/* Loading State */}
                 {loading && (
-                    <div className="flex items-center justify-center py-20">
-                        <Loader2 className="animate-spin text-slate-400" size={32} />
+                    <div className="py-2">
+                        <PipelineSkeleton />
                     </div>
                 )}
 

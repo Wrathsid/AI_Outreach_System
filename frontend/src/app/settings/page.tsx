@@ -173,7 +173,7 @@ export default function SettingsPage() {
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white/[0.03] border border-white/10 rounded-2xl p-6 md:p-8"
+              className="bg-white/3 border border-white/10 rounded-2xl p-6 md:p-8"
             >
               <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-6">
                 Profile
@@ -201,7 +201,7 @@ export default function SettingsPage() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
+                      <div className="w-full h-full bg-linear-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
                         <span className="text-3xl font-bold text-white/60">
                           {initials}
                         </span>
@@ -280,7 +280,7 @@ export default function SettingsPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Your name"
-                    className="w-full bg-white/[0.03] border border-white/10 focus:border-primary/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all"
+                    className="w-full bg-white/3 border border-white/10 focus:border-primary/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all"
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -293,7 +293,7 @@ export default function SettingsPage() {
                       value={company}
                       onChange={(e) => setCompany(e.target.value)}
                       placeholder="Your company"
-                      className="w-full bg-white/[0.03] border border-white/10 focus:border-primary/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all"
+                      className="w-full bg-white/3 border border-white/10 focus:border-primary/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all"
                     />
                   </div>
                   <div>
@@ -305,7 +305,7 @@ export default function SettingsPage() {
                       value={role}
                       onChange={(e) => setRole(e.target.value)}
                       placeholder="e.g. Software Engineer"
-                      className="w-full bg-white/[0.03] border border-white/10 focus:border-primary/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all"
+                      className="w-full bg-white/3 border border-white/10 focus:border-primary/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -333,13 +333,13 @@ export default function SettingsPage() {
             <motion.section
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0, transition: { delay: 0.1 } }}
-              className="bg-white/[0.03] border border-white/10 rounded-2xl p-6"
+              className="bg-white/3 border border-white/10 rounded-2xl p-6"
             >
               <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">
                 Outreach Preferences
               </h2>
               <p className="text-slate-500 text-sm">
-                Email integration, sending schedules, and API keys coming soon.
+                LinkedIn integration, sending schedules, and API keys coming soon.
               </p>
             </motion.section>
           </div>

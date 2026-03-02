@@ -9,6 +9,7 @@ import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PipelineSkeleton } from '@/components/SkeletonLoaders';
+import { useRef } from 'react';
 
 const STATUS_OPTIONS = ['new', 'contacted', 'snoozed'] as const;
 
@@ -74,14 +75,39 @@ const StatusBadge = ({ candidate, onStatusChange }: { candidate: Candidate; onSt
 
 // --- Candidate Row ---
 const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Candidate; onStatusChange: (id: number, status: string) => void }) => {
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [opacity, setOpacity] = useState(0);
+  const rowRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!rowRef.current) return;
+    const rect = rowRef.current.getBoundingClientRect();
+    setPosition({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
   return (
     <Link href={`/candidates/${candidate.id}`}>
       <motion.div
         layout
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="group flex items-center gap-5 p-5 rounded-xl border border-white/5 bg-[#12121a] hover:bg-[#16162a] hover:border-primary/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 cursor-pointer"
+        ref={rowRef}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={() => setOpacity(1)}
+        onMouseLeave={() => setOpacity(0)}
+        className="group flex items-center gap-5 p-5 rounded-xl border border-white/5 bg-[#12121a] hover:bg-[#16162a] hover:border-primary/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 cursor-pointer relative"
       >
+        {/* Spotlight Effect */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
+          <div
+            className="absolute -inset-px opacity-0 transition duration-300"
+            style={{
+              opacity,
+              background: `radial-gradient(400px circle at ${position.x}px ${position.y}px, rgba(255,255,255,.05), transparent 40%)`,
+            }}
+          />
+        </div>
+
         {/* Avatar */}
         <div className="relative shrink-0">
           <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-base border border-white/10 overflow-hidden shadow-inner">
@@ -233,7 +259,7 @@ const CandidatesPage = () => {
   // Filter + sort
   const filteredCandidates = React.useMemo(() => {
     const list = filter === 'all' ? candidates : candidates.filter(c => (c.status || 'new') === filter);
-    return [...list].sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+    return [...list].sort((a, b) => b.id - a.id); // Sort by newest first
   }, [candidates, filter]);
 
   return (

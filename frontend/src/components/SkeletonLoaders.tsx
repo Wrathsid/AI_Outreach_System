@@ -2,9 +2,45 @@
 
 import React from 'react';
 
-// Shimmer base
-const Shimmer = ({ className = '' }: { className?: string }) => (
-  <div className={`animate-pulse bg-white/5 rounded-lg ${className}`} />
+export const Shimmer = ({ className = '' }: { className?: string }) => (
+  <div className={`relative overflow-hidden bg-white/5 rounded-lg ${className}`}>
+    <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+  </div>
+);
+
+// Candidate Detail Skeleton
+export const CandidateProfileSkeleton = () => (
+  <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 mt-6">
+    <div className="lg:col-span-4 space-y-8">
+      <div className="space-y-4">
+        <Shimmer className="h-8 w-3/4 rounded-lg" />
+        <div className="space-y-2">
+          <Shimmer className="h-4 w-1/2" />
+          <Shimmer className="h-4 w-1/3" />
+        </div>
+      </div>
+      <div className="space-y-4 pt-4 border-t border-white/5">
+        <Shimmer className="h-8 w-full rounded-lg" />
+        <Shimmer className="h-8 w-full rounded-lg" />
+      </div>
+    </div>
+    <div className="lg:col-span-8">
+      <div className="w-full flex-1 bg-[#0f0f15] border border-white/5 rounded-2xl p-6 min-h-[500px] flex flex-col gap-4">
+        <div className="flex items-center justify-between border-b border-white/5 pb-4">
+          <Shimmer className="h-8 w-40 rounded-lg" />
+          <Shimmer className="h-8 w-24 rounded-lg" />
+        </div>
+        <div className="space-y-4 mt-4">
+          <Shimmer className="h-4 w-full" />
+          <Shimmer className="h-4 w-[90%]" />
+          <Shimmer className="h-4 w-[95%]" />
+          <div className="h-4" />
+          <Shimmer className="h-4 w-full" />
+          <Shimmer className="h-4 w-[85%]" />
+        </div>
+      </div>
+    </div>
+  </div>
 );
 
 // Pipeline loading skeleton

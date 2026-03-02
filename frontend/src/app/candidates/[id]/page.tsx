@@ -6,11 +6,13 @@ import {
   Briefcase, MapPin, Linkedin, 
   Mail, ChevronDown, ChevronUp,
   Copy, ExternalLink, ArrowLeft, Trash2,
-  Loader2, Check, Sparkles
+  Check, Sparkles
 } from 'lucide-react';
 import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CandidateProfileSkeleton } from '@/components/SkeletonLoaders';
 
 // --- Shared Components ---
 
@@ -104,8 +106,17 @@ export default function MinimalCandidatePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#0B0B15]">
-        <Loader2 className="animate-spin text-slate-500" size={24} />
+      <div className="flex-1 w-full min-h-screen bg-[#0B0B15] text-slate-300 font-sans">
+        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+          <button 
+              onClick={() => router.push('/candidates')} 
+              className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm"
+          >
+              <ArrowLeft size={16} />
+              <span className="font-medium">Pipeline</span>
+          </button>
+        </div>
+        <CandidateProfileSkeleton />
       </div>
     );
   }
@@ -334,14 +345,35 @@ export default function MinimalCandidatePage() {
 
                      <button
                         onClick={handleCopyMessage}
-                        className="px-6 py-2 rounded-lg bg-white text-black hover:bg-slate-200 font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+                        className="px-6 py-2 rounded-lg bg-white text-black hover:bg-slate-200 font-semibold text-sm transition-colors flex items-center gap-2 disabled:opacity-50 min-w-[160px] justify-center overflow-hidden relative group"
                      >
-                        {copied ? (
-                            <Check size={16} className="text-green-500" />
-                        ) : (
-                            <Copy size={16} />
-                        )}
-                        {copied ? 'Copied!' : 'Copy for LinkedIn'}
+                        <AnimatePresence mode="popLayout" initial={false}>
+                          {copied ? (
+                            <motion.div
+                              key="check"
+                              initial={{ opacity: 0, scale: 0.5, y: -10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.5, y: 10 }}
+                              transition={{ duration: 0.2, type: "spring", stiffness: 300, damping: 20 }}
+                              className="flex items-center gap-2 text-green-600"
+                            >
+                              <Check size={16} strokeWidth={3} />
+                              <span>Copied!</span>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="copy"
+                              initial={{ opacity: 0, scale: 0.5, y: -10 }}
+                              animate={{ opacity: 1, scale: 1, y: 0 }}
+                              exit={{ opacity: 0, scale: 0.5, y: 10 }}
+                              transition={{ duration: 0.2, type: "spring", stiffness: 300, damping: 20 }}
+                              className="flex items-center gap-2"
+                            >
+                              <Copy size={16} />
+                              <span>Copy for LinkedIn</span>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
                      </button>
                 </div>
             </MinimalCard>

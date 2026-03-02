@@ -11,10 +11,12 @@ router = APIRouter(tags=["Discovery"])
 
 
 import uuid
-from fastapi import Request, WebSocket, WebSocketDisconnect
+from fastapi import Request, WebSocket, WebSocketDisconnect, Depends
 import asyncio
 
-@router.post("/temporal-discover")
+from backend.dependencies import get_current_user
+
+@router.post("/temporal-discover", dependencies=[Depends(get_current_user)])
 async def start_temporal_discovery(request: Request, role: str, limit: int = 20):
     """Start a Temporal workflow for discovery."""
     client = request.app.state.temporal_client
@@ -38,7 +40,7 @@ async def start_temporal_discovery(request: Request, role: str, limit: int = 20)
         logger.error(f"Failed to start workflow: {e}")
         return {"status": "error", "message": str(e)}
 
-@router.get("/temporal-discover/{job_id}")
+@router.get("/temporal-discover/{job_id}", dependencies=[Depends(get_current_user)])
 async def get_temporal_discovery_status(request: Request, job_id: str):
     """Check the status of a Temporal discovery workflow."""
     client = request.app.state.temporal_client

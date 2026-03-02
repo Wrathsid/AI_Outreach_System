@@ -38,8 +38,7 @@ def bulk_add_to_pipeline(request: BulkAddRequest):
     try:
         # Optimize: Single query update using .in_() filter
         supabase.table("candidates").update({
-            "added_to_pipeline": True,
-            "added_at": datetime.now(timezone.utc).isoformat()
+            "status": "new"
         }).in_("id", request.candidate_ids).execute()
         
         logger.info(f"Bulk added {len(request.candidate_ids)} candidates to pipeline")

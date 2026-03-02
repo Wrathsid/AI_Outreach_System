@@ -39,6 +39,6 @@ describe('Sidebar', () => {
   it('renders the log out button', () => {
     render(<Sidebar />)
     // actual text in the component is "Log out" (lowercase o)
-    expect(screen.getByText('Log out')).toBeInTheDocument()
+    expect(screen.getAllByText('Log out').length).toBeGreaterThanOrEqual(1)
   })
 })

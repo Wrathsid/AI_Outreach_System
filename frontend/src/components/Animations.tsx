@@ -348,6 +348,8 @@ export function BlurIn({
 }
 
 // Counter animation
+import { useSpring, useTransform } from 'framer-motion';
+
 export function CountUp({ 
   target, 
   duration = 2,
@@ -361,58 +363,24 @@ export function CountUp({
 }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true });
+  
+  const spring = useSpring(0, { 
+    duration: duration * 1000, 
+    bounce: 0 
+  });
+  
+  const displayValue = useTransform(spring, (current) => Math.round(current));
+
+  useEffect(() => {
+    if (isInView) {
+      spring.set(target);
+    }
+  }, [isInView, target, spring]);
 
   return (
-    <motion.span
-      ref={ref}
-      className={className}
-      initial={{ opacity: 0 }}
-      animate={isInView ? { opacity: 1 } : {}}
-    >
-      <motion.span
-        initial={{ opacity: 1 }}
-        animate={isInView ? { opacity: 1 } : {}}
-      >
-        {isInView && (
-          <motion.span
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <Counter from={0} to={target} duration={duration} />
-            {suffix}
-          </motion.span>
-        )}
-      </motion.span>
+    <motion.span ref={ref} className={className}>
+      <motion.span>{displayValue}</motion.span>
+      {suffix}
     </motion.span>
   );
-}
-
-function Counter({ from, to, duration }: { from: number; to: number; duration: number }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    const startTime = performance.now();
-    
-    const animate = (currentTime: number) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / (duration * 1000), 1);
-      
-      // Ease out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(from + (to - from) * eased);
-      
-      element.textContent = current.toString();
-      
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
-    };
-    
-    requestAnimationFrame(animate);
-  }, [from, to, duration]);
-
-  return <span ref={ref}>{from}</span>;
 }

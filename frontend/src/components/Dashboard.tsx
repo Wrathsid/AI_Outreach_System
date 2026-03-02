@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { RefreshCw, Mail, UserSearch, PieChart as PieIcon, BarChart3 } from 'lucide-react';
+import { Mail, UserSearch, PieChart as PieIcon, BarChart3 } from 'lucide-react';
 import { api, DashboardStats, UserSettings } from '@/lib/api';
 import { FadeUp, TextReveal, StaggerContainer, StaggerItem, CountUp, BlurIn, HoverSpotlight } from './Animations';
 import { BarChart, Bar, XAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -22,21 +22,16 @@ const Dashboard = () => {
     recent_leads: [],
     top_industries: []
   });
-  const [loading, setLoading] = useState(true);
-
-
 
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
 
-  const loadData = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setLoading(true);
+  const loadData = useCallback(async () => {
     const [statsData, settingsData] = await Promise.all([
       api.getStats(),
       api.getSettings()
     ]);
     setStats(statsData);
     setUserSettings(settingsData);
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -113,16 +108,7 @@ const Dashboard = () => {
                   </motion.div>
                 </div>
 
-                {/* Refresh Button */}
-                <div className="absolute top-6 right-6">
-                  <button 
-                    onClick={() => loadData(true)} 
-                    className="p-3 rounded-xl hover:bg-white/10 text-slate-500 hover:text-white transition-all bg-white/5 border border-white/5"
-                    title="Refresh Data"
-                  >
-                    <RefreshCw className={`${loading ? 'animate-spin' : ''}`} size={18} />
-                  </button>
-                </div>
+
               </div>
             </section>
           </FadeUp>
