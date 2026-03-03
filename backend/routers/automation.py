@@ -5,7 +5,12 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 import logging
 
 from backend.config import get_supabase
-from backend.services.browser_automation import launch_linkedin_message
+
+try:
+    from backend.services.browser_automation import launch_linkedin_message
+    _HAS_PLAYWRIGHT = True
+except ImportError:
+    _HAS_PLAYWRIGHT = False
 
 logger = logging.getLogger("backend.automation")
 
@@ -18,6 +23,12 @@ async def launch_draft_automation(candidate_id: str, background_tasks: Backgroun
     Triggers the browser automation to open LinkedIn and paste the draft.
     Runs in background to prevent timeout during the 5-minute review window.
     """
+    if not _HAS_PLAYWRIGHT:
+        raise HTTPException(
+            status_code=501,
+            detail="Browser automation is not available in cloud deployment. Use locally."
+        )
+
     supabase = get_supabase()
     if not supabase:
         raise HTTPException(status_code=500, detail="Database not configured")

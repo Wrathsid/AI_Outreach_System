@@ -1,0 +1,16 @@
+# Vercel-compatible requirements (no heavy ML/browser deps)
+fastapi
+uvicorn
+supabase
+python-dotenv
+google-genai
+pydantic
+python-multipart
+pypdf
+beautifulsoup4
+requests
+dnspython
+httpx
+serpapi
+duckduckgo-search
+numpy

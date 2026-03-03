@@ -56,13 +56,20 @@ async def rate_limit_middleware(request: Request, call_next):
     return await call_next(request)
 
 from contextlib import asynccontextmanager
+import os
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup Temporal Client
-    from temporalio.client import Client
+    # On Vercel serverless, skip Temporal entirely (no long-running connections)
+    if os.getenv("VERCEL"):
+        app.state.temporal_client = None
+        logger.info("Running on Vercel — Temporal disabled")
+        yield
+        return
+
+    # Local / Railway: connect to Temporal
     try:
-        import os
+        from temporalio.client import Client
         temporal_addr = os.getenv("TEMPORAL_ADDRESS", "127.0.0.1:7233")
         logger.info(f"Connecting to Temporal at {temporal_addr}...")
         app.state.temporal_client = await Client.connect(temporal_addr)
