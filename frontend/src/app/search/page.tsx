@@ -197,7 +197,8 @@ const SearchPage = () => {
             } else {
                 throw new Error(data.message || "Failed to start workflow");
             }
-        } catch (e: any) {
+        } catch (error) {
+            const e = error as Error;
             // Next.js dev server intercepts console.error and shows a full-screen overlay.
             // We handle "Failed to fetch" explicitly to provide a better UX.
             if (e?.message === 'Failed to fetch') {

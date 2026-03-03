@@ -7,8 +7,10 @@ from pathlib import Path
 backend_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(backend_path))
 
+import pytest
 from backend.temporal.activities import polish_leads_activity
 
+@pytest.mark.asyncio
 async def test_polish():
     print("Testing AI Lead Polishing...")
     

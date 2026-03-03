@@ -30,14 +30,15 @@ class BatchDraftRequest(BaseModel):
 # ============================================================
 # R5: VALID CHANNELS
 # ============================================================
-VALID_CHANNELS = {"linkedin"}
+VALID_CHANNELS = {"email", "linkedin"}
 
 
 # ============================================================
 # Q5: CHANNEL TONE LOCK
 # ============================================================
 CHANNEL_TONE = {
-    "linkedin": "TONE: This is a JOB APPLICATION message. Write as someone seeking employment. Be professional, detailed, and direct about wanting to work there. Aim for ~300 words (~2000 characters). Never sound like a networking or connection request."
+    "linkedin": "TONE: This is a JOB APPLICATION message. Write as someone seeking employment. Be professional, detailed, and direct about wanting to work there. Aim for ~300 words (~2000 characters). Never sound like a networking or connection request.",
+    "email": "TONE: This is a direct, professional cold email for a job application or inquiry. Be concise, respectful of their time, and clear about your value proposition. Aim for ~150 words."
 }
 
 # ============================================================
@@ -132,6 +133,11 @@ def validate_structure(text: str, contact_type: str) -> bool:
 # ============================================================
 def normalize_length(text: str, contact_type: str) -> str:
     """Hard-trim to channel limits (Q4)."""
+    if contact_type == "email":
+        words = text.split()
+        if len(words) > 150:
+            return " ".join(words[:150]) + "..."
+            
     if len(text) > 2500:
         trimmed = text[:2450]
         last_period = max(trimmed.rfind('.'), trimmed.rfind('?'), trimmed.rfind('!'))
