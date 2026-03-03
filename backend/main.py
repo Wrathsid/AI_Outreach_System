@@ -62,9 +62,10 @@ async def lifespan(app: FastAPI):
     # Setup Temporal Client
     from temporalio.client import Client
     try:
-        logger.info("Connecting to Temporal from FastAPI...")
-        # Explicit IPv4 for Windows Docker stability 
-        app.state.temporal_client = await Client.connect("127.0.0.1:7233")
+        import os
+        temporal_addr = os.getenv("TEMPORAL_ADDRESS", "127.0.0.1:7233")
+        logger.info(f"Connecting to Temporal at {temporal_addr}...")
+        app.state.temporal_client = await Client.connect(temporal_addr)
         logger.info("Temporal client connected and stored in app state.")
     except Exception as e:
         logger.error(f"Failed to connect to Temporal: {e}")
@@ -114,8 +115,8 @@ if __name__ == "__main__":
     import os
     # Read port from environment variable for cloud deployment
     port = int(os.getenv("PORT", 8000))
-    # Use 127.0.0.1 for local dev, 0.0.0.0 for cloud (set HOST env var)
-    host = os.getenv("HOST", "127.0.0.1")
+    # 0.0.0.0 allows containers and cloud platforms to reach the server
+    host = os.getenv("HOST", "0.0.0.0")
     is_prod = os.getenv("ENV") == "production"
     print(f"Starting server on {host}:{port}")
     uvicorn.run("backend.main:app", host=host, port=port, reload=not is_prod)

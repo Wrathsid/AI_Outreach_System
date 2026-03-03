@@ -1,4 +1,5 @@
 import asyncio
+import os
 import logging
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -24,10 +25,11 @@ async def main():
     This process sits here forever, polling the Temporal Server 
     for Workflow or Activity tasks to execute.
     """
-    logger.info("Connecting to Temporal server at 127.0.0.1:7233...")
+    temporal_addr = os.getenv("TEMPORAL_ADDRESS", "127.0.0.1:7233")
+    logger.info(f"Connecting to Temporal server at {temporal_addr}...")
     
-    # 1. Connect to the Temporal Server we started via Docker
-    client = await Client.connect("127.0.0.1:7233")
+    # 1. Connect to the Temporal Server
+    client = await Client.connect(temporal_addr)
     
     logger.info("Connected successfully! Starting workers...")
 

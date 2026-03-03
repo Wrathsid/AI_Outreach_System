@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+tests/
+testsprite_tests/
+*.log
+*.txt
+.env
+.env.*
+static/
+debug_output.txt
+pytest_output*.txt
+pytest_results*.txt
+server.log

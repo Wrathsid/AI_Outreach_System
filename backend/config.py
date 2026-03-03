@@ -19,16 +19,20 @@ logging.basicConfig(
 logger = logging.getLogger("backend")
 
 # Load environment variables
+# Cloud platforms (Railway, Render) inject env vars directly — no .env file needed.
+# For local development, we check the project root .env and backend/.env as fallbacks.
 import os
 from pathlib import Path
 
-# Get the backend directory
 backend_dir = Path(__file__).resolve().parent
-# Navigate to project root (parent of backend)
 project_root = backend_dir.parent
-env_path = project_root / ".env"
 
-load_dotenv(dotenv_path=env_path)
+# Try project root .env first, then backend-specific .env
+for env_candidate in [project_root / ".env", backend_dir / ".env"]:
+    if env_candidate.exists():
+        load_dotenv(dotenv_path=env_candidate)
+        break
+
 
 # Environment Variables
 SUPABASE_URL = os.getenv("SUPABASE_URL")
