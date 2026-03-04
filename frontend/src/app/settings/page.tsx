@@ -336,11 +336,14 @@ export default function SettingsPage() {
               className="bg-white/3 border border-white/10 rounded-2xl p-6"
             >
               <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">
-                Outreach Preferences
+                Danger Zone
               </h2>
-              <p className="text-slate-500 text-sm">
-                LinkedIn integration, sending schedules, and API keys coming soon.
+              <p className="text-slate-500 text-sm mb-4">
+                Permanently delete your account and all associated data.
               </p>
+              <button className="px-4 py-2 rounded-xl text-sm font-medium text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-all">
+                Delete Account
+              </button>
             </motion.section>
           </div>
         )}

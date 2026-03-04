@@ -11,11 +11,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PipelineSkeleton } from '@/components/SkeletonLoaders';
 import { useRef } from 'react';
 
-const STATUS_OPTIONS = ['new', 'contacted', 'snoozed'] as const;
+const STATUS_OPTIONS = ['new', 'contacted', 'replied', 'snoozed'] as const;
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string; label: string }> = {
   new: { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400', label: 'New' },
   contacted: { bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-400', label: 'Contacted' },
+  replied: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-400', label: 'Replied' },
   snoozed: { bg: 'bg-slate-500/10', text: 'text-slate-400', dot: 'bg-slate-400', label: 'Snoozed' },
 };
 
@@ -251,7 +252,7 @@ const CandidatesPage = () => {
 
   // Count by status
   const counts = React.useMemo(() => {
-    const c: Record<string, number> = { new: 0, contacted: 0, snoozed: 0 };
+    const c: Record<string, number> = { new: 0, contacted: 0, replied: 0, snoozed: 0 };
     candidates.forEach(cand => { c[cand.status || 'new'] = (c[cand.status || 'new'] || 0) + 1; });
     return c;
   }, [candidates]);

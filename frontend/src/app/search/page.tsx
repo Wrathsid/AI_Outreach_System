@@ -97,8 +97,8 @@ const SearchPage = () => {
         if (selectedEmails.size === results.length && results.length > 0) {
             setSelectedEmails(new Set());
         } else {
-            const allEmails = new Set(results.map(r => r.email || r.linkedin_url)); // Use fallback if email missing
-            setSelectedEmails(allEmails);
+            const allIds = new Set(results.map((_, idx) => `result-${idx}`));
+            setSelectedEmails(allIds);
         }
     };
     
@@ -118,10 +118,9 @@ const SearchPage = () => {
 
     // Real-time WebSocket logic for Temporal workflow
     const connectTemporalWebSocket = (jobId: string) => {
-        // API_BASE is usually 'http://localhost:8000/api'
-        // But the websocket route is registered on the discovery router which is at /discover
-        // So the full path is /api/discover/ws/temporal-discover/{job_id}
-        const wsUrl = `${API_BASE.replace(/^http/, 'ws')}/discover/ws/temporal-discover/${jobId}`;
+        // Build WebSocket URL: strip any path suffix like /api from API_BASE
+        const baseUrl = API_BASE.replace(/\/api\/?$/, '');
+        const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/api/discover/ws/temporal-discover/${jobId}`;
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -486,6 +485,7 @@ const SearchPage = () => {
                                             }
                                         } catch (e) {
                                             console.error(e);
+                                        } finally {
                                             setIsAdding(false);
                                         }
                                     }}
@@ -505,7 +505,7 @@ const SearchPage = () => {
                         </div>
 
                         {results.map((r, i) => {
-                            const id = r.email || r.linkedin_url;
+                            const id = `result-${results.indexOf(r)}`;
                             const isSelected = selectedEmails.has(id);
                             return (
                                 <FadeUp key={i} delay={0.05 * (i % 5)}>

@@ -4,6 +4,7 @@ Candidates router - CRUD operations for lead management.
 from fastapi import APIRouter, HTTPException
 from typing import List
 from datetime import datetime, timedelta, timezone
+from enum import Enum
 
 from backend.config import get_supabase, logger
 from backend.models.schemas import Candidate, CandidateCreate, BulkAddRequest
@@ -228,9 +229,16 @@ def delete_candidate(candidate_id: int):
     raise HTTPException(status_code=404, detail="Candidate not found")
 
 
+VALID_STATUSES = {'new', 'contacted', 'replied', 'snoozed'}
+
 @router.patch("/{candidate_id}/status")
 def update_candidate_status(candidate_id: int, status: str):
     """Update candidate status (new, contacted, replied, snoozed)."""
+    if status not in VALID_STATUSES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Invalid status '{status}'. Must be one of: {', '.join(sorted(VALID_STATUSES))}"
+        )
     supabase = get_supabase()
     if supabase:
         result = supabase.table("candidates").update({"status": status}).eq("id", candidate_id).execute()

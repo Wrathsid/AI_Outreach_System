@@ -2,7 +2,7 @@
 Emails router - Email sending, guessing, and verification.
 """
 from fastapi import APIRouter, HTTPException
-from datetime import datetime
+from datetime import datetime, timezone
 import re as regex
 
 from backend.config import get_supabase
@@ -188,7 +188,7 @@ async def send_draft(draft_id: int):
         supabase.table("drafts").update({"status": "sent"}).eq("id", draft_id).execute()
         supabase.table("candidates").update({
             "status": "contacted",
-            "sent_at": datetime.now().isoformat()
+            "sent_at": datetime.now(timezone.utc).isoformat()
         }).eq("id", candidate.get("id")).execute()
         
         supabase.table("activity_log").insert({

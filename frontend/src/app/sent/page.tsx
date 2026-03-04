@@ -69,7 +69,7 @@ const SentPage = () => {
                 </FadeUp>
 
                 {/* Stats Cards */}
-                <FadeUp delay={0.1} className="grid grid-cols-4 gap-4 mb-6">
+                <FadeUp delay={0.1} className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <div className="bg-white/5 border border-white/10 rounded-xl p-4">
                         <p className="text-slate-400 text-xs mb-1">Total Sent</p>
                         <p className="text-2xl font-bold text-white">{stats.total}</p>
