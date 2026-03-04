@@ -32,9 +32,35 @@ npm-debug.log*
 # Testing
 coverage/
 .nyc_output/
+test-results/
+test_results.json
+lint_report.json
+
+# TestSprite
+testsprite_tests/
+**/testsprite_tests/
+testsprite_*.txt
+
+# Debug & temp scripts
+debug/
+verify/
+_draft_test.txt
+_fix_quotes.py
+*_output.txt
+*_results.txt
+*_results_utf8.txt
+*_out.txt
+*_out_utf8.txt
+gemini_*.txt
+
+# Pytest output
+pytest_*.txt
 
 # Misc
 *.bak
 *.tmp
 .vercel
 .env*.local
+.mypy_cache/
+.pytest_cache/
+.swc/

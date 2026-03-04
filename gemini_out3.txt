@@ -1,1 +1,0 @@
-Result: "Hello! It's been a pleasure."
