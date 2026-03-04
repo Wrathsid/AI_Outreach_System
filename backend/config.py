@@ -270,9 +270,13 @@ async def generate_with_qubrid(prompt: str, temperature: float = 0.5, max_tokens
 
 def setup_cors(app: FastAPI):
     """Configure CORS middleware for the FastAPI app."""
+    # Read allowed origins from env, or use secure defaults
+    raw_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+    allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
