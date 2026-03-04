@@ -36,10 +36,45 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0B] flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background Decor */}
+      {/* Background Decor — Floating Particles + Grid */}
       <div className="absolute inset-0 z-0 pointer-events-none">
-         <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-900/10 blur-[120px] rounded-full"></div>
-         <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-900/10 blur-[100px] rounded-full"></div>
+         <div className="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-purple-900/10 blur-[120px] rounded-full animate-ambient-drift"></div>
+         <div className="absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] bg-blue-900/10 blur-[100px] rounded-full animate-ambient-drift-slow"></div>
+         
+         {/* Floating particles */}
+         {[...Array(6)].map((_, i) => (
+           <motion.div
+             key={i}
+             className="absolute rounded-full bg-white/5"
+             style={{
+               width: `${8 + i * 4}px`,
+               height: `${8 + i * 4}px`,
+               left: `${10 + i * 15}%`,
+               top: `${25 + (i % 3) * 22}%`,
+             }}
+             animate={{
+               y: [0, -18, 0],
+               x: [0, 8 * (i % 2 === 0 ? 1 : -1), 0],
+               opacity: [0.3, 0.6, 0.3],
+             }}
+             transition={{
+               duration: 4.5 + i * 0.4,
+               repeat: Infinity,
+               ease: 'easeInOut',
+               delay: i * 0.25,
+             }}
+           />
+         ))}
+
+         {/* Grid overlay */}
+         <svg className="absolute inset-0 w-full h-full opacity-[0.02]" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+           <defs>
+             <pattern id="signupGrid" patternUnits="userSpaceOnUse" width="40" height="40">
+               <path d="M0 40L40 0H20L0 20M40 40V20L20 40" fill="none" stroke="white" strokeWidth="1" />
+             </pattern>
+           </defs>
+           <rect fill="url(#signupGrid)" width="100%" height="100%" />
+         </svg>
       </div>
 
       <motion.div 
