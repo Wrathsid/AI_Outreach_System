@@ -33,9 +33,9 @@ jobs:
       - name: Run tests
         run: python -m pytest tests/ -v --tb=short
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://placeholder.supabase.co' }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY || 'placeholder-key' }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY || 'placeholder-key' }}
 
   frontend:
     name: Frontend Build
