@@ -120,7 +120,9 @@ const SentPage = () => {
                 {/* Empty State */}
                 {!loading && filteredCandidates.length === 0 && (
                     <FadeUp className="text-center py-20">
-                        <Mail size={48} className="mx-auto mb-4 text-slate-600" />
+                        <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4 animate-float">
+                          <Mail size={28} className="text-slate-600" />
+                        </div>
                         <p className="text-slate-400 text-lg mb-2">
                             {filter === 'all' 
                                 ? 'No messages sent yet'

@@ -309,10 +309,11 @@ export default function MinimalCandidatePage() {
                 </div>
 
                 {/* Main Textarea */}
-                <textarea
+                <div className="relative flex-1">
+                  <textarea
                     ref={textareaRef}
-                    className={`w-full flex-1 bg-[#0f0f15] border border-white/5 focus:border-primary/50 rounded-2xl px-6 py-5 text-white placeholder-slate-600 focus:outline-none transition-all leading-[1.85] font-sans text-sm min-h-[400px] resize-y ${isGenerating ? 'animate-pulse opacity-50 cursor-wait' : ''}`}
-                    placeholder={isGenerating ? "AI is writing your connection message..." : "Hi [Name], I'd like to connect..."}
+                    className={`w-full h-full bg-[#0f0f15] border border-white/5 focus:border-primary/50 rounded-2xl px-6 py-5 text-white placeholder-slate-600 focus:outline-none transition-all leading-[1.85] font-sans text-sm min-h-[400px] resize-y ${isGenerating ? 'opacity-30' : ''}`}
+                    placeholder="Hi [Name], I'd like to connect..."
                     value={linkedinBody}
                     onChange={(e) => {
                       const pos = e.target.selectionStart;
@@ -325,7 +326,26 @@ export default function MinimalCandidatePage() {
                       });
                     }}
                     disabled={isGenerating}
-                />
+                  />
+                  {isGenerating && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              className="w-2.5 h-2.5 rounded-full bg-primary"
+                              animate={{ y: [0, -8, 0], opacity: [0.4, 1, 0.4] }}
+                              transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15, ease: 'easeInOut' }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-slate-500 font-medium animate-pulse">AI is crafting your message...</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
 
                 {/* Footer Actions */}
                 <div className="px-6 py-4 border-t border-white/5 bg-[#131326]/50 flex items-center justify-between">
