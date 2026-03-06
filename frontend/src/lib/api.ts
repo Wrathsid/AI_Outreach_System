@@ -70,8 +70,6 @@ export interface Candidate {
   email_status?: 'verified' | 'risky' | 'invalid' | 'unknown';
   added_to_pipeline?: boolean;
   sent_at?: string;
-  reply_received?: boolean;
-  reply_at?: string;
 }
 
 export interface Draft {
@@ -109,7 +107,7 @@ export interface ActivityLog {
 
 export interface FunnelStats {
   funnel: { stage: string; count: number; percent: number }[];
-  conversions: { found_to_contacted: number; contacted_to_replied: number };
+  conversions: { found_to_contacted: number };
   total_candidates: number;
 }
 
@@ -318,16 +316,7 @@ export const api = {
     }
   },
 
-  async markAsReplied(candidateId: number): Promise<boolean> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/${candidateId}/mark-replied`, {
-        method: 'PATCH',
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  },
+
 
   // Drafts
   async getDrafts(): Promise<Draft[]> {

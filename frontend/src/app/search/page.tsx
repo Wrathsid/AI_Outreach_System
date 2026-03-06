@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2, Briefcase, User } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
-import { ALL_SKILLS } from '@/data/skillsCatalog';
+import { JOB_TITLES } from '@/data/jobTitles';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
 import { useToast } from '@/context/ToastContext';
@@ -248,7 +248,7 @@ const SearchPage = () => {
                                     const val = e.target.value;
                                     setRole(val);
                                     if (val.length > 0) {
-                                        const filtered = ALL_SKILLS.filter(skill => skill.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
+                                        const filtered = JOB_TITLES.filter(title => title.toLowerCase().includes(val.toLowerCase())).slice(0, 6);
                                         setSuggestions(filtered);
                                         setShowSuggestions(true);
                                         setActiveSuggestionIndex(-1);

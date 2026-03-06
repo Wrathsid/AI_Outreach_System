@@ -3,20 +3,21 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';
-import { ArrowLeft, RefreshCw, Trash2, Mail, ExternalLink, ChevronDown, Clock } from 'lucide-react';
+import { RefreshCw, Trash2, Mail, ExternalLink, ChevronDown, Clock, Users } from 'lucide-react';
 import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PipelineSkeleton } from '@/components/SkeletonLoaders';
+import { FadeUp } from '@/components/Animations';
 import { useRef } from 'react';
 
-const STATUS_OPTIONS = ['new', 'contacted', 'replied', 'snoozed'] as const;
+const STATUS_OPTIONS = ['new', 'contacted', 'snoozed'] as const;
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string; label: string }> = {
   new: { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400', label: 'New' },
   contacted: { bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-400', label: 'Contacted' },
-  replied: { bg: 'bg-emerald-500/10', text: 'text-emerald-400', dot: 'bg-emerald-400', label: 'Replied' },
+
   snoozed: { bg: 'bg-slate-500/10', text: 'text-slate-400', dot: 'bg-slate-400', label: 'Snoozed' },
 };
 
@@ -176,29 +177,6 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
 CandidateRow.displayName = 'CandidateRow';
 
 
-// --- Filter Tabs ---
-const FilterTabs = ({ active, counts, onChange }: { active: string; counts: Record<string, number>; onChange: (v: string) => void }) => (
-  <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
-    {[{ key: 'all', label: 'All' }, ...STATUS_OPTIONS.map(s => ({ key: s, label: STATUS_STYLES[s].label }))].map(({ key, label }) => (
-      <button
-        key={key}
-        onClick={() => onChange(key)}
-        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-          active === key 
-            ? 'bg-white/10 text-white shadow-sm' 
-            : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
-        }`}
-      >
-        {label}
-        <span className="ml-1.5 text-xs opacity-60">
-          {key === 'all' ? Object.values(counts).reduce((a, b) => a + b, 0) : (counts[key] || 0)}
-        </span>
-      </button>
-    ))}
-  </div>
-);
-
-
 // --- Main Page ---
 const CandidatesPage = () => {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -252,10 +230,12 @@ const CandidatesPage = () => {
 
   // Count by status
   const counts = React.useMemo(() => {
-    const c: Record<string, number> = { new: 0, contacted: 0, replied: 0, snoozed: 0 };
+    const c: Record<string, number> = { new: 0, contacted: 0, snoozed: 0 };
     candidates.forEach(cand => { c[cand.status || 'new'] = (c[cand.status || 'new'] || 0) + 1; });
     return c;
   }, [candidates]);
+
+  const totalCount = candidates.length;
 
   // Filter + sort
   const filteredCandidates = React.useMemo(() => {
@@ -263,72 +243,121 @@ const CandidatesPage = () => {
     return [...list].sort((a, b) => b.id - a.id); // Sort by newest first
   }, [candidates, filter]);
 
+  const statCards = [
+    { label: 'Total Leads', value: totalCount, bg: 'bg-white/5', border: 'border-white/10', labelColor: 'text-slate-400', valueColor: 'text-white' },
+    { label: 'New', value: counts.new, bg: 'bg-blue-500/10', border: 'border-blue-500/20', labelColor: 'text-blue-400', valueColor: 'text-blue-500' },
+    { label: 'Contacted', value: counts.contacted, bg: 'bg-amber-500/10', border: 'border-amber-500/20', labelColor: 'text-amber-400', valueColor: 'text-amber-500' },
+
+  ];
+
+  const filterTabs = [
+    { key: 'all', label: 'All', count: totalCount },
+    { key: 'new', label: 'New', count: counts.new },
+    { key: 'contacted', label: 'Contacted', count: counts.contacted },
+
+    { key: 'snoozed', label: 'Snoozed', count: counts.snoozed },
+  ];
+
   return (
-    <main className="flex-1 h-full overflow-y-auto overflow-x-hidden flex flex-col relative w-full bg-[#0a0a0f]">
+    <main className="flex-1 flex flex-col h-full relative overflow-y-auto custom-scrollbar p-8">
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-600/5 blur-[120px] animate-ambient-drift" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/5 blur-[100px] animate-ambient-drift-slow" />
+        <div className="absolute top-[20%] left-[20%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[120px]"></div>
+        <div className="absolute bottom-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-purple-600/10 blur-[100px]"></div>
       </div>
 
-      {/* Header */}
-      <header className="px-6 md:px-8 py-5 flex justify-between items-center border-b border-white/5 bg-[#0f0f12]/50 backdrop-blur-md z-10 shrink-0">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="p-2 hover:bg-white/5 rounded-full text-slate-400 hover:text-white transition-colors">
-            <ArrowLeft size={20} />
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-              Pipeline
-              <span className="text-slate-500 font-normal text-base">/ {candidates.length} Leads</span>
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleDeleteAll}
-            className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium mr-2"
-            title="Delete All Candidates"
-          >
-            <Trash2 size={16} />
-            <span className="hidden sm:inline">Delete All</span>
-          </button>
-          <button
-            onClick={loadCandidates}
-            className={`p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-colors ${loading ? 'animate-spin' : ''}`}
-          >
-            <RefreshCw size={18} />
-          </button>
-        </div>
-      </header>
-
-      {/* Filter Bar */}
-      <div className="px-6 md:px-8 py-4 z-10 shrink-0">
-        <FilterTabs active={filter} counts={counts} onChange={setFilter} />
-      </div>
-
-      {/* Candidate List */}
-      <div className="flex-1 px-6 md:px-8 pb-8 z-10">
-        <div className="max-w-[900px] mx-auto space-y-2">
-          {loading ? (
-            <PipelineSkeleton />
-          ) : filteredCandidates.length === 0 ? (
-            <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4">
-                <Mail size={24} className="text-slate-600" />
-              </div>
-              <p className="text-slate-500 text-sm">
-                {filter === 'all' ? 'No candidates yet. Start a search to find leads!' : `No ${STATUS_STYLES[filter]?.label.toLowerCase()} candidates.`}
-              </p>
+      <div className="z-10 w-full max-w-4xl mx-auto">
+        {/* Header */}
+        <FadeUp className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">
+                <Users size={32} className="text-blue-500" />
+                Pipeline
+              </h1>
+              <p className="text-slate-400">Track and manage your candidate leads</p>
             </div>
-          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDeleteAll}
+                className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors flex items-center gap-2 text-xs font-medium"
+                title="Delete All Candidates"
+              >
+                <Trash2 size={16} />
+                <span className="hidden sm:inline">Delete All</span>
+              </button>
+              <button
+                onClick={loadCandidates}
+                className={`p-2 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white transition-colors ${loading ? 'animate-spin' : ''}`}
+              >
+                <RefreshCw size={18} />
+              </button>
+            </div>
+          </div>
+        </FadeUp>
+
+        {/* Stats Cards */}
+        <FadeUp delay={0.1} className="grid grid-cols-3 gap-4 mb-6">
+          {statCards.map((card) => (
+            <div key={card.label} className={`${card.bg} border ${card.border} rounded-xl p-4`}>
+              <p className={`${card.labelColor} text-xs mb-1`}>{card.label}</p>
+              <p className={`text-2xl font-bold ${card.valueColor}`}>{card.value}</p>
+            </div>
+          ))}
+        </FadeUp>
+
+        {/* Filter Tabs */}
+        <FadeUp delay={0.2} className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {filterTabs.map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                filter === tab.key
+                  ? 'bg-white text-black'
+                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </FadeUp>
+
+        {/* Loading State */}
+        {loading && (
+          <div className="py-2">
+            <PipelineSkeleton />
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!loading && filteredCandidates.length === 0 && (
+          <FadeUp className="text-center py-20">
+            <div className="w-16 h-16 rounded-2xl bg-white/5 flex items-center justify-center mx-auto mb-4 animate-float">
+              <Users size={28} className="text-slate-600" />
+            </div>
+            <p className="text-slate-400 text-lg mb-2">
+              {filter === 'all'
+                ? 'No candidates yet'
+                : `No ${STATUS_STYLES[filter]?.label.toLowerCase() || filter} candidates`
+              }
+            </p>
+            <p className="text-slate-600 text-sm">
+              {filter === 'all' && 'Start a search to find leads and build your pipeline'}
+            </p>
+          </FadeUp>
+        )}
+
+        {/* Candidate List */}
+        {!loading && filteredCandidates.length > 0 && (
+          <div className="space-y-2">
             <AnimatePresence mode="popLayout">
               {filteredCandidates.map(candidate => (
                 <CandidateRow key={candidate.id} candidate={candidate} onStatusChange={handleStatusChange} />
               ))}
             </AnimatePresence>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </main>
   );

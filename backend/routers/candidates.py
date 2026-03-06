@@ -92,37 +92,8 @@ def mark_as_sent(candidate_id: int):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.patch("/{candidate_id}/mark-replied")
-def mark_as_replied(candidate_id: int):
-    """Mark candidate as replied when they respond (UX Improvement)."""
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not connected")
-    
-    from datetime import datetime, timezone
-    
-    try:
-        # 1. Update Candidate
-        result = supabase.table("candidates").update({
-            "reply_received": True,
-            "reply_at": datetime.now(timezone.utc).isoformat(),
-            "status": "replied"
-        }).eq("id", candidate_id).execute()
-        
-        # 2. Update Linked Draft (for Learning Loop)
-        # Find the draft that was sent
-        draft_res = supabase.table("drafts").select("id").eq("candidate_id", candidate_id).eq("status", "sent").execute()
-        if draft_res.data:
-            draft_id = draft_res.data[0]["id"]
-            supabase.table("drafts").update({"status": "replied"}).eq("id", draft_id).execute()
-        
-        if result.data:
-            logger.info(f"Marked candidate {candidate_id} as replied (Draft updated)")
-            return result.data[0]
-        raise HTTPException(status_code=404, detail="Candidate not found")
-    except Exception as e:
-        logger.error(f"Mark replied failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+
+
 
 
 # ============================================================
@@ -229,11 +200,11 @@ def delete_candidate(candidate_id: int):
     raise HTTPException(status_code=404, detail="Candidate not found")
 
 
-VALID_STATUSES = {'new', 'contacted', 'replied', 'snoozed'}
+VALID_STATUSES = {'new', 'contacted', 'snoozed'}
 
 @router.patch("/{candidate_id}/status")
 def update_candidate_status(candidate_id: int, status: str):
-    """Update candidate status (new, contacted, replied, snoozed)."""
+    """Update candidate status (new, contacted, snoozed)."""
     if status not in VALID_STATUSES:
         raise HTTPException(
             status_code=422,

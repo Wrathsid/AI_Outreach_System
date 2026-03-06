@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Settings, Brain, Menu, X, Users, Search, LogOut, FileText, Send, BarChart3 } from 'lucide-react';
+import { Home, Settings, Brain, Menu, X, Users, Search, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
@@ -38,9 +38,8 @@ const Sidebar = () => {
     { href: '/', icon: Home, label: 'Dashboard' },
     { href: '/search', icon: Search, label: 'Search' },
     { href: '/candidates', icon: Users, label: 'Pipeline' },
-    { href: '/drafts', icon: FileText, label: 'Drafts' },
-    { href: '/sent', icon: Send, label: 'Sent' },
-    { href: '/analytics', icon: BarChart3, label: 'Analytics' },
+
+
     { href: '/brain', icon: Brain, label: 'Personal Brain' },
 
   ];

@@ -92,7 +92,7 @@ def get_stats():
 
 @router.get("/funnel")
 async def get_funnel_stats():
-    """Get funnel conversion metrics: Found → Contacted → Replied."""
+    """Get funnel conversion metrics: Found → Contacted."""
     supabase = get_supabase()
     if not supabase:
         return {"error": "Database not configured"}
@@ -101,8 +101,7 @@ async def get_funnel_stats():
     candidates = all_candidates.data if all_candidates.data else []
     
     total = len(candidates)
-    contacted = sum(1 for c in candidates if c.get("status") in ["contacted", "replied"])
-    replied = sum(1 for c in candidates if c.get("status") == "replied")
+    contacted = sum(1 for c in candidates if c.get("status") in ["contacted"])
     
     def safe_percent(num, denom):
         return round((num / denom) * 100, 1) if denom > 0 else 0
@@ -110,12 +109,10 @@ async def get_funnel_stats():
     return {
         "funnel": [
             {"stage": "Found", "count": total, "percent": 100},
-            {"stage": "Contacted", "count": contacted, "percent": safe_percent(contacted, total)},
-            {"stage": "Replied", "count": replied, "percent": safe_percent(replied, total)}
+            {"stage": "Contacted", "count": contacted, "percent": safe_percent(contacted, total)}
         ],
         "conversions": {
-            "found_to_contacted": safe_percent(contacted, total),
-            "contacted_to_replied": safe_percent(replied, contacted)
+            "found_to_contacted": safe_percent(contacted, total)
         },
         "total_candidates": total
     }

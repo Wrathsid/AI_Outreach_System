@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import { Camera, Trash2, Upload, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
 import { api, API_BASE } from "@/lib/api";
@@ -188,17 +189,19 @@ export default function SettingsPage() {
                   onDrop={handleDrop}
                 >
                   <div
-                    className={`w-[120px] h-[120px] rounded-full overflow-hidden border-2 transition-all duration-300 flex items-center justify-center ${
+                    className={`relative w-[120px] h-[120px] rounded-full overflow-hidden border-2 transition-all duration-300 flex items-center justify-center ${
                       isDragging
                         ? "border-primary shadow-[0_0_25px_-5px_rgba(0,113,227,0.5)] scale-105"
                         : "border-white/10 shadow-[0_0_20px_-5px_rgba(0,113,227,0.15)] hover:border-white/20"
                     } ${isUploading ? "animate-pulse" : ""}`}
                   >
                     {displayImage ? (
-                      <img
+                      <Image
                         src={displayImage}
                         alt="Avatar"
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-full h-full bg-linear-to-br from-primary/20 to-purple-500/20 flex items-center justify-center">
