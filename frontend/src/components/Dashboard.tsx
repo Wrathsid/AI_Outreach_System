@@ -245,6 +245,10 @@ const Dashboard = () => {
                          <Tooltip 
                             contentStyle={{backgroundColor: '#1e1e2e', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px'}}
                             itemStyle={{color: '#fff'}}
+                            formatter={(value: any, name: string | undefined) => {
+                               const label = name || "";
+                               return [value, label.length > 40 ? `${label.substring(0, 40)}...` : label]
+                            }}
                          />
                       </PieChart>
                    </ResponsiveContainer>

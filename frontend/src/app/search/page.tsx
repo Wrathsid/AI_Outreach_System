@@ -78,7 +78,7 @@ const SearchPage = () => {
 
     const [isSelectMode, setIsSelectMode] = useState(false);
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
-    const { success } = useToast();
+    const { success, error: toastError } = useToast();
 
     // Toggle selection of a single candidate
     const toggleSelection = (email: string) => {
@@ -120,6 +120,7 @@ const SearchPage = () => {
         // Build WebSocket URL: strip any path suffix like /api from API_BASE
         const baseUrl = API_BASE.replace(/\/api\/?$/, '');
         const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/discover/ws/discover?role=${encodeURIComponent(searchRole)}&limit=${limit}`;
+        console.log("Initiating WS to", wsUrl);
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
@@ -158,11 +159,17 @@ const SearchPage = () => {
         ws.onerror = (error) => {
             console.error('WebSocket Error:', error);
             setStatusMessage('WebSocket connection error. Make sure the backend is running.');
+            toastError('WebSocket Error! Could not connect to API.');
             setIsScanning(false);
         };
         
-        ws.onclose = () => {
-            console.log("WebSocket closed");
+        ws.onclose = (event) => {
+            console.log("WebSocket closed with code", event.code, "reason:", event.reason);
+            // If it closed immediately, it might be an error not caught by onerror
+            if (isScanning && event.code !== 1000) {
+                 toastError(`WS Closed abruptly (Code ${event.code})`);
+                 setIsScanning(false);
+            }
         };
         
         return ws;
