@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { 
   Briefcase, MapPin, Linkedin, 
-  Mail, ChevronDown, ChevronUp,
+  Mail,
   Copy, ExternalLink, ArrowLeft, Trash2,
   Check, Sparkles
 } from 'lucide-react';
@@ -41,8 +41,6 @@ export default function MinimalCandidatePage() {
   const lastGenerateRef = useRef<number>(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Context State
-  const [showContext, setShowContext] = useState(false);
 
   const generateLinkedinMessage = useCallback(() => {
       const now = Date.now();
@@ -244,28 +242,7 @@ export default function MinimalCandidatePage() {
                 })()
             )}
 
-            {/* Collapsible Context */}
-            <div className="pt-4 border-t border-white/5">
-                <button 
-                    onClick={() => setShowContext(!showContext)}
-                    className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors"
-                >
-                    {showContext ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                    Context & Notes
-                </button>
-                
-                {showContext && (
-                    <div className="mt-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
-                        {candidate.summary ? (
-                            <p className="text-sm text-slate-400 leading-relaxed bg-[#131326] p-4 rounded-xl border border-white/5">
-                                {candidate.summary}
-                            </p>
-                        ) : (
-                            <p className="text-xs text-slate-600 italic">No context available.</p>
-                        )}
-                    </div>
-                )}
-            </div>
+
 
         </div>
 
@@ -352,9 +329,8 @@ export default function MinimalCandidatePage() {
                      {/* Character count */}
                      {(() => {
                        const len = linkedinBody.length;
-                       const limit = 300;
-                       const ratio = len / limit;
-                       const color = ratio <= 0.85 ? 'bg-green-400' : ratio <= 1.0 ? 'bg-yellow-400' : 'bg-red-400';
+                       const limit = 1000;
+                       const color = len <= limit ? 'bg-green-400' : 'bg-red-400';
                        return (
                          <span className="flex items-center gap-2 text-xs text-slate-600">
                              <span className={`w-1.5 h-1.5 rounded-full ${color} inline-block`} />
