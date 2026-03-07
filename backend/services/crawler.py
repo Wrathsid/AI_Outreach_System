@@ -99,7 +99,7 @@ class Crawler:
                 break
             
             yield {"type": "status", "data": f"Searching: {q[:50]}..."}
-            await asyncio.sleep(random.uniform(0.5, 1.5))  # Small delay between queries
+            await asyncio.sleep(0.1)  # Small delay between queries
 
             results = []
 

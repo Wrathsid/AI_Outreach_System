@@ -9,7 +9,8 @@ from backend.temporal.workflows import DiscoveryWorkflow
 from backend.temporal.activities import (
     verify_email_activity,
     generate_email_pattern_activity,
-    crawl_linkedin_activity
+    crawl_linkedin_activity,
+    polish_leads_activity
 )
 
 from backend.temporal.draft_workflows import BatchDraftWorkflow
@@ -42,7 +43,8 @@ async def main():
         activities=[
             verify_email_activity,
             generate_email_pattern_activity,
-            crawl_linkedin_activity
+            crawl_linkedin_activity,
+            polish_leads_activity
         ],
     )
     

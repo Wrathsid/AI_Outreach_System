@@ -134,6 +134,14 @@ def create_candidate(candidate: CandidateCreate):
         if not candidate.email: candidate.email = None
         if not candidate.linkedin_url: candidate.linkedin_url = None
 
+        # Truncate string fields to prevent DB varchar(500) constraint errors
+        if candidate.title and len(candidate.title) > 500: candidate.title = candidate.title[:497] + "..."
+        if candidate.company and len(candidate.company) > 500: candidate.company = candidate.company[:497] + "..."
+        if candidate.location and len(candidate.location) > 500: candidate.location = candidate.location[:497] + "..."
+        if candidate.summary and len(candidate.summary) > 500: candidate.summary = candidate.summary[:497] + "..."
+        if candidate.linkedin_url and len(candidate.linkedin_url) > 500: candidate.linkedin_url = candidate.linkedin_url[:500]
+        if candidate.avatar_url and len(candidate.avatar_url) > 500: candidate.avatar_url = candidate.avatar_url[:500]
+
         # 2. Check for duplicates first to avoid errors
         if candidate.email:
             existing = supabase.table("candidates").select("*").eq("email", candidate.email).execute()

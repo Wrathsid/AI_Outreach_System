@@ -124,3 +124,52 @@ async def polish_leads_activity(raw_leads: list) -> list:
         logger.error(f"Lead polishing failed: {e}")
         # Graceful fallback: return raw data if AI fails
         return raw_leads
+
+async def polish_single_lead(lead: dict) -> dict:
+    """
+    Non-batch version of polishing. Processes a single lead via Gemini for ultra-low latency streaming.
+    """
+    from backend.config import generate_with_gemini
+    import json
+    
+    prompt = f"""
+    Internal Database Cleanup Task:
+    I have a messy LinkedIn search result. Reconstruct a clean, professional profile.
+    
+    CRITICAL RULES:
+    1. NAME: Extract ACTUAL PERSON'S NAME. Return "John Doe" not "John Doe on LinkedIn: I am hiring".
+    2. SUMMARY: Reconstruct truncated snippets into ONE clean complete sentence.
+    3. ROLE TYPE: Identify if "person" or "hiring_post".
+    
+    LEAD:
+    Title: {lead.get('title')}
+    Snippet: {lead.get('body')}
+    URL: {lead.get('url')}
+    
+    Return a JSON object with EXACT keys:
+    {{
+      "name": "Clean Name",
+      "title": "Professional Title (e.g. Recruiter at X)",
+      "company": "Company Name",
+      "summary": "One clean complete sentence summary.",
+      "is_hiring_post": true/false
+    }}
+    
+    Return ONLY valid JSON. No markdown formatting.
+    """
+    try:
+        response_text = await generate_with_gemini(prompt)
+        clean_json = response_text.replace("```json", "").replace("```", "").strip()
+        p = json.loads(clean_json)
+        
+        lead.update({
+            "name": p.get("name", "Unknown"),
+            "title": p.get("title", "Unknown"),
+            "company": p.get("company", "Unknown"),
+            "summary": p.get("summary", ""),
+            "is_hiring_post": p.get("is_hiring_post", False)
+        })
+        return lead
+    except Exception as e:
+        logger.error(f"Single lead polishing failed: {e}")
+        return lead

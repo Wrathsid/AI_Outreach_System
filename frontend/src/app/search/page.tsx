@@ -7,7 +7,6 @@ import { JOB_TITLES } from '@/data/jobTitles';
 import { useRouter } from 'next/navigation';
 import { FadeUp } from '@/components/Animations';
 import { useToast } from '@/context/ToastContext';
-import { createClient } from '@/lib/supabase';
 
 // Reuse ScanResult type or similar
 interface ScanResult {
@@ -97,7 +96,7 @@ const SearchPage = () => {
         if (selectedEmails.size === results.length && results.length > 0) {
             setSelectedEmails(new Set());
         } else {
-            const allIds = new Set(results.map((_, idx) => `result-${idx}`));
+            const allIds = new Set(results.map((r, idx) => r.email || r.linkedin_url || `result-${idx}`));
             setSelectedEmails(allIds);
         }
     };
@@ -116,96 +115,75 @@ const SearchPage = () => {
 
 
 
-    // Real-time WebSocket logic for Temporal workflow
-    const connectTemporalWebSocket = (jobId: string) => {
+    // Real-time WebSocket logic for direct backend processing
+    const connectDirectWebSocket = (searchRole: string, limit: number = 15) => {
         // Build WebSocket URL: strip any path suffix like /api from API_BASE
         const baseUrl = API_BASE.replace(/\/api\/?$/, '');
-        const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/api/discover/ws/temporal-discover/${jobId}`;
+        const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/discover/ws/discover?role=${encodeURIComponent(searchRole)}&limit=${limit}`;
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-             console.log("WebSocket connected for job", jobId);
-             setStatusMessage('Connected. Real-time scanning in progress...');
+             console.log("WebSocket connected for discovering", searchRole);
+             setStatusMessage('Connected. Engine starting up...');
         };
 
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 if (data.status === "completed") {
-                    setResults(data.results || []);
+                    // Update final results if provided
+                    if (data.results && data.results.length > 0) {
+                        // Avoid duplicates if we already streamed them
+                        if (results.length === 0) setResults(data.results);
+                    }
                     setStatusMessage('Scan complete.');
                     setIsScanning(false);
                     setTimeout(() => setStatusMessage(''), 3000);
                     ws.close();
-                } else if (data.status === "failed") {
-                    setStatusMessage('Scan failed: ' + (data.message || 'Workflow failed'));
+                } else if (data.status === "failed" || data.status === "error") {
+                    setStatusMessage('Scan error: ' + (data.message || 'Unknown error'));
                     setIsScanning(false);
                     ws.close();
-                } else if (data.status === "error") {
-                    setStatusMessage('Error: ' + data.message);
-                    setIsScanning(false);
-                    ws.close();
-                } else {
-                    setStatusMessage('Temporal Workflow running... streaming status');
+                } else if (data.status === "lead_discovered") {
+                    // Stream single lead into the UI instantly!
+                    setResults(prev => [...prev, data.lead]);
+                } else if (data.status === "running") {
+                    setStatusMessage(data.message || 'Scanning... streaming status');
                 }
             } catch (e) {
-                console.error("Message error", e);
+                console.error("Message JSON parse error", e);
             }
         };
 
         ws.onerror = (error) => {
             console.error('WebSocket Error:', error);
-            setStatusMessage('WebSocket connection error. Checking status... ');
+            setStatusMessage('WebSocket connection error. Make sure the backend is running.');
             setIsScanning(false);
         };
         
         ws.onclose = () => {
             console.log("WebSocket closed");
-            // If component unmounts or completes, it closes
         };
         
         return ws;
     };
 
-    // Trigger Temporal Scan
+    // Trigger Scan
     const handleScan = async (roleOverride?: string) => {
         const searchRole = roleOverride || role;
         if (!searchRole) return;
         setIsScanning(true);
-        setStatusMessage('Starting durable Temporal scan...');
+        setStatusMessage('Connecting to search engine...');
         setResults([]);
+        setSelectedEmails(new Set());
+        setIsSelectMode(false);
         
         try {
-            const supabase = createClient();
-            const { data: { session } } = await supabase.auth.getSession();
-            const headers = new Headers();
-            if (session?.access_token) {
-                headers.set('Authorization', `Bearer ${session.access_token}`);
-            }
-
-            // Fire off the background workflow
-            const response = await fetch(`${API_BASE}/discover/temporal-discover?role=${encodeURIComponent(searchRole)}&limit=15`, { 
-                method: 'POST',
-                headers 
-            });
-            const data = await response.json();
-            
-            if (data.status === 'running' && data.job_id) {
-                // Begin WebSocket streaming
-                connectTemporalWebSocket(data.job_id);
-            } else {
-                throw new Error(data.message || "Failed to start workflow");
-            }
+            // Directly open the websocket stream
+            connectDirectWebSocket(searchRole);
         } catch (error) {
-            const e = error as Error;
-            // Next.js dev server intercepts console.error and shows a full-screen overlay.
-            // We handle "Failed to fetch" explicitly to provide a better UX.
-            if (e?.message === 'Failed to fetch') {
-                setStatusMessage('Backend server unreachable. Please ensure the API is running on port 8000.');
-            } else {
-                console.warn("Scan initiation error:", e);
-                setStatusMessage(`Scan failed to start: ${e?.message || 'Unknown error'}`);
-            }
+            console.warn("Scan initiation error:", error);
+            setStatusMessage('Scan failed to start.');
             setIsScanning(false);
         }
     };
@@ -424,11 +402,11 @@ const SearchPage = () => {
                                         try {
                                             // 1. Filter selected results first
                                             const selectedResults = results.filter(r => {
-                                                const id = r.email || r.linkedin_url;
-                                                return selectedEmails.has(id);
+                                                const id = r.email || r.linkedin_url || `result-${results.indexOf(r)}`;
+                                                return selectedEmails.has(id as string);
                                             });
 
-                                            // 2. Create candidates and generate drafts in PARALLEL
+                                            // 2. Create candidates and track successful ones
                                             const creationPromises = selectedResults.map(async (r) => {
                                                 try {
                                                     const res = await api.createCandidate({
@@ -447,7 +425,7 @@ const SearchPage = () => {
                                                     });
                                                     
                                                     if (res?.id) {
-                                                        return res.id;
+                                                        return { id: res.id, r }; // Return both tracking ID and original result
                                                     }
                                                 } catch (err) {
                                                     console.error(`Failed to create candidate ${r.name}`, err);
@@ -456,7 +434,9 @@ const SearchPage = () => {
                                                 return null;
                                             });
 
-                                            const createdIds = (await Promise.all(creationPromises)).filter(id => id !== null) as number[];
+                                            const creationResults = (await Promise.all(creationPromises)).filter(item => item !== null) as {id: number, r: ScanResult}[];
+                                            const createdIds = creationResults.map(item => item.id);
+                                            const successfulUI_IDs = new Set(creationResults.map(item => (item.r.email || item.r.linkedin_url || `result-${results.indexOf(item.r)}`) as string));
                                             
                                             // 3. Bulk pipeline update
                                             if (createdIds.length > 0) {
@@ -470,10 +450,10 @@ const SearchPage = () => {
                                                 await api.bulkAddToPipeline(createdIds);
                                                 success(`Added ${createdIds.length} leads. AI drafts are generating in the background!`);
                                                 
-                                                // Remove added candidates from search results
+                                                // Remove ONLY successfully added candidates from search results
                                                 setResults(prev => prev.filter(r => {
-                                                    const id = r.email || r.linkedin_url;
-                                                    return !selectedEmails.has(id);
+                                                    const id = (r.email || r.linkedin_url || `result-${prev.indexOf(r)}`) as string;
+                                                    return !successfulUI_IDs.has(id);
                                                 }));
                                                 
                                                 setSelectedEmails(new Set());
@@ -482,6 +462,7 @@ const SearchPage = () => {
                                                 router.push('/');
                                             } else {
                                                 setIsAdding(false);
+                                                success("No candidates were added successfully.");
                                             }
                                         } catch (e) {
                                             console.error(e);
@@ -505,10 +486,10 @@ const SearchPage = () => {
                         </div>
 
                         {results.map((r, i) => {
-                            const id = `result-${results.indexOf(r)}`;
+                            const id = (r.email || r.linkedin_url || `result-${results.indexOf(r)}`) as string;
                             const isSelected = selectedEmails.has(id);
                             return (
-                                <FadeUp key={i} delay={0.05 * (i % 5)}>
+                                <FadeUp key={id} delay={0.05 * (i % 5)}>
                                     <div 
                                         onClick={() => toggleSelection(id)}
                                         className={`group relative flex items-start gap-4 p-5 rounded-2xl border transition-all ${

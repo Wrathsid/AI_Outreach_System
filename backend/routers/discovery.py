@@ -10,93 +10,80 @@ router = APIRouter(tags=["Discovery"])
 
 
 
-import uuid
-from fastapi import Request, WebSocket, WebSocketDisconnect, Depends
+from fastapi import Request, WebSocket, WebSocketDisconnect, Depends, Query
 import asyncio
 
 from backend.dependencies import get_current_user
+from backend.services.crawler import Crawler
+from backend.temporal.activities import polish_leads_activity, generate_email_pattern_activity, verify_email_activity
 
-@router.post("/temporal-discover", dependencies=[Depends(get_current_user)])
-async def start_temporal_discovery(request: Request, role: str, limit: int = 20):
-    """Start a Temporal workflow for discovery."""
-    client = request.app.state.temporal_client
-    if not client:
-        return {"status": "error", "message": "Temporal client not connected"}
-        
-    job_id = f"discovery-{uuid.uuid4()}"
-    
-    try:
-        from backend.temporal.workflows import DiscoveryWorkflow
-        
-        # Start the workflow in the background. Does not block!
-        handle = await client.start_workflow(
-            DiscoveryWorkflow.run,
-            args=[role, limit],
-            id=job_id,
-            task_queue="discovery-task-queue"
-        )
-        return {"status": "running", "job_id": job_id}
-    except Exception as e:
-        logger.error(f"Failed to start workflow: {e}")
-        return {"status": "error", "message": str(e)}
-
-@router.get("/temporal-discover/{job_id}", dependencies=[Depends(get_current_user)])
-async def get_temporal_discovery_status(request: Request, job_id: str):
-    """Check the status of a Temporal discovery workflow."""
-    client = request.app.state.temporal_client
-    if not client:
-         return {"status": "error", "message": "Temporal client not connected"}
-         
-    try:
-        handle = client.get_workflow_handle(job_id)
-        description = await handle.describe()
-        
-        from temporalio.client import WorkflowExecutionStatus
-        
-        # If it's done, we can get the result
-        if description.status == WorkflowExecutionStatus.COMPLETED:
-            results = await handle.result()
-            return {"status": "completed", "results": results}
-        elif description.status == WorkflowExecutionStatus.FAILED:
-            return {"status": "failed", "message": "Workflow failed"}
-        else:
-            return {"status": "running"}
-            
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-@router.websocket("/ws/temporal-discover/{job_id}")
-async def websocket_discovery_status(websocket: WebSocket, job_id: str):
-    """Stream Temporal workflow status via WebSocket."""
+@router.websocket("/ws/discover")
+async def websocket_discover(websocket: WebSocket, role: str = Query(...), limit: int = Query(15)):
+    """Stream discovery results directly via WebSocket (Bypassing Temporal)"""
     await websocket.accept()
-    client = websocket.app.state.temporal_client
-    if not client:
-        await websocket.send_json({"status": "error", "message": "Temporal client not connected"})
-        await websocket.close()
-        return
-        
     try:
-        handle = client.get_workflow_handle(job_id)
-        from temporalio.client import WorkflowExecutionStatus
+        await websocket.send_json({"status": "running", "message": f"Starting search for {role}..."})
+        # 1. Start Crawl Stream
+        crawler = Crawler()
         
-        while True:
-            description = await handle.describe()
+        async def process_and_stream(raw_lead):
+            from backend.temporal.activities import polish_single_lead
             
-            if description.status == WorkflowExecutionStatus.COMPLETED:
-                results = await handle.result()
-                await websocket.send_json({"status": "completed", "results": results})
-                break
-            elif description.status == WorkflowExecutionStatus.FAILED:
-                await websocket.send_json({"status": "failed", "message": "Workflow failed"})
-                break
+            # A. Polish single lead (ultra fast)
+            lead = await polish_single_lead(raw_lead)
+            
+            # B. Email prediction & verification
+            name = lead.get("name", "Unknown Candidate")
+            company = lead.get("company", "Unknown")
+            url = lead.get("url", "")
+            
+            lead["linkedin_url"] = url
+            lead["result_type"] = "person"
+            lead["resonance_score"] = 0.5
+            lead["email_confidence"] = 0
+            
+            guess_result = await generate_email_pattern_activity(name, company)
+            email = guess_result.get("email")
+            if guess_result.get("confidence"):
+                lead["email_confidence"] = guess_result.get("confidence")
+                
+            if email:
+                verification = await verify_email_activity(email)
+                lead["email"] = email
+                lead["email_verification"] = verification
+                if verification.get("status") == "invalid":
+                    lead["email"] = None
             else:
-                # Still running, optionally push progress if your workflow emits heartbeat/details
-                await websocket.send_json({"status": "running"})
+                lead["email"] = None
             
-            await asyncio.sleep(1) # Check every second
+            # C. STREAM RESULT TO WEBSOCKET IMMEDIATELY
+            await websocket.send_json({"status": "lead_discovered", "lead": lead})
+            return lead
+
+        tasks = []
+        
+        # Stream results from SerpAPI & instantly fire processing tasks
+        async for r in crawler.crawl_stream(role, limit=limit):
+            if r["type"] == "raw_result":
+                # Fire and forget a concurrent background task to process and stream
+                task = asyncio.create_task(process_and_stream(r["data"]))
+                tasks.append(task)
+            elif r["type"] == "status":
+                await websocket.send_json({"status": "running", "message": r["data"]})
+                
+        if not tasks:
+            await websocket.send_json({"status": "completed", "results": []})
+            return
             
+        await websocket.send_json({"status": "running", "message": f"Found {len(tasks)} leads. Finalizing AI polishing and email verification..."})
+        
+        # Wait for all background tasks to finish processing before closing
+        results = await asyncio.gather(*tasks)
+        
+        await websocket.send_json({"status": "completed", "results": results})
+        
     except WebSocketDisconnect:
-        logger.info(f"WebSocket client disconnected for job {job_id}")
+        logger.info("WebSocket disconnected")
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         try:

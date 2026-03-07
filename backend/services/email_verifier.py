@@ -145,11 +145,11 @@ class EmailVerifier:
             
             # Try simple socket approach first (no external lib needed)
             try:
-                socket.gethostbyname(f"mail.{domain}")
+                await asyncio.to_thread(socket.gethostbyname, f"mail.{domain}")
                 has_mx = True
             except socket.gaierror:
                 try:
-                    socket.gethostbyname(domain)
+                    await asyncio.to_thread(socket.gethostbyname, domain)
                     has_mx = True  # Domain exists at least
                 except:
                     has_mx = False

@@ -1071,24 +1071,23 @@ MAX: 100 words. Write the message ONLY.
 """,
     IntentType.OPPORTUNITY: PERSONA_ANCHOR + """
 You are writing a LinkedIn connection request to a Recruiter or TA.
-TONE: Comprehensive, highly detailed, professional, and persuasive.
-GOAL: Pitch yourself in a very thorough, multi-paragraph LinkedIn invite.
+TONE: Brief, professional, and high-impact.
+GOAL: Ask to connect about open roles.
 NEGATIVE CONSTRAINTS (CRITICAL):
 - Do NOT use "I'm a DevOps engineer with experience in...". That is boring.
 - Do NOT use "I hope this email finds you well".
+- Do NOT write multiple paragraphs.
+- Do NOT exceed 280 characters under ANY circumstances.
 
 RULES:
-- Hook them immediately with your 2 strongest skills mapped to their role.
-- Expand significantly on your background, providing detailed context on how you build scalable infrastructure.
-- Write at least 3 or 4 substantial paragraphs.
-- Soft Ask: "Open to connecting?" or "Worth a chat if roles open up?"
+- Hook them immediately with your strongest skill mapped to their role.
+- Keep it to 2 short sentences total.
+- Soft Ask: "Open to connecting?"
 
 STRUCTURE:
-Start with a strong hook about their recruitment focus.
-Follow up with a massive, detailed paragraph explaining your technical philosophy and specific tools (Linux, Cloud, etc.).
-Conclude with a soft ask.
+1 sentence value prop. 1 short question.
 
-Write the message ONLY. Make it extremely detailed, aiming for around 2000 characters.
+Write the message ONLY. Make it extremely brief, ABSOLUTE MAXIMUM 280 characters.
 """,
 
 
@@ -1705,6 +1704,12 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                     final_msg = f"Hi {first_name}, " + final_msg
                 else:
                     final_msg = "Hi, " + final_msg
+
+            # Enforce Hard LinkedIn Limit (300 chars max, 280 safe)
+            if len(final_msg) > 280:
+                logger.warning(f"Draft exceeded LinkedIn limits ({len(final_msg)} chars). Truncating.")
+                # Truncate to word boundary before 277 chars and add ...
+                final_msg = final_msg[:277].rsplit(' ', 1)[0] + "..."
 
             res = supabase.table("drafts").insert({
                 "candidate_id": candidate_id, 

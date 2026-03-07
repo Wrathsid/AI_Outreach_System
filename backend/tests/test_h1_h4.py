@@ -5,12 +5,8 @@ from pathlib import Path
 # Add project root to path so we can import backend.*
 sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
-try:
-    from backend.routers.drafts import generate_fingerprint
-    from backend.services.verifier import normalize_skill
-except ImportError as e:
-    print(f"Import Error: {e}")
-    sys.exit(1)
+from backend.routers.drafts import generate_fingerprint
+from backend.services.verifier import normalize_skill
 
 def test_h4_normalize_skill():
     print("\n--- Testing H4: Synonym Normalization ---")
