@@ -6,7 +6,7 @@ import {
   Briefcase, MapPin, Linkedin, 
   Mail,
   Copy, ExternalLink, ArrowLeft, Trash2,
-  Check, Sparkles
+  Check, Sparkles, ChevronDown
 } from 'lucide-react';
 import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName } from '@/lib/displayUtils';
@@ -31,6 +31,27 @@ export default function MinimalCandidatePage() {
 
   const [candidate, setCandidate] = useState<Candidate | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Status dropdown state
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
+
+  const handleStatusChange = async (newStatus: 'new' | 'contacted') => {
+    if (!candidate) return;
+    
+    // Optimistic UI update
+    const previousStatus = candidate.status;
+    setCandidate({ ...candidate, status: newStatus });
+    setIsStatusDropdownOpen(false);
+    
+    const updateSuccess = await api.updateCandidateStatus(candidate.id, newStatus);
+    if (!updateSuccess) {
+      // Revert on failure
+      setCandidate({ ...candidate, status: previousStatus });
+      error('Failed to update status');
+    } else {
+      success(`Marked as ${newStatus === 'contacted' ? 'Contacted' : 'Non-contacted'}`);
+    }
+  };
 
   // LinkedIn message state
   const [linkedinBody, setLinkedinBody] = useState('');
@@ -150,9 +171,53 @@ export default function MinimalCandidatePage() {
             
             {/* Profile Header */}
             <div className="space-y-4">
-                <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">
-                    {cleanDisplayName(candidate.name)}
-                </h1>
+                <div className="flex items-start justify-between gap-4">
+                    <h1 className="text-3xl font-bold text-white tracking-tight leading-tight">
+                        {cleanDisplayName(candidate.name)}
+                    </h1>
+                    
+                    {/* Status Dropdown */}
+                    <div className="relative hidden lg:block"> {/* Keep it right-aligned explicitly */}
+                        <button 
+                            onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                                candidate.status === 'contacted' 
+                                ? 'bg-orange-500/10 text-orange-400 border-orange-500/20 hover:bg-orange-500/20' 
+                                : 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20'
+                            }`}
+                        >
+                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            {candidate.status === 'contacted' ? 'Contacted' : 'Non-contacted'}
+                            <ChevronDown size={14} className={`transition-transform ${isStatusDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        
+                        <AnimatePresence>
+                            {isStatusDropdownOpen && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 5 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: 5 }}
+                                    className="absolute right-0 mt-2 w-40 bg-[#1A1A2E] border border-white/10 rounded-xl shadow-xl overflow-hidden z-50 py-1"
+                                >
+                                    <button
+                                        onClick={() => handleStatusChange('new')}
+                                        className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center justify-between"
+                                    >
+                                        Non-contacted
+                                        {candidate.status !== 'contacted' && <Check size={14} className="text-blue-400" />}
+                                    </button>
+                                    <button
+                                        onClick={() => handleStatusChange('contacted')}
+                                        className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center justify-between"
+                                    >
+                                        Contacted
+                                        {candidate.status === 'contacted' && <Check size={14} className="text-orange-400" />}
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
                 <div className="space-y-1 text-sm text-slate-400">
                     {candidate.title && (
                         <div className="flex items-center gap-2">
