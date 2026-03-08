@@ -108,7 +108,7 @@ export default function MinimalCandidatePage() {
   const handleDelete = async () => {
     if (confirm('Delete this candidate?')) {
       await api.deleteCandidate(candidateId);
-      router.push('/');
+      router.push('/candidates');
     }
   };
 
@@ -120,8 +120,13 @@ export default function MinimalCandidatePage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     
-    success("✅ Copied to clipboard. Marked as contacted.");
     await api.markAsSent(candidateId);
+    
+    // Optimistic local update
+    setCandidate(prev => prev ? { ...prev, status: 'contacted' } : null);
+    
+    success("✅ Copied to clipboard. Marked as contacted.");
+    router.refresh();
   };
 
   if (loading) {

@@ -269,6 +269,7 @@ export const api = {
   async deleteCandidate(id: number): Promise<boolean> {
     try {
       const res = await fetchWithAuth(`${API_BASE}/candidates/${id}`, { method: 'DELETE' });
+      if (res.ok && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('candidates_updated'));
       return res.ok;
     } catch {
       return false;
@@ -278,6 +279,7 @@ export const api = {
   async deleteAllCandidates(): Promise<boolean> {
     try {
       const res = await fetchWithAuth(`${API_BASE}/candidates/all/delete`, { method: 'DELETE' });
+      if (res.ok && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('candidates_updated'));
       return res.ok;
     } catch {
       return false;
@@ -292,6 +294,7 @@ export const api = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ candidate_ids: candidateIds }),
       });
+      if (res.ok && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('candidates_updated'));
       return res.ok;
     } catch {
       return false;
@@ -313,6 +316,9 @@ export const api = {
       const res = await fetchWithAuth(`${API_BASE}/candidates/${candidateId}/mark-sent`, {
         method: 'PATCH',
       });
+      if (res.ok && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('candidates_updated'));
+      }
       return res.ok;
     } catch {
       return false;
