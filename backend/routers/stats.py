@@ -23,9 +23,9 @@ def get_stats():
             candidates = supabase.table("candidates").select("id", count="exact").execute()
             people_found = candidates.count if candidates.count else 0
             
-            # Get sent emails count
-            emails = supabase.table("sent_emails").select("id", count="exact").execute()
-            emails_sent = emails.count if emails.count else 0
+            # Get contacted count
+            contacted = supabase.table("candidates").select("id", count="exact").eq("status", "contacted").execute()
+            emails_sent = contacted.count if contacted.count else 0
             
             # Calculate weekly goal (assuming goal is 10 emails/week)
             weekly_goal = min(100, int((emails_sent / 10) * 100))
