@@ -19,7 +19,7 @@ class RecommendationService:
     """
 
     @classmethod
-    def calculate_resonance_score(cls, candidate: Dict) -> int:
+    def calculate_resonance_score(cls, candidate: Dict, offer_context: Optional[str] = None) -> int:
         """
         Generates a 0-100 Resonance Score based on semantic match.
         """
@@ -32,15 +32,22 @@ class RecommendationService:
                 candidate_text += f"Tags: {', '.join(candidate.get('tags'))}"
             
             # 2. Get Embeddings
-            offer_emb = embeddings_service.generate_embedding(cls.DEFAULT_OFFER_CONTEXT)
+            context_to_match = offer_context if offer_context else cls.DEFAULT_OFFER_CONTEXT
+            offer_emb = embeddings_service.generate_embedding(context_to_match)
             candidate_emb = embeddings_service.generate_embedding(candidate_text)
             
             # 3. Calculate Cosine Similarity (-1 to 1)
             similarity = embeddings_service.calculate_similarity(offer_emb, candidate_emb)
             
             # 4. Normalize to 0-100 Score
-            # We treat < 0 similarity as 0 relevance
-            score = max(0, int(similarity * 100))
+            # We treat < 0 similarity as 0 relevance.
+            # We square the similarity to stretch the distribution for better UI differentiation.
+            if similarity > 0:
+                adjusted_similarity = similarity ** 2
+            else:
+                adjusted_similarity = 0
+                
+            score = max(0, int(adjusted_similarity * 100))
             
             return score
             

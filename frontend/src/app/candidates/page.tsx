@@ -76,7 +76,7 @@ const StatusBadge = ({ candidate, onStatusChange }: { candidate: Candidate; onSt
 };
 
 // --- Candidate Row ---
-const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Candidate; onStatusChange: (id: number, status: string) => void }) => {
+const CandidateRow = React.memo(({ candidate, onStatusChange, index = 0 }: { candidate: Candidate; onStatusChange: (id: number, status: string) => void; index?: number }) => {
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [opacity, setOpacity] = useState(0);
   const rowRef = useRef<HTMLDivElement>(null);
@@ -88,7 +88,7 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
   };
 
   return (
-    <Link href={`/candidates/${candidate.id}`}>
+    <Link href={`/candidates/${candidate.id}`} className="block relative" style={{ zIndex: 1000 - index }}>
       <motion.div
         layout
         initial={{ opacity: 0, y: 8 }}
@@ -97,7 +97,7 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
         onMouseMove={handleMouseMove}
         onMouseEnter={() => setOpacity(1)}
         onMouseLeave={() => setOpacity(0)}
-        className="group flex items-center gap-5 p-5 rounded-xl border border-white/5 bg-[#12121a] hover:bg-[#16162a] hover:border-primary/20 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/5 transition-all duration-200 cursor-pointer relative"
+        className="group flex items-center gap-5 p-5 rounded-xl border border-white/5 bg-white/2 hover:glass-panel hover:-translate-y-0.5 transition-all duration-300 cursor-pointer relative"
       >
         {/* Spotlight Effect */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-xl">
@@ -112,7 +112,7 @@ const CandidateRow = React.memo(({ candidate, onStatusChange }: { candidate: Can
 
         {/* Avatar */}
         <div className="relative shrink-0">
-          <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-base border border-white/10 overflow-hidden shadow-inner">
+          <div className="w-12 h-12 rounded-full bg-slate-800/80 flex items-center justify-center text-white font-bold text-base border border-white/10 overflow-hidden shadow-inner ring-1 ring-white/5 group-hover:ring-primary/30 transition-all duration-300">
             {candidate.avatar_url ? (
               <NextImage src={candidate.avatar_url} alt={cleanDisplayName(candidate.name)} width={44} height={44} className="w-full h-full object-cover" />
             ) : (
@@ -258,10 +258,9 @@ const CandidatesPage = () => {
   }, [candidates, filter]);
 
   const statCards = [
-    { label: 'Total Leads', value: totalCount, bg: 'bg-white/5', border: 'border-white/10', labelColor: 'text-slate-400', valueColor: 'text-white' },
-    { label: 'Non-contacted', value: counts.new, bg: 'bg-blue-500/10', border: 'border-blue-500/20', labelColor: 'text-blue-400', valueColor: 'text-blue-500' },
-    { label: 'Contacted', value: counts.contacted, bg: 'bg-amber-500/10', border: 'border-amber-500/20', labelColor: 'text-amber-400', valueColor: 'text-amber-500' },
-
+    { label: 'Total Leads', value: totalCount, style: 'glass-panel', labelColor: 'text-slate-400', valueColor: 'text-white' },
+    { label: 'Non-contacted', value: counts.new, style: 'glass-panel border-blue-500/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_20px_-5px_rgba(59,130,246,0.15)]', labelColor: 'text-blue-400', valueColor: 'text-blue-500' },
+    { label: 'Contacted', value: counts.contacted, style: 'glass-panel border-amber-500/20 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.05),0_0_20px_-5px_rgba(245,158,11,0.15)]', labelColor: 'text-amber-400', valueColor: 'text-amber-500' },
   ];
 
   const filterTabs = [
@@ -276,8 +275,8 @@ const CandidatesPage = () => {
     <main className="flex-1 flex flex-col h-full relative overflow-y-auto custom-scrollbar p-8">
       {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <div className="absolute top-[20%] left-[20%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[120px]"></div>
-        <div className="absolute bottom-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-purple-600/10 blur-[100px]"></div>
+        <div className="absolute top-[20%] left-[20%] w-[40%] h-[40%] rounded-full bg-blue-600/10 blur-[120px] animate-ambient-drift"></div>
+        <div className="absolute bottom-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-purple-600/10 blur-[100px] animate-ambient-drift-slow"></div>
       </div>
 
       <div className="z-10 w-full max-w-4xl mx-auto">
@@ -313,23 +312,23 @@ const CandidatesPage = () => {
         {/* Stats Cards */}
         <FadeUp delay={0.1} className="grid grid-cols-3 gap-4 mb-6">
           {statCards.map((card) => (
-            <div key={card.label} className={`${card.bg} border ${card.border} rounded-xl p-4`}>
-              <p className={`${card.labelColor} text-xs mb-1`}>{card.label}</p>
+            <div key={card.label} className={`${card.style} rounded-xl p-4 hover-lift transition-transform`}>
+              <p className={`${card.labelColor} text-xs mb-1 font-medium tracking-wide uppercase`}>{card.label}</p>
               <p className={`text-2xl font-bold ${card.valueColor}`}>{card.value}</p>
             </div>
           ))}
         </FadeUp>
 
         {/* Filter Tabs */}
-        <FadeUp delay={0.2} className="flex gap-2 mb-6 overflow-x-auto pb-2">
+        <FadeUp delay={0.2} className="flex gap-2 mb-6 overflow-x-auto pb-2 custom-scrollbar">
           {filterTabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+              className={`px-4 py-2 rounded-full text-sm transition-all whitespace-nowrap border ${
                 filter === tab.key
-                  ? 'bg-white text-black'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-white'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30 shadow-glow font-medium'
+                  : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10 hover:text-white/90 hover:border-white/20'
               }`}
             >
               {tab.label} ({tab.count})
@@ -366,8 +365,8 @@ const CandidatesPage = () => {
         {!loading && filteredCandidates.length > 0 && (
           <div className="space-y-2">
             <AnimatePresence mode="popLayout">
-              {filteredCandidates.map(candidate => (
-                <CandidateRow key={candidate.id} candidate={candidate} onStatusChange={handleStatusChange} />
+              {filteredCandidates.map((candidate, index) => (
+                <CandidateRow key={candidate.id} candidate={candidate} onStatusChange={handleStatusChange} index={index} />
               ))}
             </AnimatePresence>
           </div>

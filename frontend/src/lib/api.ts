@@ -96,14 +96,6 @@ export interface Draft {
   };
 }
 
-export interface ActivityLog {
-  id: number;
-  action_type: string;
-  title: string;
-  description?: string;
-  created_at: string;
-  candidate_id?: number;
-}
 
 export interface FunnelStats {
   funnel: { stage: string; count: number; percent: number }[];
@@ -301,32 +293,6 @@ export const api = {
     }
   },
 
-  async getSentCandidates(): Promise<Candidate[]> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/sent`);
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch {
-      return [];
-    }
-  },
-
-  async markAsSent(candidateId: number): Promise<boolean> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/${candidateId}/mark-sent`, {
-        method: 'PATCH',
-      });
-      if (res.ok && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('candidates_updated'));
-      }
-      return res.ok;
-    } catch {
-      return false;
-    }
-  },
-
-
-
   // Drafts
   async getDrafts(): Promise<Draft[]> {
     try {
@@ -400,25 +366,6 @@ export const api = {
 
 
 
-  async getSentEmails(): Promise<{ emails: unknown[] }> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/emails/sent`);
-      return res.json();
-    } catch {
-      return { emails: [] };
-    }
-  },
-
-  // Activity & Stats
-  async getActivity(): Promise<ActivityLog[]> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/stats/activity`);
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch {
-      return [];
-    }
-  },
 
   async getStats(): Promise<DashboardStats> {
     try {
@@ -503,39 +450,6 @@ export const api = {
     }
   },
 
-  // Gmail OAuth
-  async getGmailStatus(userId: number = 1): Promise<{ connected: boolean; email?: string }> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/auth/gmail/status?user_id=${userId}`);
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch {
-      return { connected: false };
-    }
-  },
-
-  async getGmailAuthUrl(userId: number = 1): Promise<string | null> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/auth/google?user_id=${userId}`);
-      if (!res.ok) throw new Error('API error');
-      const data = await res.json();
-      return data.auth_url;
-    } catch {
-      return null;
-    }
-  },
-  // Automation
-  async launchAutomation(candidateId: number): Promise<{ status: string; detail?: string }> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/automation/launch/${candidateId}`, {
-        method: 'POST',
-      });
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch {
-      return { status: 'error', detail: 'Failed to launch automation' };
-    }
-  },
 
   // Account Management
   async deleteAccount(): Promise<boolean> {
@@ -548,6 +462,23 @@ export const api = {
       return false;
     }
   },
+
+  // RAG / Tone Learning
+  async saveDraftEdit(candidateId: number, originalText: string, editedText: string, contactType: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/drafts/edits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        candidate_id: candidateId,
+        original_text: originalText,
+        edited_text: editedText,
+        contact_type: contactType
+      }),
+    });
+    if (!response.ok) {
+      console.error('Failed to save draft edit for RAG feedback');
+    }
+  }
 };
 
 export interface ExtractedOpportunity {

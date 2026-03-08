@@ -56,6 +56,7 @@ export default function MinimalCandidatePage() {
 
   // LinkedIn message state
   const [linkedinBody, setLinkedinBody] = useState('');
+  const [originalLinkedinBody, setOriginalLinkedinBody] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -72,8 +73,10 @@ export default function MinimalCandidatePage() {
       setIsGenerating(true);
       api.generateDraft(candidateId, '', 'linkedin').then(newDraft => {
           if (newDraft) {
-              setLinkedinBody((newDraft.message || newDraft.body) || '');
-              success('Generated connection message');
+              const draftedText = (newDraft.message || newDraft.body) || '';
+              setLinkedinBody(draftedText);
+              setOriginalLinkedinBody(draftedText);
+              setTimeout(() => success('Generated connection message'), 150); // Defer for UI thread
           }
           setIsGenerating(false);
       }).catch(() => setIsGenerating(false));
@@ -115,12 +118,21 @@ export default function MinimalCandidatePage() {
   const handleCopyMessage = async () => {
     if (!linkedinBody) return error("Message is empty");
     
+    // RAG: Save edit if user modified the text manually before copying
+    if (linkedinBody !== originalLinkedinBody && originalLinkedinBody !== '') {
+        try {
+            await api.saveDraftEdit(candidateId, originalLinkedinBody, linkedinBody, 'linkedin');
+        } catch (err) {
+            console.error('Quietly failing RAG edit save', err);
+        }
+    }
+    
     navigator.clipboard.writeText(linkedinBody);
     
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     
-    await api.markAsSent(candidateId);
+    await api.updateCandidateStatus(candidateId, 'contacted');
     
     // Optimistic local update
     setCandidate(prev => prev ? { ...prev, status: 'contacted' } : null);

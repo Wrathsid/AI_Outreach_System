@@ -118,11 +118,3 @@ async def get_funnel_stats():
     }
 
 
-@router.get("/activity", response_model=List[ActivityLog])
-def get_activity():
-    """Get recent activity logs."""
-    supabase = get_supabase()
-    if supabase:
-        result = supabase.table("activity_log").select("*").order("created_at", desc=True).limit(10).execute()
-        return result.data
-    return []

@@ -31,6 +31,7 @@ async def websocket_discover(websocket: WebSocket, role: str = Query(...), limit
                 from backend.services.lead_processor import polish_single_lead
                 from backend.services.email_generator import EmailGenerator
                 from backend.services.email_verifier import verify_email
+                from backend.services.recommendation import recommendation_service
                 
                 # A. Polish single lead (ultra fast)
                 lead = await polish_single_lead(raw_lead)
@@ -42,7 +43,10 @@ async def websocket_discover(websocket: WebSocket, role: str = Query(...), limit
                 
                 lead["linkedin_url"] = url
                 lead["result_type"] = "person"
-                lead["resonance_score"] = 0.5
+                
+                # Dynamically calculate resonance score based on search query
+                raw_score = recommendation_service.calculate_resonance_score(lead, offer_context=role)
+                lead["resonance_score"] = round(float(raw_score) / 100.0, 2)
                 lead["email_confidence"] = 0
                 
                 guess_result = EmailGenerator.get_best_guess(name, company) or {"email": None, "confidence": 0}

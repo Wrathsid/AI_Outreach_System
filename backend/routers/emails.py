@@ -8,12 +8,10 @@ import re as regex
 from backend.config import get_supabase
 import hashlib
 from backend.models.schemas import (
-    SendEmailRequest, SendEmailDirectRequest, 
     EmailGuessRequest, EmailVerifyRequest, EmailVerifyBatchRequest
 )
 from backend.services.email_generator import EmailGenerator
 from backend.services.email_verifier import verify_email, verify_emails_batch
-from backend.services.email_sender import EmailSender
 from backend.services.embeddings import embeddings_service
 from backend.services.throttle import throttle_service
 import asyncio
@@ -133,107 +131,4 @@ async def verify_candidate_email(candidate_id: int):
     }
 
 
-# ==================== EMAIL SENDING ====================
 
-@router.post("/send")
-async def send_email_direct(request: SendEmailDirectRequest):
-    """Send an email directly via SendGrid."""
-    sender = EmailSender()
-    result = await sender.send(
-        to_email=request.to_email,
-        subject=request.subject,
-        body=request.body,
-        reply_to=request.reply_to
-    )
-    return result
-
-
-
-
-
-@router.post("/draft/{draft_id}/send")
-async def send_draft(draft_id: int):
-    """Send a draft email to the candidate."""
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
-    
-    draft_result = supabase.table("drafts").select("*, candidates(*)").eq("id", draft_id).single().execute()
-    if not draft_result.data:
-        raise HTTPException(status_code=404, detail="Draft not found")
-    
-    draft = draft_result.data
-    candidate = draft.get("candidates", {})
-    
-    to_email = candidate.get("email")
-    if not to_email:
-        raise HTTPException(status_code=400, detail="Candidate has no email address")
-    
-    # Phase 3: Adaptive Throttle Check
-    throttle = throttle_service.is_safe_to_send(supabase, channel="email")
-    if not throttle["allowed"]:
-        raise HTTPException(status_code=429, detail=throttle["reason"])
-
-    # Human-like delay
-    await asyncio.sleep(throttle_service.get_random_delay())
-    
-    sender = EmailSender()
-    result = await sender.send(
-        to_email=to_email,
-        subject=draft.get("subject"),
-        body=draft.get("body")
-    )
-    
-    if result.get("success"):
-        supabase.table("drafts").update({"status": "sent"}).eq("id", draft_id).execute()
-        supabase.table("candidates").update({
-            "status": "contacted",
-            "sent_at": datetime.now(timezone.utc).isoformat()
-        }).eq("id", candidate.get("id")).execute()
-        
-        supabase.table("activity_log").insert({
-            "action_type": "email_sent",
-            "title": f"Email sent to {candidate.get('name')}",
-            "description": f"Subject: {draft.get('subject')}",
-            "candidate_id": candidate.get("id")
-        }).execute()
-
-        # Record opener in sent_openers for Anti-Repetition Memory (Optimization 13)
-        try:
-            body = draft.get("body", "")
-            first_line = body.split('\n')[0].strip()
-            if "," in first_line and len(first_line.split(',')[0]) < 20: 
-                parts = first_line.split(',', 1)
-                if len(parts) > 1:
-                    opener = parts[1].strip()
-                else:
-                    opener = first_line
-            else:
-                opener = first_line
-            
-            if opener:
-                opener_hash = hashlib.md5(opener.lower().encode()).hexdigest()
-                embedding = embeddings_service.generate_embedding(opener)
-                supabase.table("sent_openers").insert({
-                    "opener_hash": opener_hash,
-                    "embedding": embedding
-                }).execute()
-        except Exception as e:
-            from backend.config import logger
-            logger.error(f"Failed to record opener memory in send_draft: {e}")
-    
-    return {
-        "draft_id": draft_id,
-        "to": to_email,
-        "result": result
-    }
-
-
-@router.get("/sent")
-def get_sent_emails():
-    """Get all sent emails."""
-    supabase = get_supabase()
-    if supabase:
-        result = supabase.table("sent_emails").select("*").order("sent_at", desc=True).execute()
-        return {"emails": result.data}
-    return {"emails": []}

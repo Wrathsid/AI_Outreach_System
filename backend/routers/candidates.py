@@ -156,18 +156,22 @@ def create_candidate(candidate: CandidateCreate):
                 return existing_li.data[0]
 
         # 2. Proceed with creation if no duplicate found
-        # Calculate Match Score using Resonance Service (Phase 3)
         candidate_data = candidate.model_dump()
-        try:
-             # Calculate resonance score (0-100)
-             from backend.services.recommendation import recommendation_service
-             score = recommendation_service.calculate_resonance_score(candidate_data)
-             logger.info(f"Calculated Resonance Score: {score}")
-        except Exception as e:
-            logger.error(f"Resonance scoring failed: {e}")
-            score = 0
         
-        candidate_data["match_score"] = score
+        score = candidate_data.get("match_score", 0)
+
+        # Only recalculate if the frontend didn't pass a valid score
+        if score <= 0:
+            try:
+                 # Calculate resonance score (0-100)
+                 from backend.services.recommendation import recommendation_service
+                 score = recommendation_service.calculate_resonance_score(candidate_data)
+                 logger.info(f"Calculated Resonance Score: {score}")
+            except Exception as e:
+                logger.error(f"Resonance scoring failed: {e}")
+                score = 0
+            
+            candidate_data["match_score"] = score
 
         try:
             result = supabase.table("candidates").insert(candidate_data).execute()

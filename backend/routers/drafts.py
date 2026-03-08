@@ -16,7 +16,7 @@ import logging
 import os
 
 from backend.config import get_supabase, generate_with_gemini, generate_with_qubrid, get_qubrid_client, logger
-from backend.models.schemas import Draft, DraftCreate, IntentType, GenerationReason
+from backend.models.schemas import Draft, DraftCreate, DraftEditCreate, IntentType, GenerationReason
 from backend.services.embeddings import embeddings_service
 from backend.services.verifier import verify_skills_grounding
 
@@ -52,6 +52,9 @@ PROMPT_VERSION = "v1.3"
 # ============================================================
 _brain_cache: dict = {}
 _BRAIN_CACHE_TTL = 300  # 5 minutes
+
+_biased_params_cache: dict = {}
+_BIASED_PARAMS_TTL = 900  # 15 minutes
 
 
 # ============================================================
@@ -307,15 +310,24 @@ def get_recent_openers(supabase, limit: int = 5) -> List[str]:
 
 
 def get_biased_parameters(supabase) -> Dict:
-    """Analyze which parameters led to replies (Optimization Phase 2)."""
+    """Analyze which parameters led to replies (Optimization Phase 2) with caching."""
+    now = time.time()
+    if "_params" in _biased_params_cache and (now - _biased_params_cache.get("_ts", 0)) < _BIASED_PARAMS_TTL:
+        return _biased_params_cache["_params"]
+        
     try:
         # Fetch up to 100 recent replied drafts
         res = supabase.table("drafts").select("generation_params").eq("reply_status", "replied").limit(100).execute()
+        
         if not res.data:
+            _biased_params_cache["_params"] = {}
+            _biased_params_cache["_ts"] = now
             return {}
         
         params_list = [d["generation_params"] for d in res.data if d.get("generation_params")]
         if not params_list:
+            _biased_params_cache["_params"] = {}
+            _biased_params_cache["_ts"] = now
             return {}
         
         # Calculate heuristics
@@ -331,12 +343,15 @@ def get_biased_parameters(supabase) -> Dict:
         signals = [p.get("signal_type") for p in params_list if p.get("signal_type")]
         p_signal = max(set(signals), key=signals.count) if signals else None
 
-        return {
+        result = {
             "suggested_temperature": round(avg_temp, 2) if avg_temp else None,
             "best_intent": p_intent,
             "best_signal_type": p_signal,
             "sample_size": len(params_list)
         }
+        _biased_params_cache["_params"] = result
+        _biased_params_cache["_ts"] = now
+        return result
     except Exception as e:
         logger.error(f"Parameter biasing retrieval failed: {e}")
         return {}
@@ -906,6 +921,29 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
     # Initialize Supabase client for memory features
     sb_client = get_supabase()
 
+    # RAG: Fetch recent user edits for tone matching
+    try:
+        edits_data = sb_client.table("draft_edits") \
+            .select("original_text, edited_text") \
+            .eq("contact_type", contact_type) \
+            .order("created_at", desc=True) \
+            .limit(3) \
+            .execute()
+        recent_edits = edits_data.data if edits_data else []
+    except Exception as e:
+        logger.error(f"Failed to fetch draft edits for RAG: {str(e)}")
+        recent_edits = []
+
+    rag_context = ""
+    if recent_edits:
+        rag_context = "\n\nPAST TONE EXAMPLES (RAG FEEDBACK):\n"
+        rag_context += "The user has previously manually edited your drafts to sound more like them. Study these examples to match their style:\n"
+        for idx, edit in enumerate(recent_edits):
+            rag_context += f"--- Example {idx+1} ---\n"
+            rag_context += f"Original: {edit.get('original_text', '')}\n"
+            rag_context += f"User's Edit: {edit.get('edited_text', '')}\n"
+        rag_context += "Focus on exactly how they change your phrasing and word choice. Adopt their edited style.\n"
+
     # Generate variants with CHANNEL-SPECIFIC temperatures (Gemini Tuning)
     # LinkedIn: 0.35 - 0.45 (Strict control)
     # Email: 0.45 - 0.55 (Slight flow)
@@ -927,6 +965,9 @@ async def generate_with_scoring(prompt: str, contact_type: str, candidate_contex
                 intent_value = IntentType.CURIOUS
         
         system_prompt = SYSTEM_PROMPTS.get(intent_value, SYSTEM_PROMPTS[IntentType.CURIOUS])
+        
+        if rag_context:
+            system_prompt += rag_context
         
         # Create a coroutine for each generation task (Prio: Qubrid -> Gemini)
         if get_qubrid_client():
@@ -1204,15 +1245,6 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         raise HTTPException(status_code=500, detail="Database not configured")
     
     try:
-        # 1. Fetch Candidate Data
-        raw_candidate = supabase.table("candidates").select("*").eq("id", candidate_id).single().execute().data
-        if not raw_candidate:
-            raise HTTPException(status_code=404, detail="Candidate not found")
-        
-        # 1.5 CRITICAL: Clean candidate data before it touches any prompt
-        c = clean_candidate_data(raw_candidate)
-        logger.info(f"Data quality for candidate {candidate_id}: {c['_data_quality']}/4 | Name: {c.get('name')} | Title: {c.get('title')} | Company: {c.get('company')}")
-            
         # Auto-detect contact type
         if contact_type == "auto":
             contact_type = "linkedin"  # Email drafting disabled
@@ -1221,25 +1253,48 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         if contact_type not in VALID_CHANNELS:
             raise HTTPException(status_code=400, detail=f"Invalid contact_type: {contact_type}. Must be one of {VALID_CHANNELS}")
 
-        # 2. Fetch User/Brain Context (Moved UP for H1 Fingerprinting)
-        settings = {"full_name": "Siddharth", "company": "Antigravity", "role": "Founder"}  # Fallback
-        brain = {"extracted_skills": [], "resume_text": ""}
-        try:
-            s_data = supabase.table("user_settings").select("*").eq("id", 1).execute().data
-            if s_data:
-                settings = s_data[0]
-            
-            # P2: Check cache first
-            cached_brain = get_cached_brain_context(supabase)
-            if cached_brain:
-                brain = cached_brain
-        except Exception as e:
-            logger.error(f"Context fetch error: {e}")
+        # PRE-FLIGHT: Run all independent DB queries concurrently (Massive TTFT Reduction)
+        def _fetch_candidate():
+            try: return supabase.table("candidates").select("*").eq("id", candidate_id).single().execute().data
+            except Exception: return None
 
+        def _fetch_settings():
+            try:
+                res = supabase.table("user_settings").select("*").eq("id", 1).execute()
+                return res.data[0] if res and res.data else {"full_name": "Siddharth", "company": "Antigravity", "role": "Founder"}
+            except Exception: return {"full_name": "Siddharth", "company": "Antigravity", "role": "Founder"}
+                
+        def _fetch_last_draft():
+            try: return supabase.table("drafts").select("*").eq("candidate_id", candidate_id).order("created_at", desc=True).limit(1).execute().data
+            except Exception: return []
+
+        (
+            raw_candidate, 
+            settings, 
+            brain, 
+            existing_query_data,
+            recent_openers, 
+            biased_params
+        ) = await asyncio.gather(
+            asyncio.to_thread(_fetch_candidate),
+            asyncio.to_thread(_fetch_settings),
+            asyncio.to_thread(get_cached_brain_context, supabase),
+            asyncio.to_thread(_fetch_last_draft),
+            asyncio.to_thread(get_recent_openers, supabase),
+            asyncio.to_thread(get_biased_parameters, supabase)
+        )
+
+        # 1. Validate Candidate Data
+        if not raw_candidate:
+            raise HTTPException(status_code=404, detail="Candidate not found")
+        
+        # 1.5 CRITICAL: Clean candidate data before it touches any prompt
+        c = clean_candidate_data(raw_candidate)
+        logger.info(f"Data quality for candidate {candidate_id}: {c['_data_quality']}/4 | Name: {c.get('name')} | Title: {c.get('title')} | Company: {c.get('company')}")
+            
         sender_intro = f"{settings.get('full_name', 'Siddharth')} from {settings.get('company', 'Antigravity')}"
 
         # H1: Compute Deterministic Fingerprint
-        # We need tone_directive early for the hash
         tone_directive = CHANNEL_TONE.get(contact_type, "")
         fingerprint = generate_fingerprint(
             candidate_id, 
@@ -1250,57 +1305,43 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         )
 
         # R1 & H1: Idempotency Check
-        # Return existing draft if:
-        # 1. Generated < 60s ago (R1)
-        # 2. Fingerprint matches exactly (H1 - Smart Idempotency)
-        try:
+        if existing_query_data:
+            d = existing_query_data[0]
             recent_cutoff = (datetime.utcnow() - timedelta(seconds=60)).isoformat()
-            # Fetch latest draft for this candidate
-            existing_query = supabase.table("drafts") \
-                .select("*") \
-                .eq("candidate_id", candidate_id) \
-                .order("created_at", desc=True) \
-                .limit(1) \
-                .execute()
+            created_at = d.get("created_at")
+            stored_params = d.get("generation_params") or {}
+            stored_fingerprint = stored_params.get("fingerprint")
             
-            if existing_query.data:
-                d = existing_query.data[0]
-                created_at = d.get("created_at")
-                stored_params = d.get("generation_params") or {}
-                stored_fingerprint = stored_params.get("fingerprint")
+            is_recent = created_at >= recent_cutoff
+            is_fingerprint_match = (stored_fingerprint == fingerprint)
+            
+            if is_recent or is_fingerprint_match:
+                reason_code = GenerationReason.IDEMPOTENT_RETURN
+                logger.info(f"Idempotent hit: candidate {candidate_id} | Recent: {is_recent} | HashMatch: {is_fingerprint_match}")
                 
-                is_recent = created_at >= recent_cutoff
-                is_fingerprint_match = (stored_fingerprint == fingerprint)
-                
-                if is_recent or is_fingerprint_match:
-                    reason_code = GenerationReason.IDEMPOTENT_RETURN
-                    logger.info(f"Idempotent hit: candidate {candidate_id} | Recent: {is_recent} | HashMatch: {is_fingerprint_match}")
-                    
-                    if contact_type == "linkedin":
-                        return {
-                            "type": "linkedin", "message": d.get("body", ""),
-                            "char_count": len(d.get("body", "")),
-                            "quality_score": stored_params.get("score", 0),
-                            "draft_id": d["id"],
-                            "time_to_read": calculate_time_to_read(d.get("body", "")),
-                            "variant_id": d.get("variant_id"), 
-                            "is_idempotent": True,
-                            "reason": reason_code
-                        }
-                    else:
-                        return {
-                            "type": "email", "subject": d.get("subject", ""),
-                            "body": d.get("body", ""),
-                            "word_count": len(d.get("body", "").split()),
-                            "quality_score": stored_params.get("score", 0),
-                            "draft_id": d["id"],
-                            "time_to_read": calculate_time_to_read(d.get("body", "")),
-                            "variant_id": d.get("variant_id"), 
-                            "is_idempotent": True,
-                            "reason": reason_code
-                        }
-        except Exception as e:
-            logger.warning(f"Idempotency check failed (non-fatal): {e}")
+                if contact_type == "linkedin":
+                    return {
+                        "type": "linkedin", "message": d.get("body", ""),
+                        "char_count": len(d.get("body", "")),
+                        "quality_score": stored_params.get("score", 0),
+                        "draft_id": d["id"],
+                        "time_to_read": calculate_time_to_read(d.get("body", "")),
+                        "variant_id": d.get("variant_id"), 
+                        "is_idempotent": True,
+                        "reason": reason_code
+                    }
+                else:
+                    return {
+                        "type": "email", "subject": d.get("subject", ""),
+                        "body": d.get("body", ""),
+                        "word_count": len(d.get("body", "").split()),
+                        "quality_score": stored_params.get("score", 0),
+                        "draft_id": d["id"],
+                        "time_to_read": calculate_time_to_read(d.get("body", "")),
+                        "variant_id": d.get("variant_id"), 
+                        "is_idempotent": True,
+                        "reason": reason_code
+                    }
 
         # R2: Hard fail-fast on missing brain context
         if not brain.get("extracted_skills") and not brain.get("resume_text"):
@@ -1373,8 +1414,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         # 3. CONTEXT COMPRESSION & MEMORY (Priority 2, 13)
         signal = extract_primary_signal(c)
         
-        # Fetch Memory (Avoid Repetition)
-        recent_openers = get_recent_openers(supabase)
+        # Fetch Memory (Avoid Repetition) - Used pre-fetched concurrent result
         memory_constraint = ""
         if recent_openers:
             blocklist = "\\n- ".join(recent_openers)
@@ -1383,7 +1423,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         logger.info(f"Primary signal: {signal['signal']} | Avoid: {signal['avoid']}")
 
         # 4. Build Prompt (Optimization 11, 12, 17)
-        biased_params = get_biased_parameters(supabase)
+        # Used pre-fetched concurrent result
         logger.info(f"Biasing suggestions: {biased_params}")
 
         # CONTEXT-AWARE CLASSIFICATION
@@ -1848,11 +1888,50 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         # If AI fails, return basic template based on signal
         print("Falling back to Template Logic...")
 
-from fastapi import Request
+from fastapi import Request, BackgroundTasks
+import asyncio
+import uuid
+
+# In-memory dictionary to track batch operations (works for single-instance/local)
+# In a distributed multi-instance deployment, this would use Redis or Postgres.
+_BATCH_TASKS = {}
+
+async def _process_batch_drafts(task_id: str, candidate_ids: list, context: str, contact_type: str):
+    """Background task to generate drafts sequentially without blocking."""
+    _BATCH_TASKS[task_id] = {
+        "status": "running", 
+        "completed": 0, 
+        "total": len(candidate_ids), 
+        "successful": 0, 
+        "failed": 0, 
+        "results": []
+    }
+    
+    for cid in candidate_ids:
+        try:
+            # We call the existing generate_draft function directly
+            result = await generate_draft(candidate_id=cid, context=context, contact_type=contact_type)
+            if result:
+                _BATCH_TASKS[task_id]["successful"] += 1
+                _BATCH_TASKS[task_id]["results"].append({"candidate_id": cid, "status": "success", "data": result})
+            else:
+                _BATCH_TASKS[task_id]["failed"] += 1
+                _BATCH_TASKS[task_id]["results"].append({"candidate_id": cid, "status": "error", "error": "No result returned"})
+        except Exception as e:
+            logger.error(f"Batch generation error for candidate {cid}: {e}")
+            _BATCH_TASKS[task_id]["failed"] += 1
+            _BATCH_TASKS[task_id]["results"].append({"candidate_id": cid, "status": "error", "error": str(e)})
+            
+        _BATCH_TASKS[task_id]["completed"] += 1
+        
+        # Yield to event loop to prevent blocking other API requests
+        await asyncio.sleep(0.1)
+        
+    _BATCH_TASKS[task_id]["status"] = "completed"
 
 @router.post("/generate-batch")
-async def generate_drafts_batch(request: Request, body: dict):
-    """Start a Temporal workflow for batch draft generation."""
+async def generate_drafts_batch(body: dict, background_tasks: BackgroundTasks):
+    """Start a background task for batch draft generation."""
     candidate_ids = body.get("candidate_ids", [])
     context = body.get("context", "")
     contact_type = body.get("contact_type", "auto")
@@ -1860,51 +1939,38 @@ async def generate_drafts_batch(request: Request, body: dict):
     if not candidate_ids:
         raise HTTPException(status_code=400, detail="No candidate IDs provided")
         
-    client = request.app.state.temporal_client
-    if not client:
-        return {"status": "error", "message": "Temporal client not connected"}
-        
-    import uuid
     task_id = f"batch-draft-{uuid.uuid4()}"
     
-    try:
-        from backend.temporal.draft_workflows import BatchDraftWorkflow
-        
-        # Start the workflow in the background. Does not block!
-        handle = await client.start_workflow(
-            BatchDraftWorkflow.run,
-            args=[candidate_ids, context, contact_type],
-            id=task_id,
-            task_queue="draft-task-queue"
-        )
-        return {"status": "running", "message": "Batch draft generation started", "task_id": task_id}
-    except Exception as e:
-        logger.error(f"Failed to start batch draft workflow: {e}")
-        return {"status": "error", "message": str(e)}
+    # Add the processing function to FastAPI's built-in BackgroundTasks
+    background_tasks.add_task(_process_batch_drafts, task_id, candidate_ids, context, contact_type)
+    
+    return {"status": "running", "message": "Batch draft generation started", "task_id": task_id}
 
 @router.get("/batch/{task_id}/status")
-async def get_batch_status(request: Request, task_id: str):
-    """Check the status of a Temporal batch draft workflow."""
-    client = request.app.state.temporal_client
-    if not client:
-         return {"status": "error", "message": "Temporal client not connected"}
-         
-    try:
-        handle = client.get_workflow_handle(task_id)
-        description = await handle.describe()
+async def get_batch_status(task_id: str):
+    """Check the status of a background batch draft workflow."""
+    task_info = _BATCH_TASKS.get(task_id)
+    
+    if not task_info:
+        return {"status": "error", "message": "Task not found or expired"}
         
-        from temporalio.client import WorkflowExecutionStatus
-        
-        # Check if it was completed
-        if description.status == WorkflowExecutionStatus.COMPLETED:
-            results = await handle.result()
-            # The workflow returns {"total": X, "successful": Y, "failed": Z, "results": [...]}
-            return {"status": "completed", **results}
-        elif description.status == WorkflowExecutionStatus.FAILED:
-            return {"status": "failed", "message": "Workflow failed"}
-        else:
-            return {"status": "running", "completed": 0, "total": 0} # We don't have partial progress yet
-            
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+    return task_info
 
+@router.post("/edits")
+async def save_draft_edit(edit: DraftEditCreate):
+    """Save user manual edits for RAG feedback loop."""
+    try:
+        sb_client = get_supabase()
+        
+        data = {
+            "candidate_id": edit.candidate_id,
+            "original_text": edit.original_text,
+            "edited_text": edit.edited_text,
+            "contact_type": edit.contact_type
+        }
+        
+        result = sb_client.table("draft_edits").insert(data).execute()
+        return {"status": "success", "message": "Draft edit saved for RAG feedback"}
+    except Exception as e:
+        logger.error(f"Error saving draft edit: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -8,7 +8,7 @@ backend_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(backend_path))
 
 import pytest
-from backend.temporal.activities import polish_leads_activity
+from backend.services.lead_processor import polish_leads_activity
 
 @pytest.mark.asyncio
 async def test_polish():
@@ -41,7 +41,8 @@ async def test_polish():
         else:
             print(f"❌ FAIL: Expected Jude Rushford, got {lead.get('name')}")
             
-        if "..." not in lead.get('summary'):
+        summary = lead.get('summary') or ""
+        if "..." not in summary:
             print("✅ SUCCESS: Summary reconstructed without truncation!")
         else:
             print("❌ FAIL: Summary still contains truncation markers (...)")

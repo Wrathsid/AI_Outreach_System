@@ -12,8 +12,7 @@ from collections import defaultdict
 from typing import Dict
 
 from backend.config import setup_cors
-from backend.routers import candidates, drafts, discovery, emails, stats, settings, auth, automation
-from backend.dependencies import get_current_user
+from backend.routers import candidates, drafts, discovery, emails, stats, settings
 
 # ============================================================
 # RATE LIMITING (Priority 6)
@@ -23,6 +22,10 @@ rate_limit_storage: Dict[str, list] = defaultdict(list)
 
 async def rate_limit_middleware(request: Request, call_next):
     """Rate limit sensitive endpoints (AI generation, discovery)."""
+    # WebSockets are handled differently, skip HTTP middleware
+    if request.scope["type"] == "websocket":
+        return await call_next(request)
+        
     path = request.url.path
     
     # Only rate-limit specific endpoints
@@ -55,39 +58,12 @@ async def rate_limit_middleware(request: Request, call_next):
     
     return await call_next(request)
 
-from contextlib import asynccontextmanager
-import os
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # On Vercel serverless, skip Temporal entirely (no long-running connections)
-    if os.getenv("VERCEL"):
-        app.state.temporal_client = None
-        logger.info("Running on Vercel — Temporal disabled")
-        yield
-        return
-
-    # Local / Railway: connect to Temporal
-    try:
-        from temporalio.client import Client
-        temporal_addr = os.getenv("TEMPORAL_ADDRESS", "127.0.0.1:7233")
-        logger.info(f"Connecting to Temporal at {temporal_addr}...")
-        app.state.temporal_client = await Client.connect(temporal_addr)
-        logger.info("Temporal client connected and stored in app state.")
-    except Exception as e:
-        logger.error(f"Failed to connect to Temporal: {e}")
-        app.state.temporal_client = None
-        
-    yield
-
 # Initialize FastAPI app
 app = FastAPI(
     title="Intelligent Outreach Backend",
     description="API for intelligent outreach with AI-powered discovery and drafting",
-    version="2.0.0",
-    lifespan=lifespan
+    version="2.0.0"
 )
-
 # Add rate limiting middleware
 app.middleware("http")(rate_limit_middleware)
 
@@ -111,10 +87,7 @@ app.include_router(discovery.router, prefix="/discover", tags=["Discovery"])
 app.include_router(emails.router, prefix="/emails", tags=["Emails"], dependencies=[Depends(get_current_user)])
 app.include_router(stats.router, prefix="/stats", tags=["Stats"], dependencies=[Depends(get_current_user)])
 app.include_router(settings.router, prefix="/settings", tags=["Settings"], dependencies=[Depends(get_current_user)])
-app.include_router(automation.router, prefix="/automation", tags=["Automation"], dependencies=[Depends(get_current_user)])
 
-# Auth router contains public callbacks, do not secure globally
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 
 
 if __name__ == "__main__":

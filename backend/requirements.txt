@@ -14,4 +14,3 @@ sentence-transformers
 playwright
 serpapi
 duckduckgo-search
-temporalio

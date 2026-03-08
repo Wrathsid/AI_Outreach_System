@@ -105,6 +105,13 @@ class DraftCreate(BaseModel):
     variant_id: Optional[str] = None
     generation_params: Optional[dict] = None
 
+class DraftEditCreate(BaseModel):
+    """Model for recording manual template edits (RAG Feedback)."""
+    candidate_id: int
+    original_text: str
+    edited_text: str
+    contact_type: str
+
 
 # ==================== EMAIL MODELS ====================
 
