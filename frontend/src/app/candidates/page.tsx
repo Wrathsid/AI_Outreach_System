@@ -15,7 +15,7 @@ import { useRef } from 'react';
 const STATUS_OPTIONS = ['new', 'contacted', 'snoozed'] as const;
 
 const STATUS_STYLES: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  new: { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400', label: 'New' },
+  new: { bg: 'bg-blue-500/10', text: 'text-blue-400', dot: 'bg-blue-400', label: 'Non-contacted' },
   contacted: { bg: 'bg-amber-500/10', text: 'text-amber-400', dot: 'bg-amber-400', label: 'Contacted' },
 
   snoozed: { bg: 'bg-slate-500/10', text: 'text-slate-400', dot: 'bg-slate-400', label: 'Snoozed' },
@@ -225,7 +225,21 @@ const CandidatesPage = () => {
         setLoading(false);
       }
     });
-    return () => { isMounted = false; };
+
+    const refreshData = () => {
+      api.getCandidates().then(data => {
+        if (isMounted) setCandidates(data);
+      });
+    };
+
+    window.addEventListener('popstate', refreshData);
+    window.addEventListener('candidates_updated', refreshData);
+    
+    return () => { 
+      isMounted = false; 
+      window.removeEventListener('popstate', refreshData);
+      window.removeEventListener('candidates_updated', refreshData);
+    };
   }, []);
 
   // Count by status
@@ -245,14 +259,14 @@ const CandidatesPage = () => {
 
   const statCards = [
     { label: 'Total Leads', value: totalCount, bg: 'bg-white/5', border: 'border-white/10', labelColor: 'text-slate-400', valueColor: 'text-white' },
-    { label: 'New', value: counts.new, bg: 'bg-blue-500/10', border: 'border-blue-500/20', labelColor: 'text-blue-400', valueColor: 'text-blue-500' },
+    { label: 'Non-contacted', value: counts.new, bg: 'bg-blue-500/10', border: 'border-blue-500/20', labelColor: 'text-blue-400', valueColor: 'text-blue-500' },
     { label: 'Contacted', value: counts.contacted, bg: 'bg-amber-500/10', border: 'border-amber-500/20', labelColor: 'text-amber-400', valueColor: 'text-amber-500' },
 
   ];
 
   const filterTabs = [
     { key: 'all', label: 'All', count: totalCount },
-    { key: 'new', label: 'New', count: counts.new },
+    { key: 'new', label: 'Non-contacted', count: counts.new },
     { key: 'contacted', label: 'Contacted', count: counts.contacted },
 
     { key: 'snoozed', label: 'Snoozed', count: counts.snoozed },

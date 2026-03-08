@@ -50,6 +50,7 @@ export default function MinimalCandidatePage() {
       error('Failed to update status');
     } else {
       success(`Marked as ${newStatus === 'contacted' ? 'Contacted' : 'Non-contacted'}`);
+      router.refresh();
     }
   };
 

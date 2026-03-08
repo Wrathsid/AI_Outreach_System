@@ -257,6 +257,9 @@ export const api = {
       const res = await fetchWithAuth(`${API_BASE}/candidates/${id}/status?status=${status}`, {
         method: 'PATCH',
       });
+      if (res.ok && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('candidates_updated'));
+      }
       return res.ok;
     } catch {
       return false;
