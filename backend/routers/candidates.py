@@ -61,6 +61,7 @@ def get_sent_candidates():
             .select("*") \
             .not_.is_("sent_at", "null") \
             .order("sent_at", desc=True) \
+            .limit(500) \
             .execute()
         return result.data
     except Exception as e:
@@ -106,7 +107,7 @@ def get_all_candidates():
     """Get all candidates ordered by creation date."""
     supabase = get_supabase()
     if supabase:
-        result = supabase.table("candidates").select("*").order("created_at", desc=True).execute()
+        result = supabase.table("candidates").select("*").order("created_at", desc=True).limit(500).execute()
         return result.data
     return []
 

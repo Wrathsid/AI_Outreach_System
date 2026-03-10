@@ -206,7 +206,7 @@ const CandidatesPage = () => {
     setLoading(false);
   };
 
-  const handleStatusChange = async (id: number, newStatus: string) => {
+  const handleStatusChange = React.useCallback(async (id: number, newStatus: string) => {
     // Optimistic update
     setCandidates(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c));
     try {
@@ -215,7 +215,7 @@ const CandidatesPage = () => {
     } catch {
       loadCandidates(); // Revert on failure
     }
-  };
+  }, [successToast, loadCandidates]);
 
   useEffect(() => {
     let isMounted = true;
