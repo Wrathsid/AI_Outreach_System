@@ -112,8 +112,8 @@ def assemble_prompt(sections: dict) -> str:
 # Q2: PERSONA ANCHOR
 # ============================================================
 PERSONA_ANCHOR = """
-PERSONA: You are Siddharth Chavan, a DevOps-focused engineer actively looking for job opportunities.
-You speak as yourself — first person, direct, technical but approachable.
+PERSONA: You are the applicant described in the context below, actively looking for job opportunities.
+You speak as yourself — first person, direct, professional but approachable.
 You are a JOB APPLICANT. Every message you write is a job application or inquiry about open positions.
 You never write generic networking messages or "looking to connect" messages.
 You never introduce yourself in third person.
@@ -789,7 +789,7 @@ def extract_primary_signal(candidate: dict) -> Dict[str, str]:
         }
     
     return {
-        'signal': 'DevOps and cloud infrastructure',
+        'signal': 'the tech sector',
         'type': 'user_interest',
         'avoid': 'making assumptions about their work',
         'is_generic': True
@@ -836,9 +836,9 @@ def generate_fallback_draft(candidate: dict, sender_intro: str, signal: str, int
             role_label = hiring_role or title
             company_label = company if has_company else "your team"
             options = [
-                f"{greeting}, I noticed your post about hiring for a {role_label} position. I am a DevOps engineer with a strong background in cloud infrastructure, automation, and site reliability, and I am very interested in this opportunity.\n\nThroughout my career, I have focused on building scalable and resilient systems. I have extensive experience with Infrastructure as Code using Terraform, container orchestration with Kubernetes, and implementing comprehensive CI/CD pipelines that allow teams to ship code faster without compromising stability. I treat every deployment as a software engineering problem, ensuring everything is version-controlled, tested, and repeatable.\n\nI believe my skills in cloud architecture, Linux systems, and automation align well with what {company_label} is looking for. I would love the opportunity to discuss how my background can contribute to the goals of this role. Would you be open to reviewing my profile or scheduling a brief call?",
-                f"{greeting}, came across your post about the {role_label} opening at {company_label}. I wanted to reach out directly to express my interest and share a bit about my relevant background.\n\nI am an infrastructure engineer deeply passionate about automation and reliability. My experience spans managing complex cloud environments on AWS and GCP, designing zero-downtime deployment strategies, and building observability stacks with Prometheus and Grafana. I am a firm believer in the SRE philosophy of treating operations as a software challenge.\n\nThe {role_label} role you posted about resonates strongly with my career trajectory. I am confident that my hands-on experience with DevOps tooling and cloud-native architectures can add real value to your engineering team. Would you be available for a quick conversation about this opportunity, or would it be best if I sent over my resume?",
-                f"{greeting}, saw that {company_label} is looking for a {role_label}. I am actively looking for my next opportunity in cloud infrastructure and DevOps, and this position seems like a great match for my skill set.\n\nOver the past several years, I have built deep expertise in designing and maintaining highly available cloud systems. I excel at writing automation in Python and Bash, managing Kubernetes clusters at scale, and implementing security best practices across the entire deployment pipeline. I am driven by the challenge of turning complex manual processes into elegant, automated workflows.\n\nI am very enthusiastic about this opportunity and would welcome the chance to discuss how my experience aligns with the requirements. Could we connect to talk further, or would you prefer I share my resume directly?",
+                f"{greeting}, I noticed your post about hiring for a {role_label} position. I am an experienced professional with a strong background in my field, and I am very interested in this opportunity.\n\nThroughout my career, I have focused on building scalable and resilient systems. I have extensive experience with Infrastructure as Code using Terraform, container orchestration with Kubernetes, and implementing comprehensive CI/CD pipelines that allow teams to ship code faster without compromising stability. I treat every deployment as a software engineering problem, ensuring everything is version-controlled, tested, and repeatable.\n\nI believe my skills in cloud architecture, Linux systems, and automation align well with what {company_label} is looking for. I would love the opportunity to discuss how my background can contribute to the goals of this role. Would you be open to reviewing my profile or scheduling a brief call?",
+                f"{greeting}, came across your post about the {role_label} opening at {company_label}. I wanted to reach out directly to express my interest and share a bit about my relevant background.\n\nI am deeply passionate about automation, efficiency, and delivering high quality results. My experience spans managing complex cloud environments on AWS and GCP, designing zero-downtime deployment strategies, and building observability stacks with Prometheus and Grafana. I am a firm believer in the SRE philosophy of treating operations as a software challenge.\n\nThe {role_label} role you posted about resonates strongly with my career trajectory. I am confident that my hands-on experience with industry best practices and modern architectures can add real value to your engineering team. Would you be available for a quick conversation about this opportunity, or would it be best if I sent over my resume?",
+                f"{greeting}, saw that {company_label} is looking for a {role_label}. I am actively looking for my next opportunity in my field, and this position seems like a great match for my skill set.\n\nOver the past several years, I have built deep expertise in designing and maintaining highly available systems. I excel at driving process improvements, managing workflows at scale, and implementing security best practices across the entire deployment pipeline. I am driven by the challenge of turning complex manual processes into elegant, automated workflows.\n\nI am very enthusiastic about this opportunity and would welcome the chance to discuss how my experience aligns with the requirements. Could we connect to talk further, or would you prefer I share my resume directly?",
             ]
             return random.choice(options)
         
@@ -847,51 +847,51 @@ def generate_fallback_draft(candidate: dict, sender_intro: str, signal: str, int
             if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
                 # OPPORTUNITY TEMPLATES (Direct Hiring Ask)
                 options = [
-                    f"{greeting}, noticed you're recruiting at {company}. I am reaching out because I am a DevOps engineer with a very strong background in cloud infrastructure, automation, and site reliability engineering.\n\nThroughout my career, I have consistently focused on building scalable, resilient systems that can handle high traffic while minimizing downtime. I am deeply passionate about automating repetitive tasks using tools like Terraform, Ansible, and Kubernetes, ensuring that deployments are seamless and environments are consistent from development to production.\n\nI noticed that {company} is pushing the boundaries in your industry, and I would love to bring my expertise in Linux systems and CI/CD pipelines to your engineering team. Are you currently open to reviewing my profile for any relevant infrastructure roles? I'd love to connect and see if there is a mutual fit.",
-                    f"{greeting}, saw {company} is hiring. I specialize in DevOps and site reliability, and I am reaching out to explore potential synergies between my skillset and your engineering needs.\n\nMy approach to infrastructure is heavily rooted in Infrastructure as Code (IaC) principles. I believe that every aspect of the deployment lifecycle should be version-controlled, testable, and automated. I have extensive experience managing AWS environments, orchestrating containerized applications, and setting up robust monitoring and alerting systems to catch issues before they impact users.\n\nAs {company} continues to scale, having reliable backend operations is critical. I'd love to discuss how my background in SRE can help your team achieve its goals. Would you be open to a brief chat about your engineering needs or connecting so I can share my resume?",
-                    f"{greeting}, verified your role at {company}. I'm looking for DevOps/SRE opportunities and wanted to share a bit about my technical philosophy and background.\n\nI have spent years honing my skills in cloud architecture, focusing on creating systems that are not just functional, but highly optimized and secure. I thrive in environments where infrastructure is treated like software, utilizing robust CI/CD pipelines to accelerate development cycles without sacrificing stability. Whether it's managing complex Linux clusters or optimizing Database performance, I am driven by the challenge of solving hard infrastructure problems.\n\nI admire the technical work happening at {company} and would be thrilled to contribute my expertise. Are you hiring for any roles that match this profile, or open to reviewing my background for future opportunities? Worth a quick look?"
+                    f"{greeting}, noticed you're recruiting at {company}. I am reaching out because I am an experienced professional with a very strong background in solving complex technical problems.\n\nThroughout my career, I have consistently focused on building scalable, resilient systems that can handle high traffic while minimizing downtime. I am deeply passionate about automating repetitive tasks using tools like Terraform, Ansible, and Kubernetes, ensuring that deployments are seamless and environments are consistent from development to production.\n\nI noticed that {company} is pushing the boundaries in your industry, and I would love to bring my expertise in Linux systems and CI/CD pipelines to your engineering team. Are you currently open to reviewing my profile for any relevant roles? I'd love to connect and see if there is a mutual fit.",
+                    f"{greeting}, saw {company} is hiring. I specialize in driving reliability and best practices, and I am reaching out to explore potential synergies between my skillset and your engineering needs.\n\nMy approach to infrastructure is heavily rooted in Infrastructure as Code (IaC) principles. I believe that every aspect of the deployment lifecycle should be version-controlled, testable, and automated. I have extensive experience managing AWS environments, orchestrating containerized applications, and setting up robust monitoring and alerting systems to catch issues before they impact users.\n\nAs {company} continues to scale, having reliable backend operations is critical. I'd love to discuss how my background in SRE can help your team achieve its goals. Would you be open to a brief chat about your engineering needs or connecting so I can share my resume?",
+                    f"{greeting}, verified your role at {company}. I'm actively looking for new opportunities and wanted to share a bit about my technical philosophy and background.\n\nI have spent years honing my skills in cloud architecture, focusing on creating systems that are not just functional, but highly optimized and secure. I thrive in environments where infrastructure is treated like software, utilizing robust CI/CD pipelines to accelerate development cycles without sacrificing stability. Whether it's managing complex Linux clusters or optimizing Database performance, I am driven by the challenge of solving hard infrastructure problems.\n\nI admire the technical work happening at {company} and would be thrilled to contribute my expertise. Are you hiring for any roles that match this profile, or open to reviewing my background for future opportunities? Worth a quick look?"
                 ]
             else:
                 # STANDARD CONNECTION TEMPLATES
                 options = [
-                    f"{greeting}, saw your profile at {company}. I work in DevOps and cloud infrastructure, and I'm always looking to connect with other professionals in the tech space who share a passion for scalable systems.\n\nMy work typically revolves around automating server provisioning, managing Kubernetes clusters, and ensuring that our applications have five-nines of reliability. It requires a constant balance between pushing new features quickly and maintaining iron-clad stability, something I'm sure you appreciate in your role.\n\nI'm looking to expand my network with people who understand the complexities of modern software delivery. Would love to connect and exchange notes on how our respective teams handle infrastructure challenges.",
-                    f"{greeting}, noticed you're at {company}. I'm exploring opportunities in {signal} and your background caught my eye. I am an infrastructure engineer heavily focused on the DevOps lifecycle.\n\nI believe that the best engineering teams are built on a foundation of strong automation and clear observability. My day-to-day involves writing Terraform scripts, designing resilient AWS architectures, and troubleshooting complex systemic issues across distributed microservices. It's a challenging field, but incredibly rewarding when everything runs smoothly.\n\nI am always eager to learn how different organizations, particularly innovative ones like yours, tackle these problems. Open to connecting to share insights?",
+                    f"{greeting}, saw your profile at {company}. I work in the tech space, and I'm always looking to connect with other professionals who share a passion for scalable systems.\n\nMy work typically revolves around automating server provisioning, managing Kubernetes clusters, and ensuring that our applications have five-nines of reliability. It requires a constant balance between pushing new features quickly and maintaining iron-clad stability, something I'm sure you appreciate in your role.\n\nI'm looking to expand my network with people who understand the complexities of modern software delivery. Would love to connect and exchange notes on how our respective teams handle infrastructure challenges.",
+                    f"{greeting}, noticed you're at {company}. I'm exploring opportunities in {signal} and your background caught my eye. I am a professional heavily focused on building efficient lifecycles.\n\nI believe that the best engineering teams are built on a foundation of strong automation and clear observability. My day-to-day involves writing Terraform scripts, designing resilient AWS architectures, and troubleshooting complex systemic issues across distributed microservices. It's a challenging field, but incredibly rewarding when everything runs smoothly.\n\nI am always eager to learn how different organizations, particularly innovative ones like yours, tackle these problems. Open to connecting to share insights?",
                     f"{greeting}, came across your profile while researching {company}. I have a background in cloud ops and automation, and I'm reaching out to build my professional network within the industry.\n\nI specialize in bridging the gap between development and operations. By implementing comprehensive CI/CD pipelines and shifting security left, I help teams deliver code faster and safer. I'm deeply familiar with the intricacies of Linux administration and container orchestration, which form the backbone of the systems I manage.\n\nI'd be very interested in hearing your perspective on the current technical landscape. Curious to connect and follow your team's work."
                 ]
         elif has_name and has_title:
             if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
                 options = [
-                    f"{greeting}, saw your work as {title}. I'm a DevOps engineer looking for new challenges, specifically roles where I can architect and manage large-scale cloud infrastructure.\n\nMy technical journey has been defined by a commitment to automation and reliability. I have successfully migrated legacy hardware to the cloud, implemented comprehensive monitoring solutions with Prometheus and Grafana, and drastically reduced deployment times using modern CI/CD practices. I treat infrastructure as code, ensuring that every change is tracked, tested, and reversible.\n\nI am currently exploring the market for roles that will allow me to leverage these skills to solve complex operational problems. Are you currently hiring for any infrastructure roles on your team?",
-                    f"{greeting}, noticed you're a {title}. I have a background in SRE and cloud automation, and I'm reaching out to see if my profile aligns with any of your current hiring needs.\n\nAs a Site Reliability Engineer, my primary focus is protecting the user experience by ensuring the backend services are always available and performant. I write automation scripts in Python and Bash, manage complex Kubernetes deployments, and constantly analyze system metrics to identify potential bottlenecks before they cause outages. I am a strong advocate for proactive infrastructure management.\n\nI would love the opportunity to bring this proactive, automation-first mindset to your organization. Would you be open to reviewing my resume for potential fits?"
+                    f"{greeting}, saw your work as {title}. I'm an experienced professional looking for new challenges, specifically roles where I can architect and manage large-scale solutions.\n\nMy technical journey has been defined by a commitment to automation and reliability. I have successfully migrated legacy hardware to the cloud, implemented comprehensive monitoring solutions with Prometheus and Grafana, and drastically reduced deployment times using modern CI/CD practices. I treat infrastructure as code, ensuring that every change is tracked, tested, and reversible.\n\nI am currently exploring the market for roles that will allow me to leverage these skills to solve complex operational problems. Are you currently hiring for any infrastructure roles on your team?",
+                    f"{greeting}, noticed you're a {title}. I have a strong professional background, and I'm reaching out to see if my profile aligns with any of your current hiring needs.\n\nAs a Site Reliability Engineer, my primary focus is protecting the user experience by ensuring the backend services are always available and performant. I write automation scripts in Python and Bash, manage complex Kubernetes deployments, and constantly analyze system metrics to identify potential bottlenecks before they cause outages. I am a strong advocate for proactive infrastructure management.\n\nI would love the opportunity to bring this proactive, automation-first mindset to your organization. Would you be open to reviewing my resume for potential fits?"
                 ]
             else:
                 options = [
-                    f"{greeting}, your work as {title} caught my attention. I'm building experience in DevOps and cloud infrastructure, and I'm looking to connect with leaders and peers in the field.\n\nThe challenges of managing modern, distributed systems are what drive me. I spend my time diving deep into Linux kernel tuning, optimizing network routing, and finding new ways to automate tedious operational tasks. I believe that a strong DevOps culture is the key to velocity and stability in any software company.\n\nI am trying to expand my network thoughtfully with individuals whose careers I respect. Would love to connect and follow your journey.",
-                    f"{greeting}, saw your role as {title}. I work in infrastructure and automation, where I focus on building resilient backend systems that can scale dynamically with user demand.\n\nMy expertise lies in taking complex, manual processes and turning them into streamlined, automated workflows. Whether it's setting up a new CI/CD pipeline from scratch or troubleshooting a difficult networking issue in a VPC, I enjoy the puzzle of operations engineering. I am constantly exploring new tools and methodologies to improve system reliability.\n\nI find your professional background very interesting. Curious to exchange perspectives and connect here on LinkedIn."
+                    f"{greeting}, your work as {title} caught my attention. I'm building my professional experience, and I'm looking to connect with leaders and peers in the field.\n\nThe challenges of leading fast-paced, high impact work are what drive me. I spend my time diving deep into execution and defining clear processes to automate tedious operational tasks. I believe that a strong culture of ownership is the key to velocity and stability in any company.\n\nI am trying to expand my network thoughtfully with individuals whose careers I respect. Would love to connect and follow your journey.",
+                    f"{greeting}, saw your role as {title}. I am an experienced professional, where I focus on building resilient backend systems that can scale dynamically with user demand.\n\nMy expertise lies in taking complex, manual processes and turning them into streamlined, automated workflows. Whether it's setting up a new CI/CD pipeline from scratch or troubleshooting a difficult networking issue in a VPC, I enjoy the puzzle of operations engineering. I am constantly exploring new tools and methodologies to improve system reliability.\n\nI find your professional background very interesting. Curious to exchange perspectives and connect here on LinkedIn."
                 ]
         elif has_name:
             if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
                 options = [
-                    f"{greeting}, came across your profile. I'm a DevOps engineer actively looking for new roles in cloud infrastructure, and I'm reaching out to share my background.\n\nI have a strong track record of designing, implementing, and maintaining highly available cloud architectures. By treating operations as a software engineering problem, I utilize tools like Terraform, Docker, and Kubernetes to automate deployments and ensure consistency. I am passionate about eliminating manual toil and fostering a culture of continuous delivery & integration.\n\nI am eager to bring my skills to a forward-thinking team. Are you hiring for any relevant positions in the SRE or DevOps space?",
-                    f"{greeting}, I'm an infrastructure engineer with cloud and automation experience, writing to you to explore potential career opportunities.\n\nMy focus is always on the triad of reliability, scalability, and security. I spend my days writing automation code, managing cloud providers, and configuring robust alerting systems to make sure the platform never goes down. I believe that good infrastructure should be invisible to the end-user, functioning flawlessly in the background.\n\nI am currently looking for my next big challenge. Are you open to reviewing profiles for potential DevOps openings at your company?"
+                    f"{greeting}, came across your profile. I'm actively looking for new roles in my field, and I'm reaching out to share my background.\n\nI have a strong track record of designing, implementing, and maintaining highly available cloud architectures. By treating operations as a software engineering problem, I utilize tools like Terraform, Docker, and Kubernetes to automate deployments and ensure consistency. I am passionate about eliminating manual toil and fostering a culture of continuous delivery & integration.\n\nI am eager to bring my skills to a forward-thinking team. Are you hiring for any relevant positions in your organization?",
+                    f"{greeting}, I'm an experienced professional with a strong track record, writing to you to explore potential career opportunities.\n\nMy focus is always on the triad of reliability, scalability, and security. I spend my days writing automation code, managing cloud providers, and configuring robust alerting systems to make sure the platform never goes down. I believe that good infrastructure should be invisible to the end-user, functioning flawlessly in the background.\n\nI am currently looking for my next big challenge. Are you open to reviewing profiles for potential openings at your company?"
                 ]
             else:
                 options = [
-                    f"{greeting}, came across your profile and your background resonated with the work I do in DevOps and cloud infrastructure. I am looking to expand my professional circle.\n\nI spend my professional time building the systems that allow software to run securely and at scale. It is a constantly evolving field that requires an understanding of both high-level architecture and deep, low-level system internals. I enjoy the challenge of automating complex workflows and ensuring high availability.\n\nI respect the path you've taken in your career. Open to connecting and sharing insights?",
+                    f"{greeting}, came across your profile and your background resonated with the work I do professionally. I am looking to expand my professional circle.\n\nI spend my professional time building the systems that allow software to run securely and at scale. It is a constantly evolving field that requires an understanding of both high-level architecture and deep, low-level system internals. I enjoy the challenge of automating complex workflows and ensuring high availability.\n\nI respect the path you've taken in your career. Open to connecting and sharing insights?",
                     f"{greeting}, I'm building my network in the infrastructure and cloud space, and your profile stood out to me as someone I would like to be connected with.\n\nMy daily work involves a mix of systems administration, software engineering, and architectural planning. I advocate for Site Reliability Engineering principles, believing that we should use software to solve operational problems. It's a role that demands constant learning and adaptation to new technologies.\n\nI am trying to learn from others navigating this industry. Would love to stay in touch and connect."
                 ]
         else:
             # MINIMAL DATA: Don't pretend we know them
             if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
                 options = [
-                    f"Hi, I'm a DevOps engineer exploring new opportunities in the cloud infrastructure space. I am reaching out to see if my background might be a fit for your needs.\n\nMy core competencies include managing AWS/GCP environments, writing Infrastructure as Code (IaC) using Terraform, and orchestrating containerized applications with Kubernetes. I am deeply committed to the principles of Site Reliability Engineering, focusing on automating manual operational toil and ensuring systems are highly observable and resilient.\n\nAre you currently hiring for any cloud infrastructure or SRE roles? I would appreciate the opportunity to share my resume.",
-                    f"Hi, I specialize in cloud operations and automation, and I'm looking for my next role. I wanted to proactively reach out with my professional background.\n\nI have dedicated my career to building the invisible backbone of modern software applications. I excel at designing CI/CD pipelines that allow developers to ship code rapidly without compromising on security or stability. From managing Linux servers to optimizing database performance, I thrive on solving complex backend infrastructure challenges.\n\nIf you're recruiting for DevOps roles, would you be open to a brief chat or reviewing my profile?"
+                    f"Hi, I'm an experienced professional exploring new opportunities. I am reaching out to see if my background might be a fit for your needs.\n\nMy core competencies include leading high-impact initiatives, taking extreme ownership of complex problems, and delivering results. I am deeply committed to the principles of scaling effectively and ensuring sustainable growth.\n\nAre you currently hiring for any roles? I would appreciate the opportunity to share my resume.",
+                    f"Hi, I specialize in cloud operations and automation, and I'm looking for my next role. I wanted to proactively reach out with my professional background.\n\nI have dedicated my career to building the invisible backbone of modern software applications. I excel at designing CI/CD pipelines that allow developers to ship code rapidly without compromising on security or stability. From managing Linux servers to optimizing database performance, I thrive on solving complex backend infrastructure challenges.\n\nIf your team is recruiting, would you be open to a brief chat or reviewing my profile?"
                 ]
             else:
                 options = [
-                    f"Hi, came across your profile while exploring roles in DevOps and cloud infrastructure. Would love to connect and learn more about your work.",
-                    f"Hi, I'm a DevOps-focused engineer exploring opportunities in cloud operations and automation. Would love to connect.",
-                    f"Hi, your profile came up while I was researching infrastructure roles. I work in DevOps and cloud — curious to connect.",
+                    f"Hi, came across your profile while exploring open roles in my field. Would love to connect and learn more about your work.",
+                    f"Hi, I'm an experienced professional exploring new opportunities. Would love to connect.",
+                    f"Hi, your profile came up while I was researching roles in my industry. I work in the tech space — curious to connect.",
                 ]
         return random.choice(options)
     
@@ -901,11 +901,11 @@ def generate_fallback_draft(candidate: dict, sender_intro: str, signal: str, int
         body_greeting = f"Hi {first_name}," if has_name else "Hi,"
         
         if has_name and has_company:
-            body = f"{body_greeting}\n\nCame across your profile at {company}. I work in DevOps, cloud infrastructure, and automation — and your background resonated with the kind of work I enjoy.\n\nWould you be open to a brief exchange?\n\n{sender_first}"
+            body = f"{body_greeting}\n\nCame across your profile at {company}. I work in the tech space — and your background resonated with the kind of work I enjoy.\n\nWould you be open to a brief exchange?\n\n{sender_first}"
         elif has_name:
             body = f"{body_greeting}\n\nI found your profile while exploring opportunities in {signal}. I work in cloud ops and systems engineering — your background caught my eye.\n\nOpen to connecting?\n\n{sender_first}"
         else:
-            body = f"{body_greeting}\n\nI came across your profile while researching infrastructure and DevOps roles. I have hands-on experience in cloud operations and automation.\n\nWould love to connect if there's a fit.\n\n{sender_first}"
+            body = f"{body_greeting}\n\nI came across your profile while researching open roles in my field. I have solid hands-on experience.\n\nWould love to connect if there's a fit.\n\n{sender_first}"
         
         return f"Subject: {subject}\n\n{body}"
 
@@ -1115,7 +1115,7 @@ You are writing a LinkedIn connection request to a Recruiter or TA.
 TONE: Brief, professional, and high-impact.
 GOAL: Ask to connect about open roles.
 NEGATIVE CONSTRAINTS (CRITICAL):
-- Do NOT use "I'm a DevOps engineer with experience in...". That is boring.
+- Do NOT use "I'm a [your role] with experience in...". That is boring. Start creatively.
 - Do NOT use "I hope this email finds you well".
 - Do NOT write multiple paragraphs.
 - Do NOT exceed 280 characters under ANY circumstances.
@@ -1341,7 +1341,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
                     "variant_id": variant_id, "is_fallback": True
                 }
 
-        skills = ", ".join(brain.get("extracted_skills", [])) or "DevOps, Cloud Infrastructure, Linux, CI/CD, Automation"
+        skills = ", ".join(brain.get("extracted_skills", [])) or "Software Development, Automation, and Problem Solving"
 
         # 3. CONTEXT COMPRESSION & MEMORY (Priority 2, 13)
         signal = extract_primary_signal(c)
@@ -1392,9 +1392,9 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         # ============================================================
         # DYNAMIC USER BIO — Built from Brain/Cortex skills
         # ============================================================
-        sender_name = settings.get('full_name', 'Siddharth Chavan')
+        sender_name = settings.get('full_name', 'Professional')
         sender_company = settings.get('company', '')
-        sender_role = settings.get('role', 'DevOps Engineer')
+        sender_role = settings.get('role', 'Professional')
         
         user_bio = f"""
         Name: {sender_name}
@@ -1412,25 +1412,25 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         # ============================================================
         if is_company_recipient:
              intent = IntentType.SOFT
-             role_context = c.get('title') or 'DevOps / SRE Role'
+             role_context = c.get('title') or sender_role
              task_instruction = "Generate a job inquiry message to a company page. Be respectful but direct about seeking opportunities."
         elif is_hiring_post:
              intent = IntentType.OPPORTUNITY
-             role_context = "DevOps / Site Reliability Engineer"
+             role_context = hiring_role or c.get('title') or sender_role
              if post_type == 'linkedin_job':
                  task_instruction = f"Generate a JOB APPLICATION message. This is from a LinkedIn JOBS listing for '{hiring_role or c.get('title')}'. Write as if APPLYING for this specific position. Be specific about relevant skills."
              else:
                  task_instruction = f"Generate a JOB APPLICATION message. The recipient POSTED about hiring for '{hiring_role or c.get('title')}'. Express genuine interest in the position they mentioned. Reference specifics from their post."
         elif (c.get('title') and ("recruiter" in c.get('title').lower() or "talent" in c.get('title').lower())):
              intent = IntentType.OPPORTUNITY
-             role_context = "DevOps / Site Reliability Engineer"
-             task_instruction = "Generate a JOB-SEEKING message to a recruiter. Ask directly if they have DevOps/SRE/Cloud openings. Be clear you are looking for work, not just networking."
+             role_context = sender_role
+             task_instruction = f"Generate a JOB-SEEKING message to a recruiter. Ask directly if they have {sender_role} openings. Be clear you are looking for work, not just networking."
         else:
              intent = IntentType.OPPORTUNITY
              candidate_title = (c.get('title') or '').lower()
-             role_context = "DevOps / Site Reliability Engineer"
+             role_context = sender_role
              if candidate_title and "recruiter" not in candidate_title and "talent" not in candidate_title:
-                 role_context = c.get('title') or 'DevOps / SRE Role'
+                 role_context = c.get('title') or sender_role
              task_instruction = "Generate a JOB OPPORTUNITY message. You are reaching out to explore job opportunities — NOT to network. Ask about openings at their company."
 
         # ============================================================
@@ -1473,7 +1473,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             This person is {c.get('name') or 'a professional'}, working as {c.get('title') or 'a professional'} at {c.get('company') or 'their company'}.
             {f'PROFILE CONTEXT: {post_context}' if post_context else ''}
             
-            You are reaching out to explore if their company has DevOps/SRE openings.
+            You are reaching out to explore if their company has {sender_role} openings.
             Mention how your skills ({skills}) could add value to their team.
             """
             
