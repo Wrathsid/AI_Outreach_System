@@ -300,19 +300,23 @@ export default function PersonalBrain() {
 
             {/* Category Quick Picks */}
             <div className="flex flex-wrap gap-3 mt-2">
-              {Object.keys(SKILLS_CATALOG).map((category) => (
+              {Object.keys(SKILLS_CATALOG).map((category) => {
+                const colors = CATEGORY_COLORS[category] || { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', hoverBg: 'hover:bg-cyan-500/20' };
+                const isActive = activeCategory === category;
+                return (
                 <button
                   key={category}
-                  onClick={() => setActiveCategory(activeCategory === category ? null : category)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border ${
-                    activeCategory === category 
-                      ? `bg-[#0a0f16] ${CATEGORY_COLORS[category]?.text || 'text-cyan-400'} ${CATEGORY_COLORS[category]?.border || 'border-cyan-500/50'} shadow-lg scale-105` 
-                      : `bg-transparent text-slate-400 border-white/10 hover:border-white/20 ${CATEGORY_COLORS[category]?.hoverBg || 'hover:bg-cyan-500/10'} hover:text-slate-200`
+                  onClick={() => setActiveCategory(isActive ? null : category)}
+                  className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 ${
+                    isActive 
+                      ? `bg-[#0a0f16] ${colors.text} ${colors.border} shadow-[0_0_15px_-3px_currentColor] scale-105` 
+                      : `${colors.bg} ${colors.text} border-transparent hover:border-current opacity-80 hover:opacity-100`
                   }`}
                 >
+                  <div className={`w-1.5 h-1.5 rounded-full bg-current ${isActive ? 'animate-pulse' : 'opacity-70'}`}></div>
                   {category}
                 </button>
-              ))}
+              )})}
             </div>
 
             {/* Category Dropdown Skills */}
@@ -327,18 +331,19 @@ export default function PersonalBrain() {
                   <div className="flex flex-wrap gap-3 p-6 bg-[#0a0f16]/40 backdrop-blur-sm rounded-2xl border border-white/5">
                     {SKILLS_CATALOG[activeCategory].map((skill) => {
                       const isSelected = selectedSkills.includes(skill);
+                      const activeColors = CATEGORY_COLORS[activeCategory] || { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', hoverBg: 'hover:bg-cyan-500/20' };
                       return (
                         <button
                           key={skill}
                           onClick={() => toggleSkill(skill)}
                           className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
                             isSelected 
-                              ? `${CATEGORY_COLORS[activeCategory]?.bg || 'bg-cyan-500/15'} ${CATEGORY_COLORS[activeCategory]?.text || 'text-cyan-300'} ${CATEGORY_COLORS[activeCategory]?.border || 'border-cyan-500/30'}`
-                              : `bg-transparent text-slate-300 border-white/10 hover:border-white/30 ${CATEGORY_COLORS[activeCategory]?.hoverBg || 'hover:bg-cyan-500/10'}`
+                              ? `${activeColors.bg} ${activeColors.text} ${activeColors.border} shadow-[0_0_15px_-3px_currentColor]`
+                              : `bg-transparent text-slate-300 border-white/10 hover:border-current hover:${activeColors.text.split('-')[1]}-400 ${activeColors.hoverBg}`
                           }`}
                         >
-                          {isSelected ? <Check size={14} className={CATEGORY_COLORS[activeCategory]?.text || 'text-cyan-400'} /> : <Plus size={14} className="text-slate-500" />}
-                          {skill}
+                          {isSelected ? <Check size={14} className={activeColors.text} /> : <Plus size={14} className="text-slate-500" />}
+                          <span className={isSelected ? 'text-white font-bold' : ''}>{skill}</span>
                         </button>
                       );
                     })}
