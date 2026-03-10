@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
-import { SKILLS_CATALOG, ALL_SKILLS, CATEGORY_COLORS } from '@/data/skillsCatalog';
+import { SKILLS_CATALOG, ALL_SKILLS } from '@/data/skillsCatalog';
 
 const NeuralBackground = dynamic(() => import('@/components/NeuralBackground'), { ssr: false });
 
@@ -107,7 +107,7 @@ export default function PersonalBrain() {
   const hasSkills = selectedSkills.length > 0;
 
   return (
-    <div className="flex-1 h-full overflow-y-auto overflow-x-hidden relative bg-[#04090e] text-white font-sans selection:bg-cyan-500/30">
+    <div className="flex-1 h-full overflow-y-auto overflow-x-hidden relative bg-[#04090e] text-white font-sans selection:bg-white/20">
       <NeuralBackground />
       
       <div className="relative z-10 h-full flex flex-col p-6 md:p-12 max-w-[1600px] mx-auto w-full overflow-y-auto pb-32">
@@ -116,7 +116,7 @@ export default function PersonalBrain() {
         <header className="flex items-start justify-between mb-12 animate-fade-in-up shrink-0">
           <div>
              <div className="flex items-center gap-3 mb-3">
-                <BrainCircuit size={32} className="text-cyan-400" />
+                <BrainCircuit size={32} className="text-white" />
                 <h1 className="text-4xl font-bold tracking-tight text-white drop-shadow-sm">
                   The Cortex
                 </h1>
@@ -126,7 +126,7 @@ export default function PersonalBrain() {
              </p>
              
              <div className="mt-8">
-               <div className="bg-[#0a0f16]/80 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-3 flex items-center gap-4 focus-within:border-cyan-500/50 focus-within:bg-white/5 transition-all w-fit shadow-sm">
+               <div className="bg-[#0a0f16]/80 backdrop-blur-sm border border-white/10 rounded-xl px-4 py-3 flex items-center gap-4 focus-within:border-white/50 focus-within:bg-white/5 transition-all w-fit shadow-sm">
                  <span className="text-slate-500 text-xs uppercase font-bold tracking-widest">User</span>
                  <div className="w-px h-5 bg-white/10"></div>
                  <div className="flex items-center gap-2">
@@ -139,7 +139,7 @@ export default function PersonalBrain() {
                      placeholder="Your Name"
                      className="bg-transparent border-none outline-none text-white text-sm font-medium w-48 placeholder-slate-600"
                    />
-                   {isSavingName && <RefreshCw size={14} className="text-cyan-500 animate-spin" />}
+                   {isSavingName && <RefreshCw size={14} className="text-white animate-spin" />}
                  </div>
                </div>
              </div>
@@ -176,7 +176,7 @@ export default function PersonalBrain() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="3.5"
-                      className={`transition-all duration-700 ease-out ${hasName ? 'text-cyan-500' : 'text-transparent'}`}
+                      className={`transition-all duration-700 ease-out ${hasName ? 'text-white' : 'text-transparent'}`}
                       strokeLinecap="round"
                     />
                     {/* Right semicircle - fills when SKILLS are added */}
@@ -185,14 +185,14 @@ export default function PersonalBrain() {
                       fill="none"
                       stroke="currentColor"
                       strokeWidth="3.5"
-                      className={`transition-all duration-700 ease-out ${hasSkills ? 'text-cyan-500' : 'text-transparent'}`}
+                      className={`transition-all duration-700 ease-out ${hasSkills ? 'text-white' : 'text-transparent'}`}
                       strokeLinecap="round"
                     />
                 </svg>
                 {/* Center icon */}
                 <div className="absolute inset-0 flex items-center justify-center">
                     {hasName && hasSkills ? (
-                      <Zap size={18} className="text-cyan-400" />
+                      <Zap size={18} className="text-white" />
                     ) : (
                       <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                         {!hasName && !hasSkills ? '0/2' : '1/2'}
@@ -202,10 +202,10 @@ export default function PersonalBrain() {
                 
                 {/* Tooltip */}
                 <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black/90 border border-white/10 rounded text-[10px] text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none space-y-0.5">
-                    <div className={`flex items-center gap-1.5 ${hasName ? 'text-cyan-400' : 'text-slate-500'}`}>
+                    <div className={`flex items-center gap-1.5 ${hasName ? 'text-white' : 'text-slate-500'}`}>
                       <span>{hasName ? '✓' : '○'}</span> Name
                     </div>
-                    <div className={`flex items-center gap-1.5 ${hasSkills ? 'text-cyan-400' : 'text-slate-500'}`}>
+                    <div className={`flex items-center gap-1.5 ${hasSkills ? 'text-white' : 'text-slate-500'}`}>
                       <span>{hasSkills ? '✓' : '○'}</span> Skills
                     </div>
                 </div>
@@ -217,14 +217,14 @@ export default function PersonalBrain() {
         {/* Skills Section */}
         <div className="flex flex-col gap-6 w-full mx-auto">
             
-            <h2 className="text-sm font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2 mb-2">
+            <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 mb-2">
                 <BrainCircuit size={16} /> SKILL MAPPING
             </h2>
 
             {/* Search Bar */}
             <div ref={dropdownRef} className="relative">
               <div className="relative group">
-                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-cyan-400 transition-colors" />
+                <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-white transition-colors" />
                 <input
                   ref={searchRef}
                   type="text"
@@ -242,7 +242,7 @@ export default function PersonalBrain() {
                   placeholder="Search skills or type a custom one..."
                   spellCheck={false}
                   autoComplete="off"
-                  className="w-full bg-[#0a0f16]/60 backdrop-blur-md border border-white/10 hover:border-white/20 focus:border-cyan-500/50 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder-slate-500 focus:outline-none transition-all duration-300 focus:shadow-[0_0_20px_-5px_rgba(6,182,212,0.15)]"
+                  className="w-full bg-[#0a0f16]/60 backdrop-blur-md border border-white/10 hover:border-white/20 focus:border-white/50 rounded-2xl pl-12 pr-4 py-4 text-sm text-white placeholder-slate-500 focus:outline-none transition-all duration-300 focus:shadow-[0_0_20px_-5px_rgba(255,255,255,0.15)]"
                 />
                 {searchQuery && (
                   <button 
@@ -267,15 +267,11 @@ export default function PersonalBrain() {
                       <button
                         key={skill}
                         onClick={() => { toggleSkill(skill); setSearchQuery(''); }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-cyan-500/10 text-left transition-colors group/item"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-white/10 text-left transition-colors group/item"
                       >
-                        <Plus size={16} className="text-slate-600 group-hover/item:text-cyan-400 transition-colors shrink-0" />
+                        <Plus size={16} className="text-slate-600 group-hover/item:text-white transition-colors shrink-0" />
                         <span className="text-sm text-slate-300 group-hover/item:text-white transition-colors">{skill}</span>
-                        <span className={`ml-auto text-xs font-mono font-bold ${
-                          Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))
-                            ? CATEGORY_COLORS[Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))![0]]?.text || 'text-slate-600'
-                            : 'text-emerald-500'
-                        }`}>
+                        <span className="ml-auto text-xs text-slate-500 font-mono group-hover/item:text-slate-300 transition-colors">
                           {Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))?.[0]}
                         </span>
                       </button>
@@ -301,7 +297,6 @@ export default function PersonalBrain() {
             {/* Category Quick Picks */}
             <div className="flex flex-wrap gap-3 mt-2">
               {Object.keys(SKILLS_CATALOG).map((category) => {
-                const colors = CATEGORY_COLORS[category] || { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', hoverBg: 'hover:bg-cyan-500/20' };
                 const isActive = activeCategory === category;
                 return (
                 <button
@@ -309,11 +304,11 @@ export default function PersonalBrain() {
                   onClick={() => setActiveCategory(isActive ? null : category)}
                   className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 border flex items-center gap-2 ${
                     isActive 
-                      ? `bg-[#0a0f16] ${colors.text} ${colors.border} shadow-[0_0_15px_-3px_currentColor] scale-105` 
-                      : `${colors.bg} ${colors.text} border-transparent hover:border-current opacity-80 hover:opacity-100`
+                      ? 'bg-white text-black border-white shadow-[0_0_15px_-3px_rgba(255,255,255,0.4)] scale-105' 
+                      : 'bg-[#0a0f16]/60 text-slate-300 border-white/10 hover:border-white/40 hover:text-white hover:bg-white/5 opacity-80 hover:opacity-100'
                   }`}
                 >
-                  <div className={`w-1.5 h-1.5 rounded-full bg-current ${isActive ? 'animate-pulse' : 'opacity-70'}`}></div>
+                  <div className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-black animate-pulse' : 'bg-white/50 group-hover:bg-white'}`}></div>
                   {category}
                 </button>
               )})}
@@ -331,19 +326,18 @@ export default function PersonalBrain() {
                   <div className="flex flex-wrap gap-3 p-6 bg-[#0a0f16]/40 backdrop-blur-sm rounded-2xl border border-white/5">
                     {SKILLS_CATALOG[activeCategory].map((skill) => {
                       const isSelected = selectedSkills.includes(skill);
-                      const activeColors = CATEGORY_COLORS[activeCategory] || { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', hoverBg: 'hover:bg-cyan-500/20' };
                       return (
                         <button
                           key={skill}
                           onClick={() => toggleSkill(skill)}
                           className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
                             isSelected 
-                              ? `${activeColors.bg} ${activeColors.text} ${activeColors.border} shadow-[0_0_15px_-3px_currentColor]`
-                              : `bg-transparent text-slate-300 border-white/10 hover:border-current hover:${activeColors.text.split('-')[1]}-400 ${activeColors.hoverBg}`
+                              ? 'bg-white text-black border-white shadow-[0_0_10px_-2px_rgba(255,255,255,0.3)]'
+                              : 'bg-transparent text-slate-300 border-white/10 hover:border-white/40 hover:text-white hover:bg-white/5'
                           }`}
                         >
-                          {isSelected ? <Check size={14} className={activeColors.text} /> : <Plus size={14} className="text-slate-500" />}
-                          <span className={isSelected ? 'text-white font-bold' : ''}>{skill}</span>
+                          {isSelected ? <Check size={14} className="text-black" /> : <Plus size={14} className="text-slate-500" />}
+                          <span className={isSelected ? 'text-black font-bold' : ''}>{skill}</span>
                         </button>
                       );
                     })}
@@ -364,8 +358,8 @@ export default function PersonalBrain() {
                 className="space-y-6"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                  <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2">
-                    <Zap size={16} className="text-cyan-400" /> 
+                  <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                    <Zap size={16} className="text-white" /> 
                     ACTIVE SKILLS ({selectedSkills.length})
                   </h3>
                   
@@ -375,7 +369,7 @@ export default function PersonalBrain() {
                     className={`px-8 py-3 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 shadow-lg ${
                       saved 
                         ? 'bg-emerald-500 text-black' 
-                        : 'bg-cyan-500 hover:bg-cyan-400 text-black hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]'
+                        : 'bg-white hover:bg-slate-200 text-black hover:shadow-[0_0_20px_rgba(255,255,255,0.4)]'
                     }`}
                   >
                     {isSaving ? (
@@ -391,9 +385,6 @@ export default function PersonalBrain() {
                 <div className="flex flex-wrap gap-3">
                   <AnimatePresence mode="popLayout">
                     {selectedSkills.map((skill) => {
-                      const categoryName = Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))?.[0];
-                      const colors = categoryName ? CATEGORY_COLORS[categoryName] : { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', hoverBg: 'hover:bg-emerald-500/20' };
-                      
                       return (
                         <motion.div
                           key={skill}
@@ -401,13 +392,13 @@ export default function PersonalBrain() {
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.8 }}
-                          className={`group/chip flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 ${colors.border} ${colors.bg} text-white shadow-sm`}
+                          className="group/chip flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 border-white/20 bg-[#0a0f16] hover:border-white/40 text-white shadow-sm hover:shadow-[0_0_15px_-5px_rgba(255,255,255,0.2)]"
                         >
-                          <BrainCircuit size={14} className={`${colors.text} opacity-80`} />
+                          <BrainCircuit size={14} className="text-slate-400 opacity-80 group-hover/chip:text-white transition-colors" />
                           <span className="text-sm font-medium">{skill}</span>
                           <button 
                             onClick={() => toggleSkill(skill)} 
-                            className={`ml-1 p-0.5 rounded-md hover:bg-white/10 ${colors.text} hover:text-white transition-colors opacity-60 hover:opacity-100`}
+                            className="ml-1 p-0.5 rounded-md hover:bg-white/20 text-slate-400 hover:text-white transition-colors"
                           >
                             <X size={14} />
                           </button>
