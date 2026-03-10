@@ -91,7 +91,7 @@ async def polish_single_lead(lead: dict) -> dict:
     CRITICAL RULES:
     1. NAME: Extract ACTUAL PERSON'S NAME. Return "John Doe" not "John Doe on LinkedIn: I am hiring".
     2. SUMMARY: Reconstruct truncated snippets into ONE clean complete sentence.
-    3. ROLE TYPE: Identify if "person" or "hiring_post".
+    3. ROLE TYPE (is_hiring_post): EXTREMELY STRICT. Set to true ONLY IF the post is an actual job listing, hiring announcement, or candidate search. Set to false if it is a general discussion, an opinion piece, a complaint about interviews, or an advertisement for a service.
     
     LEAD:
     Title: {lead.get('title')}

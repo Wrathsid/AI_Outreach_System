@@ -40,14 +40,14 @@ class RecommendationService:
             similarity = embeddings_service.calculate_similarity(offer_emb, candidate_emb)
             
             # 4. Normalize to 0-100 Score
-            # We treat < 0 similarity as 0 relevance.
-            # We square the similarity to stretch the distribution for better UI differentiation.
-            if similarity > 0:
-                adjusted_similarity = similarity ** 2
+            # Cosine similarity for real-world text usually hovers between 0.3 - 0.8.
+            # We treat < 0.25 similarity as 0 relevance, and stretch 0.25 -> 1.0 to 0 -> 100.
+            if similarity > 0.25:
+                adjusted_similarity = (similarity - 0.25) / 0.75
             else:
                 adjusted_similarity = 0
                 
-            score = max(0, int(adjusted_similarity * 100))
+            score = max(0, min(100, int(adjusted_similarity * 100)))
             
             return score
             

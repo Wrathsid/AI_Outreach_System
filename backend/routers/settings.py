@@ -195,20 +195,7 @@ def get_brain_context():
     return {"formality": 75, "detail_level": 30, "use_emojis": False}
 
 
-@router.put("/brain")
-def update_brain_context(formality: int = 75, detail_level: int = 30, use_emojis: bool = False):
-    """Update brain context settings."""
-    supabase = get_supabase()
-    if supabase:
-        supabase.table("brain_context").upsert({
-            "id": 1,
-            "formality": formality,
-            "detail_level": detail_level,
-            "use_emojis": use_emojis,
-            "updated_at": datetime.now().isoformat()
-        }).execute()
-        return {"status": "updated"}
-    return {"status": "not persisted"}
+
 
 
 @router.put("/brain/skills")
@@ -350,15 +337,7 @@ async def upload_file(file: UploadFile = File(...)):
     }
 
 
-@router.post("/verify-linkedin")
-def verify_linkedin_url(url: str):
-    """Strictly validate LinkedIn URL format."""
-    pattern = r'^(https?:\/\/)?(www\.)?linkedin\.com\/in\/[\w-]+\/?$'
-    
-    if re.match(pattern, url):
-        return {"valid": True, "message": "Valid LinkedIn Profile URL"}
-    else:
-        return {"valid": False, "message": "Invalid URL format. Must be linkedin.com/in/username"}
+
 
 
 @router.delete("/account")

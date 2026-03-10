@@ -2,10 +2,33 @@ import os
 import asyncio
 import random
 import logging
+import time
+import re
 from typing import List, Generator, Dict
 from dotenv import load_dotenv
 
 load_dotenv()
+
+def is_recent_post(url: str, snippet: str, max_days: int = 7) -> bool:
+    """Check LinkedIn Activity ID timestamp and snippet text to strictly enforce recency."""
+    match = re.search(r'activity-(\d{19})', url)
+    if match:
+        activity_id = int(match.group(1))
+        # LinkedIn activity ID embeds the unix epoch in ms shifted by 22 bits
+        timestamp_ms = activity_id >> 22
+        current_time_ms = int(time.time() * 1000)
+        age_days = (current_time_ms - timestamp_ms) / (1000 * 60 * 60 * 24)
+        if age_days > max_days:
+            return False
+            
+    # Fallback text check: reject months/years
+    snippet_lower = snippet.lower()
+    bad_patterns = [r'\d+\s*mo\b', r'\d+\s*mos\b', r'\d+\s*month', r'\d+\s*yr\b', r'\d+\s*yrs\b', r'\d+\s*year']
+    for pattern in bad_patterns:
+        if re.search(pattern, snippet_lower):
+            return False
+            
+    return True
 
 class Crawler:
     """
@@ -19,66 +42,63 @@ class Crawler:
 
     def get_queries_for_role(self, role: str, company_size: str = None, revenue: str = None, tech: str = None) -> List[str]:
         """
-        Generate specialized search queries targeting HR/recruiters hiring for this role.
-        Focus on people POSTING jobs, not people looking for jobs.
+        Generate specialized search queries targeting explicitly the hiring announcements / job postings for this role.
+        We strict match on phrases like "we are hiring", "apply", "resume", to filter out general chatter.
         """
-        role_lower = role.lower()
         filter_str = ""
         if tech: filter_str += f' "{tech}"'
         if company_size: filter_str += f' "{company_size}"'
         if revenue: filter_str += f' "{revenue}"'
         
-        # Tech Roles - Target tech recruiters and hiring managers
-        tech_keywords = ['eng', 'dev', 'soft', 'data', 'cloud', 'security', 'full stack', 'qa', 'sre', 'devops', 'ml', 'ai']
-        is_tech = any(k in role_lower for k in tech_keywords)
+        posting_indicators = '("apply" OR "send resume" OR "dm me" OR "job description" OR "link below")'
         
-        # Creative Roles - Target creative recruiters
-        creative_keywords = ['writer', 'content', 'copy', 'design', 'art', 'creative', 'ux', 'ui']
-        is_creative = any(k in role_lower for k in creative_keywords)
-        
-        if is_tech:
-            return [
-                # LinkedIn posts from recruiters hiring for this role
-                f'site:linkedin.com/posts \"hiring\" \"{role}\" recruiter',
-                f'site:linkedin.com \"we are hiring\" \"{role}\" HR',
-                f'site:linkedin.com \"looking for\" \"{role}\" talent acquisition',
-                # Recruiters specializing in tech
-                f'site:linkedin.com/in \"technical recruiter\" \"{role}\"',
-                f'site:linkedin.com/in \"talent acquisition\" \"technology\"',
-            ]
-        elif is_creative:
-            base_queries = [
-                f'site:linkedin.com/posts \"hiring\" \"{role}\" recruiter',
-                f'site:linkedin.com \"we are hiring\" \"{role}\" HR',
-                f'site:linkedin.com/in \"creative recruiter\" \"{role}\"',
-            ]
-        else:
-            base_queries = [
-                # General recruiters and hiring managers
-                f'site:linkedin.com/posts "hiring" "{role}"',
-                f'site:linkedin.com "we are hiring" "{role}"',
-                f'site:linkedin.com/in "recruiter" "{role}"',
-            ]
+        base_queries = [
+            f'site:linkedin.com/posts "hiring" "{role}" {posting_indicators}',
+            f'site:linkedin.com/posts "we are hiring" "{role}"',
+            f'site:linkedin.com/posts "looking for a {role}"',
+            f'site:linkedin.com/posts "hiring a {role}"',
+            f'site:linkedin.com/posts "hiring" "{role}" "join our team"'
+        ]
             
-        return [q + filter_str for q in base_queries]
+        # Prioritize locations: India first, then Remote, then Global (no filter)
+        priority_locations = ['"India"', '"Remote"', '']
+        all_queries = []
+        
+        for loc in priority_locations:
+            for q in base_queries:
+                combined_query = f"{q} {loc}".strip()
+                all_queries.append(combined_query + filter_str)
+                
+        return all_queries
 
     def get_broad_queries(self, role: str, company_size: str = None, revenue: str = None, tech: str = None) -> List[str]:
         """
-        Broad Reach Mode: High volume queries targeting hiring posts.
+        Broad Reach Mode: High volume queries targeting explicit hiring posts.
         """
         filter_str = ""
         if tech: filter_str += f' "{tech}"'
         if company_size: filter_str += f' "{company_size}"'
         if revenue: filter_str += f' "{revenue}"'
         
+        posting_indicators = '("apply" OR "resume" OR "dm me" OR "link" OR "join")'
+        
         base_queries = [
-            f'site:linkedin.com/posts \"hiring {role}\"',
-            f'site:linkedin.com \"we\'re hiring\" \"{role}\"',
-            f'"hiring manager" "{role}" email',
-            f'"talent acquisition" "{role}" contact',
-            f'"recruiter" "{role}" hiring',
+            f'site:linkedin.com/posts "hiring {role}"',
+            f'site:linkedin.com/posts "we\'re hiring" "{role}"',
+            f'site:linkedin.com/posts "looking to hire" "{role}"',
+            f'site:linkedin.com/posts "{role}" "hiring" {posting_indicators}',
         ]
-        return [q + filter_str for q in base_queries]
+        
+        # Prioritize locations: India first, then Remote, then Global (no filter)
+        priority_locations = ['"India"', '"Remote"', '']
+        all_queries = []
+        
+        for loc in priority_locations:
+            for q in base_queries:
+                combined_query = f"{q} {loc}".strip()
+                all_queries.append(combined_query + filter_str)
+                
+        return all_queries
 
     async def crawl_stream(self, role: str, limit: int = 20, broad_mode: bool = False, company_size: str = None, revenue: str = None, tech: str = None) -> Generator[Dict, None, None]:
         """
@@ -112,7 +132,8 @@ class Crawler:
                             "q": query,
                             "api_key": api_key,
                             "num": 10,
-                            "engine": "google"
+                            "engine": "google",
+                            "tbs": "qdr:w"  # Restrict to Past Week
                         }
                         search = GoogleSearch(params)
                         data = search.get_dict()
@@ -139,7 +160,8 @@ class Crawler:
                     def _ddg_search(query):
                         from ddgs import DDGS
                         try:
-                            return list(DDGS().text(query, max_results=10))
+                            # 'w' = past week
+                            return list(DDGS().text(query, max_results=10, timelimit="w"))
                         except:
                             return []
                     
@@ -163,8 +185,16 @@ class Crawler:
                 if count >= limit:
                     break
                 url = r.get("href", "")
-                if not url or url in self.seen_urls:
+                body = r.get("body", "")
+                
+                # Enforce strict LinkedIn-only domain filtering
+                if not url or url in self.seen_urls or "linkedin.com" not in url.lower():
                     continue
+                
+                # Enforce strict 1-week time restriction parsing
+                if not is_recent_post(url, body, max_days=7):
+                    continue
+                    
                 self.seen_urls.add(url)
                 count += 1
                 

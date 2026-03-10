@@ -50,10 +50,42 @@ def get_stats():
             # Top Roles/Industries
             top_industries = []
             try:
-                res = supabase.table("candidates").select("title").limit(500).execute()
-                titles = [c['title'] for c in res.data if c.get('title')]
-                title_counts = Counter(titles).most_common(5)
-                top_industries = [{"name": t[0], "value": t[1]} for t in title_counts]
+                import re
+                
+                def clean_title(t: str) -> str:
+                    # Remove prefixes like "Name on LinkedIn:" or "Name's Post:"
+                    t = re.sub(r'^.*?\bon linkedin\b[:\-]*', '', t, flags=re.IGNORECASE).strip()
+                    t = re.sub(r'^.*?\'s post\b[:\-]*', '', t, flags=re.IGNORECASE).strip()
+                    
+                    # Remove hashtags and ellipsis
+                    t = re.sub(r'#\w+', '', t).replace('\u2026', '').replace('...', '').strip()
+                    
+                    # Split by common delimiters to isolate the role
+                    t = re.split(r'\s*[|\-]\s*|\s+at\s+|\s+in\s+', t, maxsplit=1)[0].strip()
+                    
+                    # Group non-roles or junk into 'Other'
+                    t_lower = t.lower()
+                    if not t or len(t) < 2 or 'hiring' in t_lower or 'post' in t_lower or 'like' in t_lower or 'comment' in t_lower or 'recruiter' in t_lower or 'recruiting' in t_lower:
+                        return 'Other'
+                        
+                    if len(t) > 25: t = t[:22] + '...'
+                    return t.title()
+
+                res = supabase.table("candidates").select("title, tags").limit(500).execute()
+                
+                roles = []
+                for c in res.data:
+                    tags = c.get('tags')
+                    # Prioritize the explicitly searched role stored in tags by the frontend
+                    if tags and isinstance(tags, list) and len(tags) > 0:
+                        roles.append(str(tags[0]).title())
+                    else:
+                        title = c.get('title')
+                        if title:
+                            roles.append(clean_title(title))
+                            
+                role_counts = Counter(roles).most_common(5)
+                top_industries = [{"name": t[0], "value": t[1]} for t in role_counts]
             except Exception as e:
                 logger.error(f"Stats Aggregation Error (Industries): {e}")
 
@@ -90,31 +122,6 @@ def get_stats():
     }
 
 
-@router.get("/funnel")
-async def get_funnel_stats():
-    """Get funnel conversion metrics: Found → Contacted."""
-    supabase = get_supabase()
-    if not supabase:
-        return {"error": "Database not configured"}
-    
-    all_candidates = supabase.table("candidates").select("id, status, sent_at, reply_at, meeting_booked_at").execute()
-    candidates = all_candidates.data if all_candidates.data else []
-    
-    total = len(candidates)
-    contacted = sum(1 for c in candidates if c.get("status") in ["contacted"])
-    
-    def safe_percent(num, denom):
-        return round((num / denom) * 100, 1) if denom > 0 else 0
-    
-    return {
-        "funnel": [
-            {"stage": "Found", "count": total, "percent": 100},
-            {"stage": "Contacted", "count": contacted, "percent": safe_percent(contacted, total)}
-        ],
-        "conversions": {
-            "found_to_contacted": safe_percent(contacted, total)
-        },
-        "total_candidates": total
-    }
+
 
 

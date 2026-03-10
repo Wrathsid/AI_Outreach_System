@@ -1142,41 +1142,7 @@ MAX: 150 chars. Write the message ONLY.
 }
 
 
-@router.get("", response_model=List[Draft])
-def get_all_drafts():
-    """Get all drafts with candidate info."""
-    supabase = get_supabase()
-    if supabase:
-        result = supabase.table("drafts").select("*, candidates(name, company, title, email, generated_email, email_confidence)").eq("status", "draft").order("created_at", desc=True).execute()
-        drafts = []
-        for d in result.data:
-            draft = {
-                "id": d["id"],
-                "candidate_id": d["candidate_id"],
-                "subject": d["subject"],
-                "body": d["body"],
-                "status": d["status"],
-                "candidate_name": d["candidates"]["name"] if d.get("candidates") else None,
-                "candidate_company": d["candidates"]["company"] if d.get("candidates") else None,
-                "candidate_title": d["candidates"]["title"] if d.get("candidates") else None,
-                "candidate_email": d["candidates"]["email"] if d.get("candidates") else None,
-                "candidate_generated_email": d["candidates"]["generated_email"] if d.get("candidates") else None,
-                "candidate_email_confidence": d["candidates"]["email_confidence"] if d.get("candidates") else None,
-                "email_source": "verified" if d.get("candidates", {}).get("email") else ("generated" if d.get("candidates", {}).get("generated_email") else "none")
-            }
-            drafts.append(draft)
-        return drafts
-    return []
 
-@router.delete("", response_model=dict)
-def delete_all_drafts():
-    """Delete all drafts."""
-    supabase = get_supabase()
-    if supabase:
-        # Delete all drafts with status 'draft'
-        result = supabase.table("drafts").delete().eq("status", "draft").execute()
-        return {"message": "All drafts deleted successfully"}
-    raise HTTPException(status_code=500, detail="Database not configured")
 
 
 @router.post("", response_model=Draft)
@@ -1197,44 +1163,10 @@ def create_draft(draft: DraftCreate):
     raise HTTPException(status_code=500, detail="Failed to create draft")
 
 
-@router.patch("/{draft_id}/reply")
-def track_reply(draft_id: int, status: str = "replied"):
-    """Update reply status for a draft (Learning Loop)."""
-    supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not configured")
-    
-    if status not in ["replied", "no_reply", "bounced"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
-        
-    result = supabase.table("drafts").update({"reply_status": status}).eq("id", draft_id).execute()
-    if result.data:
-        return {"message": f"Draft {draft_id} marked as {status}"}
-    raise HTTPException(status_code=404, detail="Draft not found")
 
 
-@router.post("/polish")
-async def polish_draft(request: dict):
-    """Fix grammar and improve tone of draft."""
-    text = request.get("text", "")
-    if not text:
-        return {"text": ""}
-    
-    from backend.config import gemini_model
-    
-    if gemini_model:
-        try:
-            polished = await generate_with_gemini(
-                prompt=text,
-                system_prompt="You are a professional editor. Fix grammar, spelling, and improve flow. Keep the tone professional but conversational. Return ONLY the polished text. Do not add intro/outro.",
-                temperature=0.4
-            )
-            return {"text": polished.strip() if polished else text}
-        except Exception as e:
-            logger.error(f"Polish error: {e}")
-            return {"text": text}
-    
-    return {"text": text}
+
+
 
 
 @router.post("/generate/{candidate_id}")
@@ -1885,8 +1817,62 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
         traceback.print_exc()
         
         # Fallback Logic (Optimization 10)
-        # If AI fails, return basic template based on signal
-        print("Falling back to Template Logic...")
+        logger.error("Falling back to Template Logic due to unexpected error.")
+        
+        # Ensure variables exist even if exception happened early in the try block
+        safe_c = c if 'c' in locals() else {"summary": "Experienced professional"}
+        safe_intent = intent.value if 'intent' in locals() and hasattr(intent, 'value') else "opportunity"
+        safe_signal = signal['signal'] if 'signal' in locals() else "Looking to connect and explore opportunities."
+        safe_sender = sender_intro if 'sender_intro' in locals() else "A professional"
+        safe_contact = contact_type if 'contact_type' in locals() else "linkedin"
+        
+        fallback_text = generate_fallback_draft(
+            safe_c, safe_sender, safe_signal, safe_intent, safe_contact
+        )
+        
+        variant_id = str(uuid.uuid4())
+        gen_params = {
+            "variant_id": variant_id,
+            "score": 50.0,
+            "model": "fallback-template-error",
+            "is_fallback": True
+        }
+        
+        draft_id = 0
+        try:
+            if safe_contact == "linkedin":
+                res = supabase.table("drafts").insert({
+                    "candidate_id": candidate_id, "subject": "", 
+                    "body": fallback_text, "intent": safe_intent,
+                    "temperature": 0.0, "signal_used": safe_signal,
+                    "variant_id": variant_id, "generation_params": gen_params
+                }).execute()
+                draft_id = res.data[0]["id"] if res.data else 0
+            else:
+                res = supabase.table("drafts").insert({
+                    "candidate_id": candidate_id, "subject": "Quick intro", 
+                    "body": fallback_text, "intent": safe_intent,
+                    "temperature": 0.0, "signal_used": safe_signal,
+                    "variant_id": variant_id, "generation_params": gen_params
+                }).execute()
+                draft_id = res.data[0]["id"] if res.data else 0
+        except Exception as db_err:
+            logger.error(f"Failed to save fallback draft to DB: {db_err}")
+
+        if safe_contact == "linkedin":
+            return {
+                "type": "linkedin", "message": fallback_text, 
+                "char_count": len(fallback_text), "quality_score": 50.0,
+                "draft_id": draft_id, "time_to_read": calculate_time_to_read(fallback_text),
+                "variant_id": variant_id, "is_fallback": True
+            }
+        else:
+            return {
+                "type": "email", "subject": "Quick intro", "body": fallback_text, 
+                "word_count": len(fallback_text.split()), "quality_score": 50.0,
+                "draft_id": draft_id, "time_to_read": calculate_time_to_read(fallback_text),
+                "variant_id": variant_id, "is_fallback": True
+            }
 
 from fastapi import Request, BackgroundTasks
 import asyncio

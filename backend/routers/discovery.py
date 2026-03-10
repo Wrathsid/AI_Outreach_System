@@ -36,6 +36,12 @@ async def websocket_discover(websocket: WebSocket, role: str = Query(...), limit
                 # A. Polish single lead (ultra fast)
                 lead = await polish_single_lead(raw_lead)
                 
+                # ENFORCE STRICT AI FILTER: Drop noise/discussions
+                if lead.get("is_hiring_post") is False:
+                    logger.info("AI determined this is not a job post. Dropping lead.")
+                    return None
+                
+                
                 # B. Email prediction & verification
                 name = lead.get("name", "Unknown Candidate")
                 company = lead.get("company", "Unknown")
@@ -92,7 +98,10 @@ async def websocket_discover(websocket: WebSocket, role: str = Query(...), limit
         # Wait for all background tasks to finish processing before closing
         results = await asyncio.gather(*tasks)
         
-        await websocket.send_json({"status": "completed", "results": results})
+        # Filter out dropped (None) results
+        valid_results = [r for r in results if r is not None]
+        
+        await websocket.send_json({"status": "completed", "results": valid_results})
         
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")

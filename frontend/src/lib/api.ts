@@ -123,12 +123,6 @@ export interface UserSettings {
 
 // API Functions
 export const api = {
-  // Health check
-  async health() {
-    const res = await fetchWithAuth(`${API_BASE}/`);
-    return res.json();
-  },
-
   // Settings
   getSettings: async (): Promise<UserSettings> => {
     const res = await fetchWithAuth(`${API_BASE}/settings`);
@@ -170,35 +164,6 @@ export const api = {
     } catch {
       return false;
     }
-  },
-
-  // Discovery
-  discoverCandidates: async (role: string): Promise<unknown[]> => {
-    try {
-        const res = await fetchWithAuth(`${API_BASE}/discover?role=${encodeURIComponent(role)}`);
-        if (!res.ok) throw new Error('API error');
-        return res.json();
-    } catch {
-        return [];
-    }
-  },
-
-  crawlWebsite: async (url: string): Promise<unknown> => {
-    const res = await fetchWithAuth(`${API_BASE}/discover/crawl`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ domain: url })
-    });
-    return res.json();
-  },
-
-  guessEmailPattern: async (firstName: string, lastName: string, domain: string): Promise<unknown> => {
-    const res = await fetchWithAuth(`${API_BASE}/discover/pattern`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ first_name: firstName, last_name: lastName, domain })
-    });
-    return res.json();
   },
 
   // Candidates
@@ -294,24 +259,7 @@ export const api = {
   },
 
   // Drafts
-  async getDrafts(): Promise<Draft[]> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/drafts`);
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch {
-      return [];
-    }
-  },
 
-  async deleteAllDrafts(): Promise<boolean> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/drafts`, { method: 'DELETE' });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  },
 
   async generateDraft(candidateId: number, context: string = '', contactType: 'auto' | 'email' | 'linkedin' = 'auto'): Promise<{ type: 'email' | 'linkedin'; subject?: string; body?: string; message?: string; char_count?: number; draft_id?: number } | null> {
     try {
@@ -349,24 +297,6 @@ export const api = {
     }
   },
 
-  async polishDraft(text: string): Promise<string | null> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/drafts/polish`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error('API error');
-      const data = await res.json();
-      return data.text;
-    } catch {
-      return null;
-    }
-  },
-
-
-
-
   async getStats(): Promise<DashboardStats> {
     try {
       const res = await fetchWithAuth(`${API_BASE}/stats`);
@@ -374,16 +304,6 @@ export const api = {
       return res.json();
     } catch {
       return { weekly_goal_percent: 0, people_found: 0, emails_sent: 0, account_health: 100, is_safe: true, recent_leads: [], top_industries: [] };
-    }
-  },
-
-  async getFunnelStats(): Promise<FunnelStats | null> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/stats/funnel`);
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch {
-      return null;
     }
   },
 
@@ -410,46 +330,6 @@ export const api = {
       return { formality: 75, detail_level: 30, use_emojis: false };
     }
   },
-
-  async updateBrainContext(formality: number, detailLevel: number, useEmojis: boolean): Promise<boolean> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/settings/brain?formality=${formality}&detail_level=${detailLevel}&use_emojis=${useEmojis}`, {
-        method: 'PUT',
-      });
-      return res.ok;
-    } catch {
-      return false;
-    }
-  },
-
-  async verifyLinkedIn(url: string): Promise<{ valid: boolean; message: string }> {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/settings/verify-linkedin?url=${encodeURIComponent(url)}`, {
-          method: 'POST'
-      });
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch {
-      return { valid: false, message: 'Verification failed' };
-    }
-  },
-
-  // AI Extraction
-  extractOpportunity: async (text: string): Promise<ExtractedOpportunity | null> => {
-    try {
-      const res = await fetchWithAuth(`${API_BASE}/settings/extract-opportunity`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (!res.ok) throw new Error('API error');
-      return res.json();
-    } catch (e) {
-      console.error(e);
-      return null;
-    }
-  },
-
 
   // Account Management
   async deleteAccount(): Promise<boolean> {

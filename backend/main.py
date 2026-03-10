@@ -13,6 +13,7 @@ from typing import Dict
 
 from backend.config import setup_cors
 from backend.routers import candidates, drafts, discovery, emails, stats, settings
+from backend.dependencies import get_current_user
 
 # ============================================================
 # RATE LIMITING (Priority 6)

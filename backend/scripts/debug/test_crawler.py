@@ -1,6 +1,6 @@
 import asyncio
 import pytest
-from services.crawler import Crawler
+from backend.services.crawler import Crawler
 
 @pytest.mark.asyncio
 async def test():
