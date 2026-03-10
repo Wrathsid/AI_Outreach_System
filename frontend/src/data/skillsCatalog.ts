@@ -173,3 +173,21 @@ export const SKILLS_CATALOG: Record<string, string[]> = {
 };
 
 export const ALL_SKILLS = Object.values(SKILLS_CATALOG).flat();
+
+// Color mapping for a vibrant, categorized UI experience
+export const CATEGORY_COLORS: Record<string, { text: string; bg: string; border: string; hoverBg: string }> = {
+  'Languages': { text: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/30', hoverBg: 'hover:bg-blue-500/20' },
+  'Frontend': { text: 'text-fuchsia-400', bg: 'bg-fuchsia-500/10', border: 'border-fuchsia-500/30', hoverBg: 'hover:bg-fuchsia-500/20' },
+  'Backend': { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', hoverBg: 'hover:bg-emerald-500/20' },
+  'Database': { text: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', hoverBg: 'hover:bg-amber-500/20' },
+  'Cloud & DevOps': { text: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30', hoverBg: 'hover:bg-cyan-500/20' },
+  'AI & Data': { text: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/30', hoverBg: 'hover:bg-violet-500/20' },
+  'Mobile': { text: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/30', hoverBg: 'hover:bg-rose-500/20' },
+  'Business & Soft Skills': { text: 'text-yellow-400', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', hoverBg: 'hover:bg-yellow-500/20' },
+  'Design': { text: 'text-pink-400', bg: 'bg-pink-500/10', border: 'border-pink-500/30', hoverBg: 'hover:bg-pink-500/20' },
+  'Security': { text: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', hoverBg: 'hover:bg-red-500/20' },
+  'Testing & QA': { text: 'text-green-400', bg: 'bg-green-500/10', border: 'border-green-500/30', hoverBg: 'hover:bg-green-500/20' },
+  'Blockchain & Web3': { text: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30', hoverBg: 'hover:bg-indigo-500/20' },
+  'Gaming & Multimedia': { text: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30', hoverBg: 'hover:bg-purple-500/20' },
+  'Embedded & IoT': { text: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/30', hoverBg: 'hover:bg-teal-500/20' },
+};

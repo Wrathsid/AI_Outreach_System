@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
 import dynamic from 'next/dynamic';
-import { SKILLS_CATALOG, ALL_SKILLS } from '@/data/skillsCatalog';
+import { SKILLS_CATALOG, ALL_SKILLS, CATEGORY_COLORS } from '@/data/skillsCatalog';
 
 const NeuralBackground = dynamic(() => import('@/components/NeuralBackground'), { ssr: false });
 
@@ -271,7 +271,11 @@ export default function PersonalBrain() {
                       >
                         <Plus size={16} className="text-slate-600 group-hover/item:text-cyan-400 transition-colors shrink-0" />
                         <span className="text-sm text-slate-300 group-hover/item:text-white transition-colors">{skill}</span>
-                        <span className="ml-auto text-xs text-slate-600 font-mono">
+                        <span className={`ml-auto text-xs font-mono font-bold ${
+                          Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))
+                            ? CATEGORY_COLORS[Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))![0]]?.text || 'text-slate-600'
+                            : 'text-emerald-500'
+                        }`}>
                           {Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))?.[0]}
                         </span>
                       </button>
@@ -302,8 +306,8 @@ export default function PersonalBrain() {
                   onClick={() => setActiveCategory(activeCategory === category ? null : category)}
                   className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border ${
                     activeCategory === category 
-                      ? 'bg-[#061e27] text-cyan-400 border-cyan-500/50 shadow-[0_0_15px_-3px_rgba(6,182,212,0.2)]' 
-                      : 'bg-transparent text-slate-400 border-white/10 hover:border-white/20 hover:text-slate-200 hover:bg-white/5'
+                      ? `bg-[#0a0f16] ${CATEGORY_COLORS[category]?.text || 'text-cyan-400'} ${CATEGORY_COLORS[category]?.border || 'border-cyan-500/50'} shadow-lg scale-105` 
+                      : `bg-transparent text-slate-400 border-white/10 hover:border-white/20 ${CATEGORY_COLORS[category]?.hoverBg || 'hover:bg-cyan-500/10'} hover:text-slate-200`
                   }`}
                 >
                   {category}
@@ -329,11 +333,11 @@ export default function PersonalBrain() {
                           onClick={() => toggleSkill(skill)}
                           className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border flex items-center gap-2 ${
                             isSelected 
-                              ? 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' 
-                              : 'bg-transparent text-slate-300 border-white/10 hover:border-white/30 hover:bg-white/5'
+                              ? `${CATEGORY_COLORS[activeCategory]?.bg || 'bg-cyan-500/15'} ${CATEGORY_COLORS[activeCategory]?.text || 'text-cyan-300'} ${CATEGORY_COLORS[activeCategory]?.border || 'border-cyan-500/30'}`
+                              : `bg-transparent text-slate-300 border-white/10 hover:border-white/30 ${CATEGORY_COLORS[activeCategory]?.hoverBg || 'hover:bg-cyan-500/10'}`
                           }`}
                         >
-                          {isSelected ? <Check size={14} className="text-cyan-400" /> : <Plus size={14} className="text-slate-500" />}
+                          {isSelected ? <Check size={14} className={CATEGORY_COLORS[activeCategory]?.text || 'text-cyan-400'} /> : <Plus size={14} className="text-slate-500" />}
                           {skill}
                         </button>
                       );
@@ -382,6 +386,9 @@ export default function PersonalBrain() {
                 <div className="flex flex-wrap gap-3">
                   <AnimatePresence mode="popLayout">
                     {selectedSkills.map((skill) => {
+                      const categoryName = Object.entries(SKILLS_CATALOG).find(([, skills]) => skills.includes(skill))?.[0];
+                      const colors = categoryName ? CATEGORY_COLORS[categoryName] : { text: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', hoverBg: 'hover:bg-emerald-500/20' };
+                      
                       return (
                         <motion.div
                           key={skill}
@@ -389,13 +396,13 @@ export default function PersonalBrain() {
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.8 }}
-                          className={`group/chip flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 border-cyan-500/20 bg-[#061e27]/50 text-cyan-50 shadow-sm`}
+                          className={`group/chip flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 ${colors.border} ${colors.bg} text-white shadow-sm`}
                         >
-                          <BrainCircuit size={14} className="text-cyan-400 opacity-70" />
+                          <BrainCircuit size={14} className={`${colors.text} opacity-80`} />
                           <span className="text-sm font-medium">{skill}</span>
                           <button 
                             onClick={() => toggleSkill(skill)} 
-                            className="ml-1 p-0.5 rounded-md hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+                            className={`ml-1 p-0.5 rounded-md hover:bg-white/10 ${colors.text} hover:text-white transition-colors opacity-60 hover:opacity-100`}
                           >
                             <X size={14} />
                           </button>
