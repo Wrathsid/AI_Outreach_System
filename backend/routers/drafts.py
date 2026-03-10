@@ -1495,7 +1495,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             == RULES ==
             1. TASK: {task_instruction}
             2. This is a JOB APPLICATION. The applicant wants to WORK at their company.
-            3. Mention specific skills from the applicant's profile: {skills}
+            3. MANDATORY COMPOSITION: Your message MUST dedicate roughly 70% of its content to discussing the applicant's Core Skills ({skills}), and roughly 30% addressing the context of the specific target role ({role_context}).
             4. NEVER say: "looking to connect", "expand my network", "great to meet", "love to chat"
             5. ALWAYS say things like: "interested in the role", "would love to apply", "my skills in X align with", "available for an interview"
             6. End with a concrete CTA: ask to share resume, schedule a call, or submit application
@@ -1522,7 +1522,7 @@ async def generate_draft(candidate_id: int, context: str = "", contact_type: str
             == TASK ==
             {task_instruction}
             - Write a professional inquiry about open positions.
-            - Mention specific skills: {skills}
+            - MANDATORY COMPOSITION: Your message MUST dedicate roughly 70% of its content to discussing the applicant's Core Skills ({skills}), and roughly 30% addressing the context of the specific target role ({role_context}).
             - Ask if they are currently hiring for roles matching this background.
             - Sound professional and genuinely interested, not generic.
             - End with a clear ask: share resume, schedule a call, etc.

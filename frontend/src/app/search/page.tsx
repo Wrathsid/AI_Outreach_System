@@ -203,7 +203,7 @@ const SearchPage = () => {
                  <div className="absolute bottom-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-purple-600/10 blur-[100px]"></div>
             </div>
 
-            <div className={`z-10 w-full max-w-2xl mx-auto flex flex-col items-center transition-all duration-500 ${results.length > 0 ? 'mt-10 mb-8' : 'my-auto mt-[15vh]'}`}>
+            <div className={`z-10 w-full max-w-4xl mx-auto flex flex-col items-center transition-all duration-500 ${results.length > 0 ? 'mt-10 mb-8' : 'my-auto mt-[15vh]'}`}>
                 
                 {/* Header Pills Removed for Simplicity */}
                 <div className="h-20"></div> {/* Spacer */}

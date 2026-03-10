@@ -110,7 +110,7 @@ export default function PersonalBrain() {
     <div className="flex-1 h-full overflow-y-auto overflow-x-hidden relative bg-[#04090e] text-white font-sans selection:bg-cyan-500/30">
       <NeuralBackground />
       
-      <div className="relative z-10 h-full flex flex-col p-6 md:p-12 max-w-5xl mx-auto w-full overflow-y-auto pb-32">
+      <div className="relative z-10 h-full flex flex-col p-6 md:p-12 max-w-[1600px] mx-auto w-full overflow-y-auto pb-32">
         
         {/* Header Section */}
         <header className="flex items-start justify-between mb-12 animate-fade-in-up shrink-0">
@@ -215,7 +215,7 @@ export default function PersonalBrain() {
 
 
         {/* Skills Section */}
-        <div className="flex flex-col gap-6 w-full max-w-4xl mx-auto">
+        <div className="flex flex-col gap-6 w-full mx-auto">
             
             <h2 className="text-sm font-bold text-cyan-400 uppercase tracking-widest flex items-center gap-2 mb-2">
                 <BrainCircuit size={16} /> SKILL MAPPING

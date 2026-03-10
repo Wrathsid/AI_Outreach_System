@@ -279,7 +279,7 @@ const CandidatesPage = () => {
         <div className="absolute bottom-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-purple-600/10 blur-[100px] animate-ambient-drift-slow"></div>
       </div>
 
-      <div className="z-10 w-full max-w-4xl mx-auto">
+      <div className="z-10 w-full max-w-[1600px] mx-auto">
         {/* Header */}
         <FadeUp className="mb-8">
           <div className="flex items-center justify-between">

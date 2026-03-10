@@ -144,7 +144,7 @@ export default function MinimalCandidatePage() {
   if (loading) {
     return (
       <div className="flex-1 w-full min-h-screen bg-[#0B0B15] text-slate-300 font-sans">
-        <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-6 py-6 flex items-center justify-between">
           <button 
               onClick={() => router.push('/candidates')} 
               className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm"
@@ -166,7 +166,7 @@ export default function MinimalCandidatePage() {
     <div className="flex-1 w-full min-h-screen bg-[#0B0B15] text-slate-300 font-sans selection:bg-white/10 selection:text-white">
       
       {/* Minimal Header */}
-      <div className="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+      <div className="max-w-[1600px] mx-auto px-6 py-6 flex items-center justify-between">
         <button 
             onClick={() => router.push('/candidates')} 
             className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors text-sm"
@@ -182,7 +182,7 @@ export default function MinimalCandidatePage() {
         </button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <div className="max-w-[1600px] mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12">
         
         {/* Left Column: Context & Contact (4 Cols) */}
         <div className="lg:col-span-4 space-y-8">

@@ -158,7 +158,7 @@ export default function SettingsPage() {
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-purple-600/5 blur-[100px] animate-ambient-drift-slow" />
       </div>
 
-      <div className="z-10 w-full max-w-2xl mx-auto mt-16">
+      <div className="z-10 w-full max-w-4xl mx-auto mt-16">
         <h1 className="text-2xl font-semibold text-white mb-2">Settings</h1>
         <p className="text-slate-400 text-sm mb-8">
           Configure your profile and outreach preferences.
