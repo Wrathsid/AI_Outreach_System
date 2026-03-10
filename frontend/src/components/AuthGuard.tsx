@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 
-// ⚡ DEV BYPASS: Set to false to enforce real Supabase authentication.
-const DEV_BYPASS = false;
+// ⚡ DEV BYPASS: Set to true to allow easy login-free access for the professor demo.
+const DEV_BYPASS = true;
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();

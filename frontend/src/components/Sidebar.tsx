@@ -2,23 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Settings, Brain, Menu, X, Users, Search, LogOut } from 'lucide-react';
+import { Home, Settings, Brain, Menu, X, Users, Search } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
 import { MagneticHover } from './Animations';
 
 const Sidebar = () => {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-  };
 
   useEffect(() => {
     const checkMobile = () => {
@@ -208,25 +201,7 @@ const Sidebar = () => {
               Settings
             </div>
           </Link>
-          
-          {/* Logout Button */}
-          <div className="relative group/nav block w-full">
-            <motion.button
-              onClick={() => {
-                setIsMobileOpen(false);
-                handleLogout();
-              }}
-              className="w-full p-3 rounded-xl text-red-400 hover:text-white hover:bg-red-500/20 transition-colors mb-2 flex items-center justify-center md:justify-start gap-3"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <LogOut size={24} />
-              <span className="md:hidden text-sm font-medium">Log out</span>
-            </motion.button>
-            <div className="hidden md:block absolute left-full top-1/2 -translate-y-1/2 ml-4 px-3 py-1.5 rounded-lg bg-[#0f0f1a] border border-white/20 text-[11px] text-white font-bold opacity-0 group-hover/nav:opacity-100 group-hover/nav:translate-x-1 transition-all duration-300 shadow-2xl z-50 pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-8 before:border-transparent before:border-right-[#0f0f1a]">
-              Log out
-            </div>
-          </div>        </motion.div>
+        </motion.div>
       </motion.nav>
     </>
   );

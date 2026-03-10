@@ -81,13 +81,13 @@ def read_root():
         "supabase": "connected" if get_supabase() else "not configured"
     }
 
-# Include routers with Dependencies where Auth is required
-app.include_router(candidates.router, prefix="/candidates", tags=["Candidates"], dependencies=[Depends(get_current_user)])
-app.include_router(drafts.router, prefix="/drafts", tags=["Drafts"], dependencies=[Depends(get_current_user)])
+# Include routers directly (Authentication bypassed for local demo)
+app.include_router(candidates.router, prefix="/candidates", tags=["Candidates"])
+app.include_router(drafts.router, prefix="/drafts", tags=["Drafts"])
 app.include_router(discovery.router, prefix="/discover", tags=["Discovery"])
-app.include_router(emails.router, prefix="/emails", tags=["Emails"], dependencies=[Depends(get_current_user)])
-app.include_router(stats.router, prefix="/stats", tags=["Stats"], dependencies=[Depends(get_current_user)])
-app.include_router(settings.router, prefix="/settings", tags=["Settings"], dependencies=[Depends(get_current_user)])
+app.include_router(emails.router, prefix="/emails", tags=["Emails"])
+app.include_router(stats.router, prefix="/stats", tags=["Stats"])
+app.include_router(settings.router, prefix="/settings", tags=["Settings"])
 
 
 
