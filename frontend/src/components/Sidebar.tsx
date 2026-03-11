@@ -22,8 +22,7 @@ const Sidebar = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Hide Sidebar on Auth pages
-  if (pathname === '/login' || pathname === '/signup') return null;
+
 
   const isActive = (path: string) => pathname === path;
 

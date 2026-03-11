@@ -7,7 +7,6 @@ import { ToastProvider } from "@/context/ToastContext";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TemplateProvider } from "@/context/TemplateContext";
 
-import AuthGuard from "@/components/AuthGuard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -43,7 +42,6 @@ export default function RootLayout({
       <body className={inter.className}>
         <ToastProvider>
           <TemplateProvider>
-            <AuthGuard>
                 <CommandPalette />
                 {/* SmoothScroll removed to support fixed app-layout with internal scrolling */}
                 <div className="relative flex h-screen bg-background-dark overflow-hidden">
@@ -55,7 +53,6 @@ export default function RootLayout({
                   {children}
                 </ErrorBoundary>
                 </div>
-            </AuthGuard>
           </TemplateProvider>
         </ToastProvider>
       </body>

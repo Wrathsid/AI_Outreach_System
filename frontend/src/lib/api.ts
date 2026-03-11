@@ -1,5 +1,4 @@
 // API Client for Intelligent Outreach Backend
-import { createClient } from '@/lib/supabase';
 
 // ── In-memory request cache ──────────────────────────────────────────
 // Prevents duplicate fetches during navigation and page transitions.
@@ -30,20 +29,11 @@ export function invalidateCache(key?: string) {
 }
 // ─────────────────────────────────────────────────────────────────────
 
-async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const supabase = createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  const headers = new Headers(options.headers || {});
-  if (session?.access_token) {
-    headers.set('Authorization', `Bearer ${session.access_token}`);
-  }
-  
-  const fetchOptions = { ...options, headers };
-  if (!fetchOptions.cache && !fetchOptions.next) {
+async function apiFetch(url: string, options: RequestInit = {}) {
+  const fetchOptions = { ...options };
+  if (!fetchOptions.cache && !(fetchOptions as Record<string, unknown>).next) {
     fetchOptions.cache = 'no-store';
   }
-  
   return fetch(url, fetchOptions);
 }
 
@@ -125,13 +115,13 @@ export interface UserSettings {
 export const api = {
   // Settings
   getSettings: async (): Promise<UserSettings> => {
-    const res = await fetchWithAuth(`${API_BASE}/settings`);
+    const res = await apiFetch(`${API_BASE}/settings`);
     return res.json();
   },
   
   updateSettings: async (settings: UserSettings): Promise<boolean> => {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/settings`, {
+      const res = await apiFetch(`${API_BASE}/settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings),
@@ -146,7 +136,7 @@ export const api = {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await fetchWithAuth(`${API_BASE}/settings/avatar`, {
+      const res = await apiFetch(`${API_BASE}/settings/avatar`, {
         method: 'POST',
         body: formData,
       });
@@ -159,7 +149,7 @@ export const api = {
 
   removeAvatar: async (): Promise<boolean> => {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/settings/avatar`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_BASE}/settings/avatar`, { method: 'DELETE' });
       return res.ok;
     } catch {
       return false;
@@ -168,7 +158,7 @@ export const api = {
 
   // Candidates
   async pruneCandidates(days: number = 7): Promise<unknown> {
-    const response = await fetchWithAuth(`${API_BASE}/candidates/prune?days=${days}`, {
+    const response = await apiFetch(`${API_BASE}/candidates/prune?days=${days}`, {
       method: "DELETE",
     });
     return response.json();
@@ -176,7 +166,7 @@ export const api = {
 
   async getCandidates(): Promise<Candidate[]> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates`);
+      const res = await apiFetch(`${API_BASE}/candidates`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -186,7 +176,7 @@ export const api = {
 
   async getCandidate(id: number): Promise<Candidate | null> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/${id}`);
+      const res = await apiFetch(`${API_BASE}/candidates/${id}`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -196,7 +186,7 @@ export const api = {
 
   async createCandidate(candidate: Omit<Candidate, 'id'>): Promise<Candidate | null> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates`, {
+      const res = await apiFetch(`${API_BASE}/candidates`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(candidate),
@@ -211,7 +201,7 @@ export const api = {
 
   async updateCandidateStatus(id: number, status: string): Promise<boolean> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/${id}/status?status=${status}`, {
+      const res = await apiFetch(`${API_BASE}/candidates/${id}/status?status=${status}`, {
         method: 'PATCH',
       });
       if (res.ok && typeof window !== 'undefined') {
@@ -225,7 +215,7 @@ export const api = {
 
   async deleteCandidate(id: number): Promise<boolean> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_BASE}/candidates/${id}`, { method: 'DELETE' });
       if (res.ok && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('candidates_updated'));
       return res.ok;
     } catch {
@@ -235,7 +225,7 @@ export const api = {
 
   async deleteAllCandidates(): Promise<boolean> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/all/delete`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_BASE}/candidates/all/delete`, { method: 'DELETE' });
       if (res.ok && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('candidates_updated'));
       return res.ok;
     } catch {
@@ -246,7 +236,7 @@ export const api = {
   // UX Improvements: Bulk Operations & Sent Tracking
   async bulkAddToPipeline(candidateIds: number[]): Promise<boolean> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/candidates/bulk-add`, {
+      const res = await apiFetch(`${API_BASE}/candidates/bulk-add`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ candidate_ids: candidateIds }),
@@ -263,7 +253,7 @@ export const api = {
 
   async generateDraft(candidateId: number, context: string = '', contactType: 'auto' | 'email' | 'linkedin' = 'auto'): Promise<{ type: 'email' | 'linkedin'; subject?: string; body?: string; message?: string; char_count?: number; draft_id?: number } | null> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/drafts/generate/${candidateId}?context=${encodeURIComponent(context)}&contact_type=${contactType}`, {
+      const res = await apiFetch(`${API_BASE}/drafts/generate/${candidateId}?context=${encodeURIComponent(context)}&contact_type=${contactType}`, {
         method: 'POST',
       });
       if (!res.ok) throw new Error('API error');
@@ -275,7 +265,7 @@ export const api = {
 
   async generateDraftsBatch(candidateIds: number[], context: string = ''): Promise<{ message: string, task_id?: string } | null> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/drafts/generate-batch`, {
+      const res = await apiFetch(`${API_BASE}/drafts/generate-batch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ candidate_ids: candidateIds, context })
@@ -289,7 +279,7 @@ export const api = {
 
   async getBatchStatus(taskId: string): Promise<{ total: number, completed: number, failed: number, status: string } | null> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/drafts/batch/${taskId}/status`);
+      const res = await apiFetch(`${API_BASE}/drafts/batch/${taskId}/status`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -299,7 +289,7 @@ export const api = {
 
   async getStats(): Promise<DashboardStats> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/stats`);
+      const res = await apiFetch(`${API_BASE}/stats`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -310,7 +300,7 @@ export const api = {
   // Brain Context
   async updateSkills(skills: string[]): Promise<boolean> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/settings/brain/skills`, {
+      const res = await apiFetch(`${API_BASE}/settings/brain/skills`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(skills),
@@ -323,7 +313,7 @@ export const api = {
 
   async getBrainContext(): Promise<{ formality: number; detail_level: number; use_emojis: boolean; resume_url?: string; extracted_skills?: string[] }> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/settings/brain`);
+      const res = await apiFetch(`${API_BASE}/settings/brain`);
       if (!res.ok) throw new Error('API error');
       return res.json();
     } catch {
@@ -334,7 +324,7 @@ export const api = {
   // Account Management
   async deleteAccount(): Promise<boolean> {
     try {
-      const res = await fetchWithAuth(`${API_BASE}/settings/account`, {
+      const res = await apiFetch(`${API_BASE}/settings/account`, {
         method: 'DELETE',
       });
       return res.ok;

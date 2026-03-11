@@ -347,13 +347,11 @@ export default function SettingsPage() {
               <button 
                 onClick={async () => {
                   if (!confirm('Are you absolutely sure? This will permanently delete your account and all data. This cannot be undone.')) return;
-                  if (!confirm('This is your final warning. Type "delete" in the next prompt to confirm.\n\nAre you sure you want to proceed?')) return;
+                  if (!confirm('This is your final warning. Are you sure you want to proceed?')) return;
                   try {
                     const success = await api.deleteAccount();
                     if (success) {
-                      const supabase = (await import('@/lib/supabase')).createClient();
-                      await supabase.auth.signOut();
-                      window.location.href = '/login';
+                      window.location.href = '/';
                     } else {
                       alert('Failed to delete account. Please try again.');
                     }
