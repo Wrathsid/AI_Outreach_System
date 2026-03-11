@@ -6,7 +6,7 @@ import {
   Briefcase, MapPin, Linkedin, 
   Mail,
   Copy, ExternalLink, ArrowLeft, Trash2,
-  Check, Sparkles, ChevronDown
+  Check, ChevronDown
 } from 'lucide-react';
 import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName } from '@/lib/displayUtils';
@@ -343,15 +343,6 @@ export default function MinimalCandidatePage() {
                      </div>
 
                      <div className="flex items-center gap-2">
-                         {/* Regenerate Button */}
-                         <button
-                             onClick={generateLinkedinMessage}
-                             disabled={isGenerating}
-                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/5 transition-colors disabled:opacity-50"
-                         >
-                             <Sparkles size={12} />
-                             Regenerate
-                         </button>
 
                          {/* View Post Button (Contextual) */}
                          {(candidate.linkedin_url?.includes('/posts/') || candidate.linkedin_url?.includes('/feed/') || candidate.linkedin_url?.includes('/activity/')) && (
