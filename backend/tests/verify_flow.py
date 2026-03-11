@@ -1,11 +1,12 @@
 import requests
 import json
-import time
 
 BASE_URL = "http://localhost:8000"
 
+
 def print_step(message):
     print(f"\n👉 {message}")
+
 
 def verify_flow():
     print("🚀 Starting API Verification Flow...\n")
@@ -29,14 +30,14 @@ def verify_flow():
         "title": "Director of Validation",
         "location": "Test City",
         "summary": "Experienced in testing and validation.",
-        "match_score": 95
+        "match_score": 95,
     }
-    
+
     try:
         resp = requests.post(f"{BASE_URL}/candidates", json=candidate_data)
         if resp.status_code == 200:
             candidate = resp.json()
-            candidate_id = candidate['id']
+            candidate_id = candidate["id"]
             print(f"✅ Candidate Created: {candidate['name']} (ID: {candidate_id})")
         else:
             print(f"❌ Failed to create candidate: {resp.text}")
@@ -71,13 +72,15 @@ def verify_flow():
             # Find our draft
             found = False
             for d in drafts:
-                if d['candidate_id'] == candidate_id:
-                    print(f"✅ Found draft for {d['candidate_name']} at {d['candidate_company']}")
+                if d["candidate_id"] == candidate_id:
+                    print(
+                        f"✅ Found draft for {d['candidate_name']} at {d['candidate_company']}"
+                    )
                     found = True
                     break
-            
+
             if not found:
-                 print("⚠️ Draft not found in list (might be an issue or just ordering)")
+                print("⚠️ Draft not found in list (might be an issue or just ordering)")
         else:
             print(f"❌ Failed to fetch drafts: {resp.text}")
             return
@@ -85,6 +88,7 @@ def verify_flow():
         print(f"❌ Error fetching drafts: {e}")
 
     print("\n🎉 Verification Complete! The core logic works.")
+
 
 if __name__ == "__main__":
     verify_flow()

@@ -4,6 +4,7 @@ from backend.config import generate_with_gemini
 
 logger = logging.getLogger("lead-processor")
 
+
 async def polish_leads_activity(raw_leads: list) -> list:
     """
     Uses Gemini to clean up messy search results.
@@ -14,7 +15,7 @@ async def polish_leads_activity(raw_leads: list) -> list:
         return []
 
     logger.info(f"Polishing {len(raw_leads)} leads via Gemini...")
-    
+
     # Prepare the prompt for batch processing to save tokens/time
     leads_context = ""
     for i, lead in enumerate(raw_leads):
@@ -49,30 +50,34 @@ async def polish_leads_activity(raw_leads: list) -> list:
 
     try:
         response_text = await generate_with_gemini(prompt)
-        
+
         if not isinstance(response_text, str):
-            logger.warning("Gemini AI did not return a valid string response. Skipping polishing.")
+            logger.warning(
+                "Gemini AI did not return a valid string response. Skipping polishing."
+            )
             return raw_leads
-            
+
         # Clean potential markdown from response
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
         polished_data = json.loads(clean_json)
-        
+
         # Map back to the original leads
         results = []
         for p in polished_data:
             idx = p.get("id")
             if idx is not None and idx < len(raw_leads):
                 orig = raw_leads[idx]
-                orig.update({
-                    "name": p.get("name", "Unknown"),
-                    "title": p.get("title", "Unknown"),
-                    "company": p.get("company", "Unknown"),
-                    "summary": p.get("summary", ""),
-                    "is_hiring_post": p.get("is_hiring_post", False)
-                })
+                orig.update(
+                    {
+                        "name": p.get("name", "Unknown"),
+                        "title": p.get("title", "Unknown"),
+                        "company": p.get("company", "Unknown"),
+                        "summary": p.get("summary", ""),
+                        "is_hiring_post": p.get("is_hiring_post", False),
+                    }
+                )
                 results.append(orig)
-            
+
         return results if results else raw_leads
     except Exception as e:
         logger.error(f"Lead polishing failed: {e}")
@@ -111,21 +116,25 @@ async def polish_single_lead(lead: dict) -> dict:
     """
     try:
         response_text = await generate_with_gemini(prompt)
-        
+
         if not isinstance(response_text, str):
-            logger.warning("Gemini AI did not return a valid string response. Skipping polishing.")
+            logger.warning(
+                "Gemini AI did not return a valid string response. Skipping polishing."
+            )
             return lead
-            
+
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
         p = json.loads(clean_json)
-        
-        lead.update({
-            "name": p.get("name", "Unknown"),
-            "title": p.get("title", "Unknown"),
-            "company": p.get("company", "Unknown"),
-            "summary": p.get("summary", ""),
-            "is_hiring_post": p.get("is_hiring_post", False)
-        })
+
+        lead.update(
+            {
+                "name": p.get("name", "Unknown"),
+                "title": p.get("title", "Unknown"),
+                "company": p.get("company", "Unknown"),
+                "summary": p.get("summary", ""),
+                "is_hiring_post": p.get("is_hiring_post", False),
+            }
+        )
         return lead
     except Exception as e:
         logger.error(f"Single lead polishing failed: {e}")

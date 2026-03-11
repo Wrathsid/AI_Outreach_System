@@ -132,10 +132,10 @@ export default function MinimalCandidatePage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     
-    await api.updateCandidateStatus(candidateId, 'contacted');
-    
     // Optimistic local update
     setCandidate(prev => prev ? { ...prev, status: 'contacted' } : null);
+    
+    await api.updateCandidateStatus(candidateId, 'contacted');
     
     success("✅ Copied to clipboard. Marked as contacted.");
     router.refresh();

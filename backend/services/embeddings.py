@@ -2,7 +2,7 @@
 Embeddings service - provides text embedding and similarity features.
 Falls back gracefully when sentence-transformers is not available (e.g., Vercel serverless).
 """
-import os
+
 import logging
 from typing import List, Optional
 
@@ -13,7 +13,6 @@ logger = logging.getLogger("backend.embeddings")
 # not critical for core functionality.
 try:
     from sentence_transformers import SentenceTransformer
-    import numpy as np
     _HAS_SENTENCE_TRANSFORMERS = True
 except ImportError:
     _HAS_SENTENCE_TRANSFORMERS = False
@@ -28,7 +27,7 @@ class EmbeddingsService:
         if not _HAS_SENTENCE_TRANSFORMERS:
             return None
         if cls._model is None:
-            cls._model = SentenceTransformer('all-MiniLM-L6-v2')
+            cls._model = SentenceTransformer("all-MiniLM-L6-v2")
         return cls._model
 
     @classmethod
@@ -46,9 +45,11 @@ class EmbeddingsService:
         if not _HAS_SENTENCE_TRANSFORMERS:
             return 0.0
         import numpy as np
+
         a = np.array(emb1)
         b = np.array(emb2)
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+
 
 # Global instance for easy access
 embeddings_service = EmbeddingsService()

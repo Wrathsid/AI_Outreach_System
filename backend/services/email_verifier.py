@@ -20,19 +20,20 @@ load_dotenv()
 
 HUNTER_API_KEY = os.getenv("HUNTER_API_KEY")
 
+
 class EmailVerifier:
     """
     Verifies email deliverability using Hunter.io API or fallback MX check.
     """
-    
+
     def __init__(self):
         self.api_key = HUNTER_API_KEY
         self.cache = {}  # Simple in-memory cache
-    
+
     async def verify(self, email: str) -> Dict:
         """
         Verify an email address.
-        
+
         Returns:
             {
                 "email": "john@example.com",
@@ -48,30 +49,30 @@ class EmailVerifier:
                 "status": "invalid",
                 "score": 0,
                 "reason": "Invalid email format",
-                "source": "format_check"
+                "source": "format_check",
             }
-        
+
         # Check cache
         if email in self.cache:
             return self.cache[email]
-        
+
         # Try Hunter.io first
         if self.api_key:
             result = await self._verify_with_hunter(email)
             if result:
                 self.cache[email] = result
                 return result
-        
+
         # Fallback to MX check
         result = await self._verify_with_mx(email)
         self.cache[email] = result
         return result
-    
+
     def _is_valid_format(self, email: str) -> bool:
         """Basic email format validation."""
-        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
         return bool(re.match(pattern, email))
-    
+
     async def _verify_with_hunter(self, email: str) -> Optional[Dict]:
         """
         Verify using Hunter.io API.
@@ -81,24 +82,21 @@ class EmailVerifier:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
                     "https://api.hunter.io/v2/email-verifier",
-                    params={
-                        "email": email,
-                        "api_key": self.api_key
-                    },
-                    timeout=10.0
+                    params={"email": email, "api_key": self.api_key},
+                    timeout=10.0,
                 )
-                
+
                 if response.status_code == 200:
                     data = response.json().get("data", {})
-                    
+
                     # Map Hunter.io result to our format
                     result_map = {
                         "deliverable": "valid",
                         "undeliverable": "invalid",
                         "risky": "risky",
-                        "unknown": "unknown"
+                        "unknown": "unknown",
                     }
-                    
+
                     return {
                         "email": email,
                         "status": result_map.get(data.get("result"), "unknown"),
@@ -110,7 +108,7 @@ class EmailVerifier:
                             "smtp_check": data.get("smtp_check", False),
                             "disposable": data.get("disposable", False),
                             "webmail": data.get("webmail", False),
-                        }
+                        },
                     }
                 elif response.status_code == 401:
                     logger.warning("[WARN] Hunter.io API key invalid")
@@ -121,11 +119,11 @@ class EmailVerifier:
                 else:
                     logger.warning(f"[WARN] Hunter.io error: {response.status_code}")
                     return None
-                    
+
         except Exception as e:
             logger.error(f"[ERR] Hunter.io request failed: {e}")
             return None
-    
+
     async def _verify_with_mx(self, email: str) -> Dict:
         """
         Fallback: Check if domain has valid MX records.
@@ -133,16 +131,17 @@ class EmailVerifier:
         """
         try:
             domain = email.split("@")[1]
-            
+
             # Run DNS lookup in thread pool
             def _check_mx(domain):
                 import dns.resolver
+
                 try:
-                    answers = dns.resolver.resolve(domain, 'MX')
+                    answers = dns.resolver.resolve(domain, "MX")
                     return len(list(answers)) > 0
-                except:
+                except Exception:
                     return False
-            
+
             # Try simple socket approach first (no external lib needed)
             try:
                 await asyncio.to_thread(socket.gethostbyname, f"mail.{domain}")
@@ -151,16 +150,16 @@ class EmailVerifier:
                 try:
                     await asyncio.to_thread(socket.gethostbyname, domain)
                     has_mx = True  # Domain exists at least
-                except:
+                except Exception:
                     has_mx = False
-            
+
             if has_mx:
                 return {
                     "email": email,
                     "status": "risky",  # MX exists but mailbox unverified
                     "score": 50,
                     "reason": "Domain has MX records, mailbox unverified",
-                    "source": "mx_check"
+                    "source": "mx_check",
                 }
             else:
                 return {
@@ -168,16 +167,16 @@ class EmailVerifier:
                     "status": "invalid",
                     "score": 0,
                     "reason": "Domain has no MX records",
-                    "source": "mx_check"
+                    "source": "mx_check",
                 }
-                
+
         except Exception as e:
             return {
                 "email": email,
                 "status": "unknown",
                 "score": 25,
                 "reason": f"Verification failed: {str(e)}",
-                "source": "mx_check"
+                "source": "mx_check",
             }
 
 
@@ -193,10 +192,10 @@ async def verify_emails_batch(emails: list, concurrency: int = 5) -> list:
     """Verify multiple emails with concurrency limit."""
     verifier = EmailVerifier()
     semaphore = asyncio.Semaphore(concurrency)
-    
+
     async def _verify_one(email):
         async with semaphore:
             return await verifier.verify(email)
-    
+
     tasks = [_verify_one(email) for email in emails]
     return await asyncio.gather(*tasks)

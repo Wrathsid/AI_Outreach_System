@@ -2,6 +2,7 @@
 Pydantic schemas/models for the Cold Emailing API.
 All request/response models are defined here for centralized management.
 """
+
 from pydantic import BaseModel
 from typing import List, Optional
 from enum import Enum
@@ -9,14 +10,17 @@ from enum import Enum
 
 class IntentType(str, Enum):
     """Intent buckets for outreach categorization."""
+
     CURIOUS = "curious"  # Default for LinkedIn
-    PEER = "peer"        # Default for Email
-    SOFT = "soft"        # Opportunity hint
-    DIRECT = "direct"    # Direct ask (rare)
-    OPPORTUNITY = "opportunity" # For Recruiters
+    PEER = "peer"  # Default for Email
+    SOFT = "soft"  # Opportunity hint
+    DIRECT = "direct"  # Direct ask (rare)
+    OPPORTUNITY = "opportunity"  # For Recruiters
+
 
 class GenerationReason(str, Enum):
     """H5: Reason codes for draft generation source."""
+
     FRESH_GENERATION = "FRESH_GENERATION"
     IDEMPOTENT_RETURN = "IDEMPOTENT_RETURN"
     RETRY_GENERATION = "RETRY_GENERATION"
@@ -24,11 +28,12 @@ class GenerationReason(str, Enum):
     FAILED_PRECONDITION = "FAILED_PRECONDITION"
 
 
-
 # ==================== CANDIDATE MODELS ====================
+
 
 class Candidate(BaseModel):
     """Full candidate model with all fields."""
+
     id: int
     name: str
     title: Optional[str] = None
@@ -51,6 +56,7 @@ class Candidate(BaseModel):
 
 class CandidateCreate(BaseModel):
     """Model for creating a new candidate."""
+
     name: str
     title: Optional[str] = None
     company: Optional[str] = None
@@ -68,13 +74,16 @@ class CandidateCreate(BaseModel):
 
 class BulkAddRequest(BaseModel):
     """Model for bulk adding candidates to pipeline (UX Improvement)."""
+
     candidate_ids: List[int]
 
 
 # ==================== DRAFT MODELS ====================
 
+
 class Draft(BaseModel):
     """Full draft model with candidate info."""
+
     id: int
     candidate_id: int
     subject: str
@@ -95,6 +104,7 @@ class Draft(BaseModel):
 
 class DraftCreate(BaseModel):
     """Model for creating a new draft."""
+
     candidate_id: int
     subject: str
     body: str
@@ -105,8 +115,10 @@ class DraftCreate(BaseModel):
     variant_id: Optional[str] = None
     generation_params: Optional[dict] = None
 
+
 class DraftEditCreate(BaseModel):
     """Model for recording manual template edits (RAG Feedback)."""
+
     candidate_id: int
     original_text: str
     edited_text: str
@@ -115,8 +127,10 @@ class DraftEditCreate(BaseModel):
 
 # ==================== EMAIL MODELS ====================
 
+
 class SendEmailRequest(BaseModel):
     """Legacy send email request model."""
+
     candidate_id: Optional[int] = None
     to: str
     subject: str
@@ -125,6 +139,7 @@ class SendEmailRequest(BaseModel):
 
 class SendEmailDirectRequest(BaseModel):
     """Direct email sending request (SMTP/SendGrid)."""
+
     to_email: str
     subject: str
     body: str
@@ -133,6 +148,7 @@ class SendEmailDirectRequest(BaseModel):
 
 class GmailSendRequest(BaseModel):
     """Gmail OAuth email sending request."""
+
     to: str
     subject: str
     body: str
@@ -141,6 +157,7 @@ class GmailSendRequest(BaseModel):
 
 class EmailGuessRequest(BaseModel):
     """Request model for email guessing."""
+
     name: str
     company: str
     domain: Optional[str] = None
@@ -148,18 +165,22 @@ class EmailGuessRequest(BaseModel):
 
 class EmailVerifyRequest(BaseModel):
     """Single email verification request."""
+
     email: str
 
 
 class EmailVerifyBatchRequest(BaseModel):
     """Batch email verification request."""
+
     emails: List[str]
 
 
 # ==================== ACTIVITY & STATS MODELS ====================
 
+
 class ActivityLog(BaseModel):
     """Activity log entry model."""
+
     id: int
     action_type: str
     title: str
@@ -170,6 +191,7 @@ class ActivityLog(BaseModel):
 
 class DashboardStats(BaseModel):
     """Dashboard statistics model."""
+
     weekly_goal_percent: int
     people_found: int
     emails_sent: int
@@ -183,8 +205,10 @@ class DashboardStats(BaseModel):
 
 # ==================== SETTINGS MODELS ====================
 
+
 class UserSettings(BaseModel):
     """User settings/profile model."""
+
     full_name: str = ""
     company: str = ""
     role: str = ""
@@ -193,18 +217,22 @@ class UserSettings(BaseModel):
 
 # ==================== DISCOVERY MODELS ====================
 
+
 class ExtractionRequest(BaseModel):
     """Text extraction request for AI processing."""
+
     text: str
 
 
 class CrawlRequest(BaseModel):
     """Domain crawling request."""
+
     domain: str
 
 
 class PatternRequest(BaseModel):
     """Email pattern generation request."""
+
     first_name: str
     last_name: Optional[str] = ""
     domain: str
@@ -212,8 +240,10 @@ class PatternRequest(BaseModel):
 
 # ==================== PROMPT CONTRACT TYPING (D1) ====================
 
+
 class PromptSection(BaseModel):
     """Typed prompt section for deterministic assembly (D1)."""
+
     system_identity: str
     user_bio: str
     candidate_context: str
@@ -227,6 +257,7 @@ class PromptSection(BaseModel):
 
 class GenerationParams(BaseModel):
     """Typed generation parameters for audit trail (D1)."""
+
     variant_id: str
     score: float
     opener_hash: Optional[str] = None
@@ -242,4 +273,3 @@ class GenerationParams(BaseModel):
     prompt_version: Optional[str] = None
     reason: Optional[GenerationReason] = None
     skill_count: Optional[int] = None
-

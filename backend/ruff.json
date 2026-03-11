@@ -1,0 +1,886 @@
+﻿[
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 25,
+      "row": 24
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\config.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 24
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 24,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E722",
+    "end_location": {
+      "column": 39,
+      "row": 184
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\config.py",
+    "fix": null,
+    "location": {
+      "column": 33,
+      "row": 184
+    },
+    "message": "Do not use bare `except`",
+    "noqa_row": 184,
+    "url": "https://docs.astral.sh/ruff/rules/bare-except"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 43,
+      "row": 9
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 9
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 9,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 22,
+      "row": 10
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 10
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 10,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 36,
+      "row": 11
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 11
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 11,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 24,
+      "row": 12
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 12
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 12,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 38,
+      "row": 14
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 14
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 14,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 83,
+      "row": 15
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\main.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 15
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 15,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 32,
+      "row": 133
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 31,
+      "row": 133
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 133,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 39,
+      "row": 134
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 38,
+      "row": 134
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 134,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 59,
+      "row": 137
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 58,
+      "row": 137
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 137,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 63,
+      "row": 138
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 62,
+      "row": 138
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 138,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 65,
+      "row": 139
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 64,
+      "row": 139
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 139,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 63,
+      "row": 140
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 62,
+      "row": 140
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 140,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 73,
+      "row": 141
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 72,
+      "row": 141
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 141,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 69,
+      "row": 142
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\candidates.py",
+    "fix": null,
+    "location": {
+      "column": 68,
+      "row": 142
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 142,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 58,
+      "row": 13
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\discovery.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 13
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 13,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 15,
+      "row": 14
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\discovery.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 14
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 14,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 45,
+      "row": 16
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\discovery.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 16
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 16,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E722",
+    "end_location": {
+      "column": 15,
+      "row": 111
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\discovery.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 111
+    },
+    "message": "Do not use bare `except`",
+    "noqa_row": 111,
+    "url": "https://docs.astral.sh/ruff/rules/bare-except"
+  },
+  {
+    "cell": null,
+    "code": "E722",
+    "end_location": {
+      "column": 15,
+      "row": 116
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\discovery.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 116
+    },
+    "message": "Do not use bare `except`",
+    "noqa_row": 116,
+    "url": "https://docs.astral.sh/ruff/rules/bare-except"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 24,
+      "row": 224
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 23,
+      "row": 224
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 224,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 25,
+      "row": 225
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 24,
+      "row": 225
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 225,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 27,
+      "row": 226
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 26,
+      "row": 226
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 226,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 31,
+      "row": 227
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 30,
+      "row": 227
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 227,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 17,
+      "row": 1187
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 1187
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 1187,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 30,
+      "row": 1188
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 1188
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 1188,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 30,
+      "row": 1194
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 1194
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 1194,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 17,
+      "row": 1197
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 1197
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 1197,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 30,
+      "row": 1198
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\drafts.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 1198
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 1198,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 36,
+      "row": 70
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\routers\\stats.py",
+    "fix": null,
+    "location": {
+      "column": 35,
+      "row": 70
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 70,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 23,
+      "row": 97
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\scripts\\batch\\batch_drafts.py",
+    "fix": null,
+    "location": {
+      "column": 22,
+      "row": 97
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 97,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E722",
+    "end_location": {
+      "column": 11,
+      "row": 98
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\scripts\\batch\\batch_drafts.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 98
+    },
+    "message": "Do not use bare `except`",
+    "noqa_row": 98,
+    "url": "https://docs.astral.sh/ruff/rules/bare-except"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 12,
+      "row": 98
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\scripts\\batch\\batch_drafts.py",
+    "fix": null,
+    "location": {
+      "column": 11,
+      "row": 98
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 98,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E741",
+    "end_location": {
+      "column": 16,
+      "row": 73
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\scripts\\batch\\enrich_leads.py",
+    "fix": null,
+    "location": {
+      "column": 15,
+      "row": 73
+    },
+    "message": "Ambiguous variable name: `l`",
+    "noqa_row": 73,
+    "url": "https://docs.astral.sh/ruff/rules/ambiguous-variable-name"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 55,
+      "row": 21
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\scripts\\batch\\fix_companies.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 21
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 21,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 17,
+      "row": 48
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\crawler.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 48
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 48,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 25,
+      "row": 49
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\crawler.py",
+    "fix": null,
+    "location": {
+      "column": 24,
+      "row": 49
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 49,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 20,
+      "row": 50
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\crawler.py",
+    "fix": null,
+    "location": {
+      "column": 19,
+      "row": 50
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 50,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 17,
+      "row": 78
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\crawler.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 78
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 78,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 25,
+      "row": 79
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\crawler.py",
+    "fix": null,
+    "location": {
+      "column": 24,
+      "row": 79
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 79,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 20,
+      "row": 80
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\crawler.py",
+    "fix": null,
+    "location": {
+      "column": 19,
+      "row": 80
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 80,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E722",
+    "end_location": {
+      "column": 31,
+      "row": 164
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\crawler.py",
+    "fix": null,
+    "location": {
+      "column": 25,
+      "row": 164
+    },
+    "message": "Do not use bare `except`",
+    "noqa_row": 164,
+    "url": "https://docs.astral.sh/ruff/rules/bare-except"
+  },
+  {
+    "cell": null,
+    "code": "E722",
+    "end_location": {
+      "column": 23,
+      "row": 143
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\email_verifier.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 143
+    },
+    "message": "Do not use bare `except`",
+    "noqa_row": 143,
+    "url": "https://docs.astral.sh/ruff/rules/bare-except"
+  },
+  {
+    "cell": null,
+    "code": "E722",
+    "end_location": {
+      "column": 23,
+      "row": 154
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\email_verifier.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 154
+    },
+    "message": "Do not use bare `except`",
+    "noqa_row": 154,
+    "url": "https://docs.astral.sh/ruff/rules/bare-except"
+  },
+  {
+    "cell": null,
+    "code": "F401",
+    "end_location": {
+      "column": 23,
+      "row": 15
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\embeddings.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 15
+    },
+    "message": "`numpy` imported but unused; consider using `importlib.util.find_spec` to test for availability",
+    "noqa_row": 15,
+    "url": "https://docs.astral.sh/ruff/rules/unused-import"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 17,
+      "row": 57
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\hr_extractor.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 57
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 57,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 28,
+      "row": 92
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\hr_extractor.py",
+    "fix": null,
+    "location": {
+      "column": 27,
+      "row": 92
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 92,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 30,
+      "row": 102
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\hr_extractor.py",
+    "fix": null,
+    "location": {
+      "column": 29,
+      "row": 102
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 102,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E701",
+    "end_location": {
+      "column": 50,
+      "row": 104
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\services\\hr_extractor.py",
+    "fix": null,
+    "location": {
+      "column": 49,
+      "row": 104
+    },
+    "message": "Multiple statements on one line (colon)",
+    "noqa_row": 104,
+    "url": "https://docs.astral.sh/ruff/rules/multiple-statements-on-one-line-colon"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 14,
+      "row": 9
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\tests\\test_lead_polish.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 9
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 9,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  },
+  {
+    "cell": null,
+    "code": "E402",
+    "end_location": {
+      "column": 66,
+      "row": 10
+    },
+    "filename": "C:\\Users\\Siddharth\\OneDrive\\Desktop\\AI Outreach System\\backend\\tests\\test_lead_polish.py",
+    "fix": null,
+    "location": {
+      "column": 1,
+      "row": 10
+    },
+    "message": "Module level import not at top of file",
+    "noqa_row": 10,
+    "url": "https://docs.astral.sh/ruff/rules/module-import-not-at-top-of-file"
+  }
+]

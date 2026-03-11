@@ -6,6 +6,7 @@ import logging
 logger = logging.getLogger("backend.auth")
 security = HTTPBearer(auto_error=False)
 
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     if not credentials:
         raise HTTPException(
@@ -16,17 +17,17 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
     token = credentials.credentials
     supabase = get_supabase()
-    
+
     if not supabase:
         logger.error("Supabase not initialized for auth.")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Auth provider unreachable"
+            detail="Auth provider unreachable",
         )
 
     try:
         response = supabase.auth.get_user(token)
-        if hasattr(response, 'user') and response.user:
+        if hasattr(response, "user") and response.user:
             return response.user
         else:
             raise ValueError("No user returned")
@@ -37,4 +38,3 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-

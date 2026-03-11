@@ -1,4 +1,5 @@
-from typing import Dict, List
+from typing import Dict
+
 
 class ConfidenceScorer:
     """
@@ -14,16 +15,16 @@ class ConfidenceScorer:
         signals = []
 
         # 1. Email Verification (The biggest factor)
-        if lead.get('email'):
+        if lead.get("email"):
             score += 0.4
             signals.append("has_email")
-            
+
             # If strictly verified (checked via SMTP/DNS in previous step)
             # We assume if it passed the verifier at all, it's good, but let's check metadata if available
             # For now, just presence of validated email is huge.
-        
+
         # 2. Source Credibility
-        url = lead.get('linkedin_url', '').lower() # defaulting key for url
+        url = lead.get("linkedin_url", "").lower()  # defaulting key for url
         if "github.com" in url:
             score += 0.2
             signals.append("source_github")
@@ -36,24 +37,24 @@ class ConfidenceScorer:
         elif "lever.co" in url or "greenhouse.io" in url:
             score += 0.25
             signals.append("source_ats")
-            
+
         # 3. Role/Context Match
-        hr_score = lead.get('hr_score', 0)
+        hr_score = lead.get("hr_score", 0)
         if hr_score > 0:
-            score += hr_score * 0.2 # Explicit HR/Recruiter role
+            score += hr_score * 0.2  # Explicit HR/Recruiter role
             signals.append("role_match")
-            
+
         # 4. Content Signals
-        summary = lead.get('summary', '').lower()
+        summary = lead.get("summary", "").lower()
         if "hiring" in summary or "looking for" in summary:
             score += 0.1
             signals.append("intent_hiring")
-            
+
         # Cap at 1.0 (or 0.99)
         final_score = min(score, 0.99)
-        
+
         # Round for display
-        lead['confidence'] = round(final_score, 2)
-        lead['signals'] = signals
-        
+        lead["confidence"] = round(final_score, 2)
+        lead["signals"] = signals
+
         return lead

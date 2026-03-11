@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2 } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
 import { JOB_TITLES } from '@/data/jobTitles';
@@ -81,15 +81,17 @@ const SearchPage = () => {
     const { success, error: toastError } = useToast();
 
     // Toggle selection of a single candidate
-    const toggleSelection = (email: string) => {
-        const newSelected = new Set(selectedEmails);
-        if (newSelected.has(email)) {
-            newSelected.delete(email);
-        } else {
-            newSelected.add(email);
-        }
-        setSelectedEmails(newSelected);
-    };
+    const toggleSelection = useCallback((email: string) => {
+        setSelectedEmails(prev => {
+            const newSelected = new Set(prev);
+            if (newSelected.has(email)) {
+                newSelected.delete(email);
+            } else {
+                newSelected.add(email);
+            }
+            return newSelected;
+        });
+    }, []);
 
     // Toggle select all
     const toggleSelectAll = () => {
@@ -194,6 +196,119 @@ const SearchPage = () => {
             setIsScanning(false);
         }
     };
+
+    const renderedResults = React.useMemo(() => {
+        return results.map((r, i) => {
+            const id = (r.email || r.linkedin_url || `result-${i}`) as string;
+            const isSelected = selectedEmails.has(id);
+            return (
+                <FadeUp key={id} delay={0.05 * (i % 5)}>
+                    <div 
+                        onClick={() => toggleSelection(id)}
+                        className={`group relative flex items-start gap-4 p-5 rounded-2xl border transition-all ${
+                            isSelected 
+                                ? 'bg-blue-500/5 border-blue-500/20' 
+                                : 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
+                        }`}
+                    >
+                        {/* Checkbox (Animated) */}
+                        <div className={`shrink-0 pt-1 transition-all duration-300 ${isSelectMode ? 'w-5 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
+                             <div 
+                                onClick={(e) => { e.stopPropagation(); toggleSelection(id); }}
+                                className={`w-5 h-5 rounded border flex items-center justify-center cursor-pointer ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-600 hover:border-slate-500'}`}
+                             >
+                                {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0 flex flex-col gap-2">
+                            {/* Header: Name + Metadata */}
+                            <div>
+                                <div className="flex items-baseline justify-between">
+                                    <h3 className="text-lg font-medium text-white truncate pr-4">
+                                        {r.name && r.name !== 'Unknown Candidate' && r.name !== 'Unknown' 
+                                            ? r.name 
+                                            : (r.title || 'LinkedIn Member')}
+                                    </h3>
+                                    {/* Source Badge (Subtle) */}
+                                    <div className="shrink-0 flex items-center gap-1.5">
+                                        <span className="text-[10px] text-slate-500 opacity-60">
+                                            {r.linkedin_url.includes('github') ? <Github size={10} /> : <Linkedin size={10} />}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="text-sm text-slate-400 truncate flex items-center gap-2">
+                                    <span className="text-slate-300">{r.title}</span>
+                                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                                    <span className="flex items-center gap-1">
+                                        <Building2 size={10} className="opacity-70" />
+                                        {r.company}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Resonance Indicator (Phase 3) */}
+                            {r.resonance_score !== undefined && r.resonance_score > 0 && (
+                                <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex gap-0.5">
+                                        {[1, 2, 3, 4, 5].map((idx) => (
+                                            <div 
+                                                key={idx} 
+                                                className={`w-1 h-3 rounded-full transition-all duration-500 ${
+                                                    (r.resonance_score! * 5) >= idx 
+                                                        ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' 
+                                                        : 'bg-white/10'
+                                                }`}
+                                            />
+                                        ))}
+                                    </div>
+                                    <span className="text-[10px] font-medium text-blue-400 uppercase tracking-wider">
+                                        {r.resonance_score > 0.8 ? 'High Signal' : r.resonance_score > 0.5 ? 'Strong Match' : 'Potentially Relevant'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Context / Intent (1 Line Max) */}
+                            {r.summary && (
+                                <p className="text-xs text-slate-500 line-clamp-1 leading-relaxed">
+                                    {r.summary.replace(/• Unknown|Unknown/g, '').trim()}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Actions (Vertical Alignment) */}
+                        <div className="flex flex-col items-end gap-2 shrink-0 pl-4 border-l border-white/5 ml-2 min-w-[100px]">
+                             <button 
+                                onClick={() => window.open(r.linkedin_url, '_blank')}
+                                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors shadow-lg shadow-blue-500/10"
+                             >
+                                <Linkedin size={12} />
+                                <span>LinkedIn</span>
+                             </button>
+                             
+                             {r.email && (
+                                <>
+                                    <button 
+                                        className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700/50 hover:bg-white/5 text-slate-400 hover:text-white text-xs transition-colors"
+                                        title={r.email}
+                                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(r.email!); success('Email copied'); }}
+                                    >
+                                        <Mail size={12} />
+                                        <span>Email</span>
+                                    </button>
+                                    {/* Email Status Badge (UX Improvement) */}
+                                    <div className="text-center -mt-1">
+                                        <EmailBadge confidence={r.email_confidence} />
+                                    </div>
+                                </>
+                             )}
+                        </div>
+                    </div>
+                </FadeUp>
+            );
+        });
+    }, [results, selectedEmails, isSelectMode, toggleSelection, success]);
 
     return (
         <main className="flex-1 flex flex-col h-full relative overflow-y-auto custom-scrollbar p-8">
@@ -493,116 +608,7 @@ const SearchPage = () => {
                              )}
                         </div>
 
-                        {results.map((r, i) => {
-                            const id = (r.email || r.linkedin_url || `result-${results.indexOf(r)}`) as string;
-                            const isSelected = selectedEmails.has(id);
-                            return (
-                                <FadeUp key={id} delay={0.05 * (i % 5)}>
-                                    <div 
-                                        onClick={() => toggleSelection(id)}
-                                        className={`group relative flex items-start gap-4 p-5 rounded-2xl border transition-all ${
-                                            isSelected 
-                                                ? 'bg-blue-500/5 border-blue-500/20' 
-                                                : 'bg-white/5 hover:bg-white/10 border-white/5 hover:border-white/10'
-                                        }`}
-                                    >
-                                        {/* Checkbox (Animated) */}
-                                        <div className={`shrink-0 pt-1 transition-all duration-300 ${isSelectMode ? 'w-5 opacity-100' : 'w-0 opacity-0 overflow-hidden'}`}>
-                                             <div 
-                                                onClick={(e) => { e.stopPropagation(); toggleSelection(id); }}
-                                                className={`w-5 h-5 rounded border flex items-center justify-center cursor-pointer ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-600 hover:border-slate-500'}`}
-                                             >
-                                                {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
-                                            </div>
-                                        </div>
-
-                                        {/* Content */}
-                                        <div className="flex-1 min-w-0 flex flex-col gap-2">
-                                            {/* Header: Name + Metadata */}
-                                            <div>
-                                                <div className="flex items-baseline justify-between">
-                                                    <h3 className="text-lg font-medium text-white truncate pr-4">
-                                                        {r.name && r.name !== 'Unknown Candidate' && r.name !== 'Unknown' 
-                                                            ? r.name 
-                                                            : (r.title || 'LinkedIn Member')}
-                                                    </h3>
-                                                    {/* Source Badge (Subtle) */}
-                                                    <div className="shrink-0 flex items-center gap-1.5">
-                                                        <span className="text-[10px] text-slate-500 opacity-60">
-                                                            {r.linkedin_url.includes('github') ? <Github size={10} /> : <Linkedin size={10} />}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                                <div className="text-sm text-slate-400 truncate flex items-center gap-2">
-                                                    <span className="text-slate-300">{r.title}</span>
-                                                    <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                                                    <span className="flex items-center gap-1">
-                                                        <Building2 size={10} className="opacity-70" />
-                                                        {r.company}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Resonance Indicator (Phase 3) */}
-                                            {r.resonance_score !== undefined && r.resonance_score > 0 && (
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <div className="flex gap-0.5">
-                                                        {[1, 2, 3, 4, 5].map((i) => (
-                                                            <div 
-                                                                key={i} 
-                                                                className={`w-1 h-3 rounded-full transition-all duration-500 ${
-                                                                    (r.resonance_score! * 5) >= i 
-                                                                        ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' 
-                                                                        : 'bg-white/10'
-                                                                }`}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                    <span className="text-[10px] font-medium text-blue-400 uppercase tracking-wider">
-                                                        {r.resonance_score > 0.8 ? 'High Signal' : r.resonance_score > 0.5 ? 'Strong Match' : 'Potentially Relevant'}
-                                                    </span>
-                                                </div>
-                                            )}
-
-                                            {/* Context / Intent (1 Line Max) */}
-                                            {r.summary && (
-                                                <p className="text-xs text-slate-500 line-clamp-1 leading-relaxed">
-                                                    {r.summary.replace(/• Unknown|Unknown/g, '').trim()}
-                                                </p>
-                                            )}
-                                        </div>
-
-                                        {/* Actions (Vertical Alignment) */}
-                                        <div className="flex flex-col items-end gap-2 shrink-0 pl-4 border-l border-white/5 ml-2 min-w-[100px]">
-                                             <button 
-                                                onClick={() => window.open(r.linkedin_url, '_blank')}
-                                                className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors shadow-lg shadow-blue-500/10"
-                                             >
-                                                <Linkedin size={12} />
-                                                <span>LinkedIn</span>
-                                             </button>
-                                             
-                                             {r.email && (
-                                                <>
-                                                    <button 
-                                                        className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700/50 hover:bg-white/5 text-slate-400 hover:text-white text-xs transition-colors"
-                                                        title={r.email}
-                                                        onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(r.email!); success('Email copied'); }}
-                                                    >
-                                                        <Mail size={12} />
-                                                        <span>Email</span>
-                                                    </button>
-                                                    {/* Email Status Badge (UX Improvement) */}
-                                                    <div className="text-center -mt-1">
-                                                        <EmailBadge confidence={r.email_confidence} />
-                                                    </div>
-                                                </>
-                                             )}
-                                        </div>
-                                    </div>
-                                </FadeUp>
-                            );
-                        })}
+                        {renderedResults}
                     </div>
                 ) : null}
 
