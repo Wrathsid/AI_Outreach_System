@@ -47,6 +47,7 @@ class Crawler:
     def __init__(self):
         self.seen_urls = set()
         self.serpapi_key = os.getenv("SERPAPI_KEY")
+        self.tavily_key = os.getenv("TAVILY_API_KEY")
 
     def get_queries_for_role(
         self, role: str, company_size: str = None, revenue: str = None, tech: str = None
@@ -151,8 +152,41 @@ class Crawler:
 
             results = []
 
-            # Primary: SerpAPI (Google)
-            if self.serpapi_key:
+            # Primary: Tavily (most reliable)
+            if self.tavily_key and not results:
+                try:
+                    def _tavily_search(query, api_key):
+                        from tavily import TavilyClient
+                        client = TavilyClient(api_key=api_key)
+                        response = client.search(
+                            query=query,
+                            search_depth="basic",
+                            max_results=10,
+                            include_domains=["linkedin.com"],
+                        )
+                        return [
+                            {
+                                "title": r.get("title", ""),
+                                "body": r.get("content", ""),
+                                "href": r.get("url", ""),
+                            }
+                            for r in response.get("results", [])
+                        ]
+
+                    results = await asyncio.to_thread(
+                        _tavily_search, q, self.tavily_key
+                    )
+                    if results:
+                        yield {
+                            "type": "status",
+                            "data": f"Found {len(results)} results via Tavily",
+                        }
+                except Exception as e:
+                    logging.error(f"Tavily error: {e}", exc_info=True)
+                    yield {"type": "status", "data": f"Tavily error: {str(e)[:50]}"}
+
+            # Fallback 1: SerpAPI (Google)
+            if self.serpapi_key and not results:
                 try:
 
                     def _serpapi_search(query, api_key):
@@ -194,15 +228,32 @@ class Crawler:
                 try:
 
                     def _ddg_search(query):
-                        from ddgs import DDGS
+                        from duckduckgo_search import DDGS
+                        from duckduckgo_search.exceptions import RatelimitException
 
-                        try:
-                            # 'w' = past week
-                            return list(
-                                DDGS().text(query, max_results=10, timelimit="w")
-                            )
-                        except Exception:
-                            return []
+                        max_retries = 3
+                        for attempt in range(max_retries):
+                            try:
+                                # 'w' = past week
+                                return list(
+                                    DDGS().text(query, max_results=10, timelimit="w")
+                                )
+                            except RatelimitException:
+                                wait_time = 2 ** (attempt + 1)  # 2, 4, 8 seconds
+                                logging.warning(
+                                    f"DDG rate limited (attempt {attempt + 1}/{max_retries}). "
+                                    f"Waiting {wait_time}s..."
+                                )
+                                if attempt < max_retries - 1:
+                                    import time
+                                    time.sleep(wait_time)
+                                else:
+                                    logging.error("DDG rate limit: all retries exhausted")
+                                    return []
+                            except Exception as e:
+                                logging.error(f"DDG search error: {e}")
+                                return []
+                        return []
 
                     ddg_results = await asyncio.to_thread(_ddg_search, q)
                     if ddg_results:
@@ -214,8 +265,11 @@ class Crawler:
                             }
                             for r in ddg_results
                         ]
-                except Exception:
-                    pass
+                    else:
+                        yield {"type": "status", "data": "DuckDuckGo returned no results (may be rate limited)."}
+                except Exception as e:
+                    logging.error(f"DDG fallback error: {e}")
+                    yield {"type": "status", "data": f"Search error: {str(e)[:60]}"}
 
             if not results:
                 yield {"type": "status", "data": "No results for this query."}

@@ -14,3 +14,4 @@ sentence-transformers
 playwright
 serpapi
 duckduckgo-search
+tavily-python
