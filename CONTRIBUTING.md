@@ -31,12 +31,6 @@ Thank you for considering contributing! This guide will help you get started.
    npm run dev
    ```
 
-4. **Temporal (optional)**
-   ```bash
-   docker-compose up -d
-   python -m backend.temporal.worker
-   ```
-
 ## Code Guidelines
 
 ### Backend (Python)

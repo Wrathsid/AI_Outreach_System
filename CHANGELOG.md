@@ -10,7 +10,7 @@ All notable changes to the AI Outreach System are documented here.
 
 - Role-based LinkedIn lead discovery via SerpAPI + DuckDuckGo fallback
 - AI-powered lead polishing (Gemini cleans messy search snippets into structured profiles)
-- Temporal workflow orchestration for durable, retriable discovery pipelines
+- Async WebSocket streaming for real-time discovery results
 - Email pattern prediction and Hunter.io verification with MX fallback
 
 #### AI Draft Generation
@@ -19,7 +19,7 @@ All notable changes to the AI Outreach System are documented here.
 - "Cortex" personalization engine — generates messages grounded in user's resume and skills
 - Deterministic prompt assembly with structural validation, hedging removal, and length normalization
 - Draft scoring (0-100 reply probability) with semantic deduplication
-- Batch generation via Temporal with 5 activities/sec rate limiting
+- Async batch generation with 5 drafts/sec rate limiting
 
 #### Email Delivery
 
@@ -39,7 +39,6 @@ All notable changes to the AI Outreach System are documented here.
 #### Infrastructure
 
 - FastAPI backend with rate-limiting middleware
-- Temporal workflow engine (Docker Compose setup)
 - Supabase PostgreSQL database
 - Vercel (frontend) + Railway (backend) deployment configs
-- Docker containerization for API and worker
+- Docker containerization for API

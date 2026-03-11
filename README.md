@@ -40,12 +40,12 @@ _Discover leads, verify emails, generate AI-personalized messages, and send — 
 │   │    email_sender · gmail_oauth · throttle · embeddings ·      │  │
 │   │    hr_extractor · browser_automation · confidence · ...      │  │
 │   └──────────────────────────────────────────────────────────────┘  │
-└─────┬──────────┬──────────┬──────────┬──────────┬───────────────────┘
-      │          │          │          │          │
-┌─────▼────┐ ┌──▼───┐ ┌───▼────┐ ┌───▼───┐ ┌───▼──────────────────┐
-│ Supabase │ │Gemini│ │SerpAPI │ │Hunter │ │    Temporal           │
-│(Postgres)│ │Qubrid│ │  DDG   │ │  .io  │ │ (Workflow Engine)    │
-└──────────┘ └──────┘ └────────┘ └───────┘ └──────────────────────┘
+└─────┬──────────┬──────────┬──────────┬───────────────────────────┘
+      │          │          │          │
+┌─────▼────┐ ┌──▼───┐ ┌───▼────┐ ┌───▼───┐
+│ Supabase │ │Gemini│ │SerpAPI │ │Hunter │
+│(Postgres)│ │Qubrid│ │  DDG   │ │  .io  │
+└──────────┘ └──────┘ └────────┘ └───────┘
 ```
 
 ### End-to-End Flow
@@ -66,7 +66,7 @@ User enters role → Crawler scrapes LinkedIn (SerpAPI/DDG) → AI polishes lead
 - **Role-Based Precision Search** — Enter any job title to instantly scrape hiring managers & recruiters from LinkedIn.
 - **Dual Crawler Fallback** — SerpAPI (Google) primary with DuckDuckGo fallback. Never blocked.
 - **AI Data Polish** — Gemini cleans messy search snippets into structured profiles (name, title, company, summary).
-- **Temporal Orchestration** — Discovery runs as a durable workflow with automatic retries.
+- **Async Streaming** — Discovery runs as an async WebSocket stream with real-time results.
 
 ### 🤖 AI-Powered Email Pipeline
 
@@ -116,11 +116,11 @@ User enters role → Crawler scrapes LinkedIn (SerpAPI/DDG) → AI polishes lead
 | **Backend**        | 🚀 FastAPI (Python 3.11+), Pydantic, Uvicorn, AsyncIO                                                         |
 | **AI / NLP**       | 🧠 Google Gemini (2.5-flash / 2.0-flash), Qubrid (Llama-3.3-70B), SentenceTransformers                        |
 | **Database**       | 🗄️ Supabase (PostgreSQL)                                                                                      |
-| **Orchestration**  | ⏱️ Temporal (durable workflows with automatic retries)                                                        |
+
 | **Scraping**       | 🕷️ SerpAPI (Google), DuckDuckGo Search                                                                        |
 | **Email**          | ✉️ SendGrid, Gmail API (OAuth2), Hunter.io (verification)                                                     |
 | **Automation**     | 🤖 Playwright (LinkedIn browser automation)                                                                   |
-| **Infrastructure** | 🐳 Docker Compose, Vercel (FE), Railway (BE)                                                                  |
+| **Infrastructure** | 🐳 Vercel (FE), Railway (BE)                                                                                  |
 
 </div>
 
@@ -132,7 +132,6 @@ User enters role → Crawler scrapes LinkedIn (SerpAPI/DDG) → AI polishes lead
 
 - [Node.js](https://nodejs.org/) v18+
 - [Python](https://www.python.org/downloads/) 3.11+
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for Temporal)
 - [Git](https://git-scm.com/)
 
 ### 1. Clone
@@ -182,28 +181,7 @@ python -m backend.main
 
 API runs at `http://localhost:8000`
 
-### 3. Temporal Setup (for durable workflows)
-
-```bash
-# From project root
-docker-compose up -d
-```
-
-This starts 4 containers:
-| Container | Port | Purpose |
-|-----------|------|---------|
-| `temporal` | 7233 | Workflow engine |
-| `temporal-ui` | 8233 | Web dashboard |
-| `postgresql` | 5432 | Temporal's database |
-| `elasticsearch` | 9200 | Temporal's search index |
-
-Start the worker (separate terminal):
-
-```bash
-python -m backend.temporal.worker
-```
-
-### 4. Frontend Setup
+### 3. Frontend Setup
 
 ```bash
 cd frontend
@@ -258,12 +236,6 @@ AI_Outreach_System/
 │   │   ├── hr_extractor.py          # AI opportunity extraction
 │   │   ├── browser_automation.py    # Playwright LinkedIn messaging
 │   │   └── ...                      # confidence, recommendation, verifier
-│   ├── temporal/
-│   │   ├── workflows.py             # DiscoveryWorkflow (crawl → polish → verify)
-│   │   ├── activities.py            # Crawl, polish, email guess, verify activities
-│   │   ├── draft_workflows.py       # BatchDraftWorkflow
-│   │   ├── draft_activities.py      # Draft generation activity
-│   │   └── worker.py                # Worker entry (2 task queues)
 │   ├── tests/                       # pytest test suite
 │   ├── Dockerfile                   # API container
 │   ├── Dockerfile.worker            # Worker container
@@ -297,7 +269,7 @@ AI_Outreach_System/
 │   │   └── middleware.ts            # Supabase SSR auth guard
 │   ├── package.json
 │   └── vercel.json
-├── docker-compose.yml               # Temporal + PostgreSQL + Elasticsearch
+
 ├── scripts/                         # Utility scripts
 └── README.md
 ```
@@ -345,18 +317,16 @@ All data lives in **Supabase (PostgreSQL)**:
 | ------ | -------------------------------- | ---------------------------------- |
 | GET    | `/drafts`                        | List all drafts                    |
 | POST   | `/drafts/generate/{id}`          | Generate AI draft for candidate    |
-| POST   | `/drafts/generate-batch`         | Batch generate (Temporal or async) |
+| POST   | `/drafts/generate-batch`         | Batch generate (async)             |
 | POST   | `/drafts/polish`                 | AI-polish existing text            |
 | GET    | `/drafts/batch/{task_id}/status` | Check batch progress               |
 | DELETE | `/drafts`                        | Delete all drafts                  |
 
 ### Discovery (`/discover`)
 
-| Method | Endpoint                                  | Description                       |
-| ------ | ----------------------------------------- | --------------------------------- |
-| POST   | `/discover/temporal-discover`             | Start Temporal discovery workflow |
-| GET    | `/discover/temporal-discover/{job_id}`    | Poll workflow status              |
-| WS     | `/discover/ws/temporal-discover/{job_id}` | WebSocket status stream           |
+| Method | Endpoint           | Description                         |
+| ------ | ------------------ | ----------------------------------- |
+| WS     | `/discover/ws/discover` | Stream live discovery results  |
 
 ### Emails (`/emails`)
 
@@ -423,13 +393,11 @@ All data lives in **Supabase (PostgreSQL)**:
 
 ## 🚢 Deployment
 
-| Component           | Platform         | Config                             |
-| ------------------- | ---------------- | ---------------------------------- |
-| **Frontend**        | Vercel           | `vercel.json` — serverless Next.js |
-| **Backend API**     | Railway          | `railway.toml` + `Dockerfile`      |
-| **Temporal Worker** | Railway / Docker | `Dockerfile.worker`                |
-| **Temporal Server** | Docker Compose   | `docker-compose.yml`               |
-| **Database**        | Supabase Cloud   | Managed PostgreSQL                 |
+| Component       | Platform       | Config                             |
+| --------------- | -------------- | ---------------------------------- |
+| **Frontend**    | Vercel         | `vercel.json` — serverless Next.js |
+| **Backend API** | Railway        | `railway.toml` + `Dockerfile`      |
+| **Database**    | Supabase Cloud | Managed PostgreSQL                 |
 
 ---
 
