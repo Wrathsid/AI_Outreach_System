@@ -162,7 +162,6 @@ class Crawler:
                             query=query,
                             search_depth="basic",
                             max_results=10,
-                            include_domains=["linkedin.com"],
                         )
                         return [
                             {
@@ -280,12 +279,20 @@ class Crawler:
                 url = r.get("href", "")
                 body = r.get("body", "")
 
-                # Enforce strict LinkedIn-only domain filtering
+                # Enforce strict LinkedIn POSTS filtering (reject job listings)
+                url_lower = url.lower()
                 if (
                     not url
                     or url in self.seen_urls
-                    or "linkedin.com" not in url.lower()
+                    or "linkedin.com" not in url_lower
                 ):
+                    continue
+
+                # Only accept LinkedIn posts/feed/pulse, reject /jobs/ listings
+                if "/jobs/" in url_lower or "/job/" in url_lower:
+                    continue
+                # Must be a post, feed activity, or pulse article
+                if not any(path in url_lower for path in ["/posts/", "/feed/", "/pulse/", "activity-"]):
                     continue
 
                 # Enforce strict 1-week time restriction parsing
