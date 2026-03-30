@@ -288,7 +288,7 @@ def parse_linkedin_title(title: str):
     return {"name": name, "role": role, "company": company}
 
 
-def parse_linkedin_post_url(url: str) -> Dict[str, str]:
+def parse_linkedin_post_url(url: str) -> Dict[str, Optional[str]]:
     """
     Extract the poster's name from a LinkedIn /posts/ URL.
 
@@ -299,7 +299,7 @@ def parse_linkedin_post_url(url: str) -> Dict[str, str]:
         /posts/rossana-mercado_webdeveloper-ecommerce... → Rossana Mercado
         /posts/john-smith-12345_hiring-... → John Smith
     """
-    result = {"name": None, "slug": None}
+    result: Dict[str, Optional[str]] = {"name": None, "slug": None}
 
     if "/posts/" not in url:
         return result
@@ -389,7 +389,7 @@ def extract_poster_info_from_snippet(title: str, body: str) -> Dict[str, Optiona
         Title: "Rossana Mercado on LinkedIn: #webdeveloper #ecommerce..."
         Body: "Recruiter at @HireWithNear · Senior Technical Recruiter · Hi everyone! At Near, we're looking for..."
     """
-    result = {"name": None, "title": None, "company": None}
+    result: Dict[str, Optional[str]] = {"name": None, "title": None, "company": None}
 
     # 1. Try to extract name from "Name on LinkedIn:" pattern in title
     if " on LinkedIn" in title:

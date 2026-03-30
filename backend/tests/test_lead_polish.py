@@ -6,8 +6,8 @@ from pathlib import Path
 backend_path = Path(__file__).resolve().parent.parent
 sys.path.append(str(backend_path))
 
-import pytest
-from backend.services.lead_processor import polish_leads_activity
+import pytest  # noqa: E402
+from backend.services.lead_processor import polish_leads_activity  # noqa: E402
 
 
 @pytest.mark.asyncio

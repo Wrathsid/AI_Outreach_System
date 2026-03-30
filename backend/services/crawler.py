@@ -3,7 +3,7 @@ import asyncio
 import logging
 import time
 import re
-from typing import List, Generator, Dict
+from typing import Any, AsyncGenerator, Dict, List, Optional
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -50,7 +50,7 @@ class Crawler:
         self.tavily_key = os.getenv("TAVILY_API_KEY")
 
     def get_queries_for_role(
-        self, role: str, company_size: str = None, revenue: str = None, tech: str = None
+        self, role: str, company_size: Optional[str] = None, revenue: Optional[str] = None, tech: Optional[str] = None
     ) -> List[str]:
         """
         Generate specialized search queries targeting explicitly the hiring announcements / job postings for this role.
@@ -88,7 +88,7 @@ class Crawler:
         return all_queries
 
     def get_broad_queries(
-        self, role: str, company_size: str = None, revenue: str = None, tech: str = None
+        self, role: str, company_size: Optional[str] = None, revenue: Optional[str] = None, tech: Optional[str] = None
     ) -> List[str]:
         """
         Broad Reach Mode: High volume queries targeting explicit hiring posts.
@@ -126,10 +126,10 @@ class Crawler:
         role: str,
         limit: int = 20,
         broad_mode: bool = False,
-        company_size: str = None,
-        revenue: str = None,
-        tech: str = None,
-    ) -> Generator[Dict, None, None]:
+        company_size: Optional[str] = None,
+        revenue: Optional[str] = None,
+        tech: Optional[str] = None,
+    ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Async Generator: Yields raw search results using SerpAPI.
         """
@@ -150,7 +150,7 @@ class Crawler:
             yield {"type": "status", "data": f"Searching: {q[:50]}..."}
             await asyncio.sleep(0.1)  # Small delay between queries
 
-            results = []
+            results: List[Dict[str, str]] = []
 
             # Primary: Tavily (most reliable)
             if self.tavily_key and not results:
@@ -180,8 +180,15 @@ class Crawler:
                             "type": "status",
                             "data": f"Found {len(results)} results via Tavily",
                         }
+                except (asyncio.TimeoutError, KeyError) as e:
+                    logging.error(f"Tavily data/timeout error: {e}")
+                    yield {"type": "status", "data": f"Tavily data/timeout error: {str(e)[:50]}"}
                 except Exception as e:
-                    logging.error(f"Tavily error: {e}", exc_info=True)
+                    import requests
+                    if isinstance(e, requests.RequestException):
+                        logging.error(f"Tavily request error: {e}")
+                    else:
+                        logging.error(f"Tavily error: {e}", exc_info=True)
                     yield {"type": "status", "data": f"Tavily error: {str(e)[:50]}"}
 
             # Fallback 1: SerpAPI (Google)
@@ -218,8 +225,15 @@ class Crawler:
                             "type": "status",
                             "data": f"Found {len(results)} results via SerpAPI",
                         }
+                except (asyncio.TimeoutError, KeyError) as e:
+                    logging.error(f"SerpAPI data/timeout error: {e}")
+                    yield {"type": "status", "data": f"SerpAPI data/timeout error: {str(e)[:50]}"}
                 except Exception as e:
-                    logging.error(f"SerpAPI error: {e}", exc_info=True)
+                    import requests
+                    if isinstance(e, requests.RequestException):
+                        logging.error(f"SerpAPI request error: {e}")
+                    else:
+                        logging.error(f"SerpAPI error: {e}", exc_info=True)
                     yield {"type": "status", "data": f"SerpAPI error: {str(e)[:50]}"}
 
             if not results:
@@ -249,8 +263,15 @@ class Crawler:
                                 else:
                                     logging.error("DDG rate limit: all retries exhausted")
                                     return []
+                            except (asyncio.TimeoutError, KeyError) as e:
+                                logging.error(f"DDG data/timeout error: {e}")
+                                return []
                             except Exception as e:
-                                logging.error(f"DDG search error: {e}")
+                                import requests
+                                if isinstance(e, requests.RequestException):
+                                    logging.error(f"DDG request error: {e}")
+                                else:
+                                    logging.error(f"DDG search error: {e}")
                                 return []
                         return []
 

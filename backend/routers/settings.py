@@ -283,7 +283,7 @@ async def upload_file(file: UploadFile = File(...)):
     extracted_skills = []
 
     # Process PDF
-    if filename.lower().endswith(".pdf"):
+    if filename and filename.lower().endswith(".pdf"):
         try:
             pdf_file = io.BytesIO(content)
             reader = PdfReader(pdf_file)
@@ -293,7 +293,7 @@ async def upload_file(file: UploadFile = File(...)):
             logger.error(f"Error parsing PDF: {e}")
             extracted_text = "Error extraction text from PDF"
 
-    elif filename.lower().endswith(".txt"):
+    elif filename and filename.lower().endswith(".txt"):
         extracted_text = content.decode("utf-8")
 
     identity = {}

@@ -120,8 +120,11 @@ class EmailVerifier:
                     logger.warning(f"[WARN] Hunter.io error: {response.status_code}")
                     return None
 
-        except Exception as e:
+        except httpx.RequestError as e:
             logger.error(f"[ERR] Hunter.io request failed: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"[ERR] Hunter.io unknown error: {e}")
             return None
 
     async def _verify_with_mx(self, email: str) -> Dict:
@@ -139,6 +142,8 @@ class EmailVerifier:
                 try:
                     answers = dns.resolver.resolve(domain, "MX")
                     return len(list(answers)) > 0
+                except dns.exception.DNSException:
+                    return False
                 except Exception:
                     return False
 
@@ -150,6 +155,8 @@ class EmailVerifier:
                 try:
                     await asyncio.to_thread(socket.gethostbyname, domain)
                     has_mx = True  # Domain exists at least
+                except socket.gaierror:
+                    has_mx = False
                 except Exception:
                     has_mx = False
 
@@ -170,6 +177,14 @@ class EmailVerifier:
                     "source": "mx_check",
                 }
 
+        except (socket.gaierror, socket.timeout) as e:
+            return {
+                "email": email,
+                "status": "unknown",
+                "score": 25,
+                "reason": f"Network resolution failed: {str(e)}",
+                "source": "mx_check",
+            }
         except Exception as e:
             return {
                 "email": email,

@@ -79,6 +79,9 @@ async def polish_leads_activity(raw_leads: list) -> list:
                 results.append(orig)
 
         return results if results else raw_leads
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error(f"Lead polishing JSON/Value error: {e}")
+        return raw_leads
     except Exception as e:
         logger.error(f"Lead polishing failed: {e}")
         # Graceful fallback: return raw data if AI fails
@@ -135,6 +138,9 @@ async def polish_single_lead(lead: dict) -> dict:
                 "is_hiring_post": p.get("is_hiring_post", False),
             }
         )
+        return lead
+    except (json.JSONDecodeError, ValueError) as e:
+        logger.error(f"Single lead polishing JSON/Value error: {e}")
         return lead
     except Exception as e:
         logger.error(f"Single lead polishing failed: {e}")

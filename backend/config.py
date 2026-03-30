@@ -5,6 +5,7 @@ Initializes Supabase, Groq, and other shared clients.
 
 import os
 import sys
+from typing import Optional
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -22,7 +23,7 @@ logger = logging.getLogger("backend")
 # Load environment variables
 # Cloud platforms (Railway, Render) inject env vars directly — no .env file needed.
 # For local development, we check the project root .env and backend/.env as fallbacks.
-from pathlib import Path
+from pathlib import Path  # noqa: E402
 
 backend_dir = Path(__file__).resolve().parent
 project_root = backend_dir.parent
@@ -33,6 +34,25 @@ for env_candidate in [project_root / ".env", backend_dir / ".env"]:
         load_dotenv(dotenv_path=env_candidate)
         break
 
+# ============================================================
+# ENV VAR VALIDATION — Fail-fast on missing critical vars
+# ============================================================
+REQUIRED_ENV_VARS = ["SUPABASE_URL", "SUPABASE_KEY"]
+OPTIONAL_ENV_VARS = [
+    "GEMINI_API_KEY", "QUBRID_API_KEY", "SERPAPI_KEY",
+    "SENDGRID_API_KEY", "HUNTER_API_KEY", "TAVILY_API_KEY",
+]
+
+_missing_required = [v for v in REQUIRED_ENV_VARS if not os.getenv(v)]
+_missing_optional = [v for v in OPTIONAL_ENV_VARS if not os.getenv(v)]
+
+if _missing_required:
+    logger.warning(
+        f"Missing REQUIRED env vars: {_missing_required}. "
+        "Some features will not work. Set these in your .env file."
+    )
+if _missing_optional:
+    logger.info(f"Missing optional env vars: {_missing_optional}")
 
 # Environment Variables
 SUPABASE_URL = os.getenv("SUPABASE_URL")
@@ -58,6 +78,10 @@ def get_supabase():
             _supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
             logger.info("Supabase connected")
             return _supabase
+        except ImportError as e:
+            logger.error(f"Supabase package not installed: {e}")
+        except (ValueError, ConnectionError) as e:
+            logger.error(f"Supabase connection failed: {e}")
         except Exception as e:
             logger.error(f"Supabase not connected: {e}")
     else:
@@ -87,6 +111,10 @@ def get_gemini_model():
             _gemini_model = genai.Client(api_key=GEMINI_API_KEY)
             logger.info("Gemini API configured (Client initialized)")
             return _gemini_model
+        except ImportError as e:
+            logger.error(f"Google GenAI package not installed: {e}")
+        except (ValueError, ConnectionError) as e:
+            logger.error(f"Gemini API connection error: {e}")
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
     else:
@@ -121,6 +149,10 @@ def get_qubrid_client():
             )
             logger.info("Qubrid API configured (Client initialized)")
             return _qubrid_client
+        except ImportError as e:
+            logger.error(f"OpenAI package not installed: {e}")
+        except (ValueError, ConnectionError) as e:
+            logger.error(f"Qubrid API connection error: {e}")
         except Exception as e:
             logger.error(f"Qubrid API error: {e}")
     else:
@@ -135,17 +167,13 @@ if "pytest" not in sys.modules:
 async def generate_with_gemini(
     prompt: str,
     temperature: float = 0.5,
-    max_tokens: int = 300,
-    system_prompt: str = None,
-) -> str:
+    max_tokens: int = 1500,
+    system_prompt: Optional[str] = None,
+) -> Optional[str]:
     """Generate text using Gemini API with Model Fallback."""
     client = get_gemini_model()
     if not client:
         return None
-
-    full_prompt = prompt
-    if system_prompt:
-        full_prompt = f"{system_prompt}\n\nUSER REQUEST:\n{prompt}"
 
     try:
         # Async generation with retry logic
@@ -157,7 +185,7 @@ async def generate_with_gemini(
         base_delay = 2.0
 
         # Models to try (using new SDK model names)
-        models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest"]
+        models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"]
 
         for model_name in models_to_try:
 
@@ -167,10 +195,14 @@ async def generate_with_gemini(
                     response = await asyncio.wait_for(
                         client.aio.models.generate_content(
                             model=model_name,
-                            contents=full_prompt,
-                            config=types.GenerateContentConfig(temperature=temperature),
+                            contents=prompt,
+                            config=types.GenerateContentConfig(
+                                temperature=temperature,
+                                system_instruction=system_prompt,
+                                max_output_tokens=max_tokens,
+                            ),
                         ),
-                        timeout=15.0,
+                        timeout=25.0,
                     )
                     return response.text
 
@@ -232,8 +264,8 @@ async def generate_with_qubrid(
     prompt: str,
     temperature: float = 0.5,
     max_tokens: int = 1500,
-    system_prompt: str = None,
-) -> str:
+    system_prompt: Optional[str] = None,
+) -> Optional[str]:
     """Generate text using Qubrid Platform via OpenAI SDK."""
     client = get_qubrid_client()
     if not client:
@@ -320,6 +352,3 @@ def setup_cors(app: FastAPI):
     )
 
 
-def get_supabase():
-    """Get the Supabase client instance."""
-    return _supabase

@@ -394,7 +394,6 @@ export default function PersonalBrain() {
                           exit={{ opacity: 0, scale: 0.8 }}
                           className="group/chip flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-all duration-200 border-white/20 bg-[#0a0f16] hover:border-white/40 text-white shadow-sm hover:shadow-[0_0_15px_-5px_rgba(255,255,255,0.2)]"
                         >
-                          <BrainCircuit size={14} className="text-slate-400 opacity-80 group-hover/chip:text-white transition-colors" />
                           <span className="text-sm font-medium">{skill}</span>
                           <button 
                             onClick={() => toggleSkill(skill)} 

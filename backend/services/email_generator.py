@@ -4,7 +4,7 @@ Generates probable email addresses using common patterns when real email isn't a
 """
 
 import re
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 
 
 class EmailGenerator:
@@ -81,7 +81,7 @@ class EmailGenerator:
     @classmethod
     def generate_patterns(
         cls, name: str, company: str, limit: int = 3
-    ) -> List[Dict[str, str]]:
+    ) -> List[Dict[str, Any]]:
         """
         Generate probable email patterns.
 
@@ -124,7 +124,7 @@ class EmailGenerator:
         return results
 
     @classmethod
-    def get_best_guess(cls, name: str, company: str) -> Optional[Dict[str, str]]:
+    def get_best_guess(cls, name: str, company: str) -> Optional[Dict[str, Any]]:
         """Get single best email guess."""
         patterns = cls.generate_patterns(name, company, limit=1)
         return patterns[0] if patterns else None

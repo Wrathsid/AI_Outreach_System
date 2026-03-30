@@ -12,14 +12,14 @@ load_dotenv(dotenv_path=".env")
 try:
     from supabase import create_client
 
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    SUPABASE_URL = os.getenv("SUPABASE_URL") or ""
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY") or ""
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 except Exception as e:
     print(f"Failed to init Supabase: {e}")
     sys.exit(1)
 
-from services.hr_extractor import parse_linkedin_title
+from services.hr_extractor import parse_linkedin_title  # noqa: E402
 
 
 def fix_leads():

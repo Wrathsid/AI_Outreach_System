@@ -268,7 +268,7 @@ def delete_candidate(candidate_id: int):
     raise HTTPException(status_code=404, detail="Candidate not found")
 
 
-VALID_STATUSES = {"new", "contacted", "snoozed"}
+VALID_STATUSES = {"new", "contacted", "snoozed", "discovered"}
 
 
 @router.patch("/{candidate_id}/status")

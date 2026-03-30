@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import random
 import logging
 import asyncio
-from typing import Dict
+from typing import Dict, List, Optional
 
 logger = logging.getLogger("backend")
 
@@ -19,9 +19,9 @@ class ThrottleService:
     BASE_DAILY_LINKEDIN = 20
 
     # Adaptive State (In-Memory for speed, synced to DB ideally)
-    _recent_errors = []  # List of timestamps
-    _recent_bounces = []  # List of timestamps
-    _last_429 = None
+    _recent_errors: List[datetime] = []  # List of timestamps
+    _recent_bounces: List[datetime] = []  # List of timestamps
+    _last_429: Optional[datetime] = None
 
     @classmethod
     def record_outcome(cls, outcome: str):

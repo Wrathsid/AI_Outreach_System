@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2 } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
 import { JOB_TITLES } from '@/data/jobTitles';
@@ -23,8 +23,6 @@ interface ScanResult {
     resonance_score?: number;
     result_type?: 'job_posting' | 'person';  // Classification from backend
 }
-
-
 
 const PLACEHOLDERS = [
     "Search roles like 'Frontend Engineer'...",
@@ -80,6 +78,9 @@ const SearchPage = () => {
     const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set());
     const { success, error: toastError } = useToast();
 
+    // Ref to track auto-processed count for the current scan session
+    const autoProcessedCountRef = useRef(0);
+
     // Toggle selection of a single candidate
     const toggleSelection = useCallback((email: string) => {
         setSelectedEmails(prev => {
@@ -122,11 +123,9 @@ const SearchPage = () => {
         // Build WebSocket URL: strip any path suffix like /api from API_BASE
         const baseUrl = API_BASE.replace(/\/api\/?$/, '');
         const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/discover/ws/discover?role=${encodeURIComponent(searchRole)}&limit=${limit}`;
-        console.log("Initiating WS to", wsUrl);
         const ws = new WebSocket(wsUrl);
 
         ws.onopen = () => {
-             console.log("WebSocket connected for discovering", searchRole);
              setStatusMessage('Connected. Engine starting up...');
         };
 
@@ -149,7 +148,34 @@ const SearchPage = () => {
                     ws.close();
                 } else if (data.status === "lead_discovered") {
                     // Stream single lead into the UI instantly!
-                    setResults(prev => [...prev, data.lead]);
+                    const lead = data.lead;
+                    setResults(prev => [...prev, lead]);
+
+                    // AUTO-PROCESSING Logic: Trigger background draft generation for top high-scoring leads
+                    // Only process first 3 results with resonance > 0.8
+                    if (autoProcessedCountRef.current < 3 && lead.resonance_score > 0.8) {
+                        autoProcessedCountRef.current++;
+                        
+                        // 1. Silent creation
+                        api.createCandidate({
+                            name: lead.name || 'Unknown Candidate',
+                            title: lead.title || undefined,
+                            company: lead.company || undefined,
+                            linkedin_url: lead.linkedin_url || undefined,
+                            email: lead.email || undefined,
+                            generated_email: lead.generated_email || undefined,
+                            email_confidence: lead.email_confidence,
+                            summary: lead.summary || undefined,
+                            match_score: Math.round((lead.resonance_score || 0.5) * 100),
+                            status: 'discovered', // Special background status
+                            tags: [searchRole]
+                        }).then(candidate => {
+                            if (candidate?.id) {
+                                // 2. Trigger batch generation (sequential background task)
+                                api.generateDraftsBatch([candidate.id], "auto").catch(console.error);
+                            }
+                        }).catch(err => console.warn("Background auto-creation failed", err));
+                    }
                 } else if (data.status === "running") {
                     setStatusMessage(data.message || 'Scanning... streaming status');
                 }
@@ -166,7 +192,6 @@ const SearchPage = () => {
         };
         
         ws.onclose = (event) => {
-            console.log("WebSocket closed with code", event.code, "reason:", event.reason);
             // If it closed immediately, it might be an error not caught by onerror
             if (isScanning && event.code !== 1000) {
                  toastError(`WS Closed abruptly (Code ${event.code})`);
@@ -181,6 +206,10 @@ const SearchPage = () => {
     const handleScan = async (roleOverride?: string) => {
         const searchRole = roleOverride || role;
         if (!searchRole) return;
+        
+        // Reset auto-processing counter for new scan
+        autoProcessedCountRef.current = 0;
+
         setIsScanning(true);
         setStatusMessage('Connecting to search engine...');
         setResults([]);
@@ -256,7 +285,11 @@ const SearchPage = () => {
                                             <div 
                                                 key={idx} 
                                                 className={`w-1 h-3 rounded-full transition-all duration-500 ${
-                                                    (r.resonance_score! * 5) >= idx 
+                                                    (() => {
+                                                        const score = r.resonance_score!;
+                                                        const bars = score > 0.8 ? 5 : score > 0.5 ? 4 : score > 0.2 ? 3 : 2;
+                                                        return bars >= idx;
+                                                    })()
                                                         ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' 
                                                         : 'bg-white/10'
                                                 }`}
@@ -619,5 +652,10 @@ const SearchPage = () => {
         </main>
     );
 };
+
+export interface ExtendedCandidate extends ScanResult {
+    id: number;
+    match_score?: number;
+}
 
 export default SearchPage;

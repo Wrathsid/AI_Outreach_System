@@ -3,21 +3,16 @@ Drafts router - Draft management and AI generation.
 """
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from typing import List, Dict, Optional
+from typing import Any, List, Dict, Optional
 from pydantic import BaseModel
-import re
 import hashlib
 import uuid
 from datetime import datetime, timedelta
-import time
 import asyncio
 
 
 from backend.config import (
     get_supabase,
-    generate_with_gemini,
-    generate_with_qubrid,
-    get_qubrid_client,
     logger,
 )
 from backend.models.schemas import (
@@ -26,9 +21,40 @@ from backend.models.schemas import (
     DraftEditCreate,
     IntentType,
     GenerationReason,
+    DraftGenerateResponse,
+    BatchStatusResponse,
 )
-from backend.services.embeddings import embeddings_service
 from backend.services.verifier import verify_skills_grounding
+
+# ============================================================
+# IMPORTS FROM EXTRACTED MODULES (backward-compatible re-exports)
+# ============================================================
+from backend.services.scoring import (  # noqa: F401
+    score_draft,
+    score_ending,
+    calculate_softness_score,
+    check_calm_consistency,
+    check_mobile_readability,
+    calculate_asymmetry_score,
+    calculate_time_to_read,
+)
+from backend.services.signals import (  # noqa: F401
+    clean_candidate_data,
+    sanitize_scraped_content,
+    validate_structure,
+    normalize_length,
+    remove_hedging,
+    _detect_hiring_context,
+    extract_primary_signal,
+)
+from backend.services.generation import (  # noqa: F401
+    get_cached_brain_context,
+    get_recent_opener_hashes,
+    get_semantically_similar_openers,
+    get_recent_openers,
+    get_biased_parameters,
+    generate_with_scoring,
+)
 
 router = APIRouter(tags=["Drafts"])
 
@@ -56,17 +82,9 @@ CHANNEL_TONE = {
 # ============================================================
 # H2: PROMPT VERSIONING
 # ============================================================
-PROMPT_VERSION = "v1.3"
+PROMPT_VERSION = "v1.7"
 
 
-# ============================================================
-# P2: BRAIN CONTEXT CACHE (5-min TTL)
-# ============================================================
-_brain_cache: dict = {}
-_BRAIN_CACHE_TTL = 300  # 5 minutes
-
-_biased_params_cache: dict = {}
-_BIASED_PARAMS_TTL = 900  # 15 minutes
 
 
 # ============================================================
@@ -88,22 +106,7 @@ def generate_fingerprint(
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
-def get_cached_brain_context(supabase) -> dict:
-    """Fetch brain context with in-memory caching (P2)."""
-    now = time.time()
-    if (
-        "_brain" in _brain_cache
-        and (now - _brain_cache.get("_ts", 0)) < _BRAIN_CACHE_TTL
-    ):
-        return _brain_cache["_brain"]
-    try:
-        b_data = supabase.table("brain_context").select("*").eq("id", 1).execute().data
-        brain = b_data[0] if b_data else {"extracted_skills": []}
-    except Exception:
-        brain = {"extracted_skills": []}
-    _brain_cache["_brain"] = brain
-    _brain_cache["_ts"] = now
-    return brain
+
 
 
 # ============================================================
@@ -144,783 +147,6 @@ You never say "the candidate" when referring to yourself.
 """
 
 
-# ============================================================
-# Q1: STRUCTURAL SKELETON VALIDATOR
-# ============================================================
-def validate_structure(text: str, contact_type: str) -> bool:
-    """Verify draft has opener -> relevance -> CTA structure (Q1)."""
-    paragraphs = [p.strip() for p in text.split("\n") if p.strip()]
-    # LinkedIn: at least greeting + body + soft close
-    return len(paragraphs) >= 2
-
-
-# ============================================================
-# Q4: LENGTH NORMALIZATION
-# ============================================================
-def normalize_length(text: str, contact_type: str) -> str:
-    """Hard-trim to channel limits (Q4)."""
-    if contact_type == "email":
-        words = text.split()
-        if len(words) > 150:
-            return " ".join(words[:150]) + "..."
-
-    if len(text) > 2500:
-        trimmed = text[:2450]
-        last_period = max(trimmed.rfind("."), trimmed.rfind("?"), trimmed.rfind("!"))
-        if last_period > 1000:
-            return trimmed[: last_period + 1]
-        return trimmed.rstrip() + "..."
-    return text
-
-
-# ============================================================
-# Q6: HEDGING REMOVAL
-# ============================================================
-HEDGE_PHRASES = [
-    "I think ",
-    "I believe ",
-    "I feel like ",
-    "Perhaps ",
-    "Maybe ",
-    "It seems like ",
-    "I was wondering if ",
-    "If you don't mind ",
-    "I hope you don't mind ",
-    "Not sure if this is the right ",
-]
-
-
-def remove_hedging(text: str) -> str:
-    """Strip hedging phrases from generated text (Q6)."""
-    for hedge in HEDGE_PHRASES:
-        text = text.replace(hedge, "")
-        text = text.replace(hedge.lower(), "")
-        # Also handle sentence-start variations
-        text = text.replace(hedge.capitalize(), "")
-    # Clean up double spaces
-    text = re.sub(r"  +", " ", text)
-    # Capitalize first letter of sentences after removal
-    text = re.sub(r"(?<=\. )\w", lambda m: m.group().upper(), text)
-    # Fix leading lowercase after removal at start
-    if text and text[0].islower():
-        text = text[0].upper() + text[1:]
-    return text.strip()
-
-
-# ============================================================
-# DATA QUALITY VALIDATION
-# ============================================================
-
-
-def clean_candidate_data(candidate: dict) -> dict:
-    """Validate and clean candidate data before it touches any prompt.
-
-    Handles garbage scraped data like hashtag-only names, 'Unknown' placeholders,
-    and empty fields. Returns a cleaned copy with usable values or None.
-    """
-    cleaned = dict(candidate)  # Don't mutate original
-
-    # --- Clean Name ---
-    raw_name = cleaned.get("name", "") or ""
-    # Strip hashtags and clean up
-    name_cleaned = re.sub(r"#\w+", "", raw_name).strip()
-    # Remove excess whitespace and special chars
-    name_cleaned = re.sub(r"[^a-zA-Z\s\-\'.]+", "", name_cleaned).strip()
-    # Remove 'Unknown' placeholder (but keep 'Hiring Team' — it's a valid label for job postings)
-    if not name_cleaned or name_cleaned.lower() in ("unknown", "n/a", "none"):
-        name_cleaned = None
-    cleaned["name"] = name_cleaned
-
-    # --- Clean Title ---
-    raw_title = cleaned.get("title", "") or ""
-    title_cleaned = raw_title.strip()
-    if not title_cleaned or title_cleaned.lower() in ("unknown", "n/a", "none", ""):
-        title_cleaned = None
-    # Strip if it's just hashtags
-    if title_cleaned and title_cleaned.startswith("#"):
-        title_cleaned = re.sub(r"#\w+\s*", "", title_cleaned).strip() or None
-    cleaned["title"] = title_cleaned
-
-    # --- Clean Company ---
-    raw_company = cleaned.get("company", "") or ""
-    company_cleaned = raw_company.strip()
-    if not company_cleaned or company_cleaned.lower() in ("unknown", "n/a", "none", ""):
-        company_cleaned = None
-    cleaned["company"] = company_cleaned
-
-    # --- Clean Summary ---
-    raw_summary = cleaned.get("summary", "") or ""
-    if raw_summary.lower().strip() in ("unknown", "n/a", "none", ""):
-        cleaned["summary"] = None
-
-    # --- Data Quality Score ---
-    quality = 0
-    if cleaned["name"]:
-        quality += 1
-    if cleaned["title"]:
-        quality += 1
-    if cleaned["company"]:
-        quality += 1
-    if cleaned.get("summary"):
-        quality += 1
-    cleaned["_data_quality"] = quality  # 0-4 scale
-
-    return cleaned
-
-
-# ============================================================
-# REPLY-RATE OPTIMIZATION FUNCTIONS
-# ============================================================
-
-
-def sanitize_scraped_content(text: str) -> str:
-    """Sanitize scraped content to prevent prompt injection (Priority 6).
-
-    Strips URLs, emails, and special prompt-like characters.
-    """
-    if not text:
-        return ""
-
-    # Remove URLs
-    text = re.sub(r"http[s]?://\S+", "", text)
-    text = re.sub(r"www\.\S+", "", text)
-
-    # Remove emails
-    text = re.sub(r"\S+@\S+", "", text)
-
-    # Remove prompt-like patterns
-    text = re.sub(
-        r"(System:|User:|Assistant:|Prompt:|Ignore|Override)",
-        "",
-        text,
-        flags=re.IGNORECASE,
-    )
-
-    # Remove excessive newlines and special chars
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    text = re.sub(r'[^\w\s.,!?;:()\'"-]', "", text)
-
-    return text.strip()
-
-
-def get_recent_opener_hashes(supabase, limit: int = 50) -> List[str]:
-    """Fetch hashes of recently sent openers to avoid repetition (Optimization 13)."""
-    try:
-        res = (
-            supabase.table("sent_openers")
-            .select("opener_hash")
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
-        return [d["opener_hash"] for d in res.data]
-    except Exception as e:
-        logger.error(f"Memory fetch (hashes) failed: {e}")
-        return []
-
-
-def get_semantically_similar_openers(
-    supabase, embedding: List[float], threshold: float = 0.85
-) -> List[Dict]:
-    """Search for semantically similar openers in Supabase (Optimization Phase 2)."""
-    try:
-        res = supabase.rpc(
-            "match_sent_openers",
-            {
-                "query_embedding": embedding,
-                "match_threshold": threshold,
-                "match_count": 5,
-            },
-        ).execute()
-        return res.data
-    except Exception as e:
-        logger.error(f"Semantic memory fetch failed: {e}")
-        return []
-
-
-def get_recent_openers(supabase, limit: int = 5) -> List[str]:
-    """Fetch recent openers for the prompt to avoid repetition (Optimization 13)."""
-    try:
-        # Legacy: Still check drafts to avoid repeating what we just generated
-        res = (
-            supabase.table("drafts")
-            .select("body")
-            .order("created_at", desc=True)
-            .limit(limit)
-            .execute()
-        )
-        openers = []
-        for d in res.data:
-            body = d.get("body", "")
-            if body:
-                first_line = body.split("\n")[0].strip()
-                if first_line:
-                    if "," in first_line and len(first_line.split(",")[0]) < 20:
-                        parts = first_line.split(",", 1)
-                        if len(parts) > 1:
-                            openers.append(parts[1].strip()[:50])
-                    else:
-                        openers.append(first_line[:50])
-        return list(set(openers))
-    except Exception as e:
-        logger.error(f"Memory fetch failed: {e}")
-        return []
-
-
-def get_biased_parameters(supabase) -> Dict:
-    """Analyze which parameters led to replies (Optimization Phase 2) with caching."""
-    now = time.time()
-    if (
-        "_params" in _biased_params_cache
-        and (now - _biased_params_cache.get("_ts", 0)) < _BIASED_PARAMS_TTL
-    ):
-        return _biased_params_cache["_params"]
-
-    try:
-        # Fetch up to 100 recent replied drafts
-        res = (
-            supabase.table("drafts")
-            .select("generation_params")
-            .eq("reply_status", "replied")
-            .limit(100)
-            .execute()
-        )
-
-        if not res.data:
-            _biased_params_cache["_params"] = {}
-            _biased_params_cache["_ts"] = now
-            return {}
-
-        params_list = [
-            d["generation_params"] for d in res.data if d.get("generation_params")
-        ]
-        if not params_list:
-            _biased_params_cache["_params"] = {}
-            _biased_params_cache["_ts"] = now
-            return {}
-
-        # Calculate heuristics
-        # 1. Average temperature
-        temps = [p.get("temperature") for p in params_list if p.get("temperature")]
-        avg_temp = sum(temps) / len(temps) if temps else None
-
-        # 2. Most successful intent
-        intents = [p.get("intent") for p in params_list if p.get("intent")]
-        p_intent = max(set(intents), key=intents.count) if intents else None
-
-        # 3. Successful Signal Types
-        signals = [p.get("signal_type") for p in params_list if p.get("signal_type")]
-        p_signal = max(set(signals), key=signals.count) if signals else None
-
-        result = {
-            "suggested_temperature": round(avg_temp, 2) if avg_temp else None,
-            "best_intent": p_intent,
-            "best_signal_type": p_signal,
-            "sample_size": len(params_list),
-        }
-        _biased_params_cache["_params"] = result
-        _biased_params_cache["_ts"] = now
-        return result
-    except Exception as e:
-        logger.error(f"Parameter biasing retrieval failed: {e}")
-        return {}
-
-
-def score_draft(text: str, contact_type: str, candidate_context: dict = None) -> float:
-    """Deterministic scoring for reply probability.
-
-    Higher scores = better reply probability.
-    Sweet spots: LinkedIn 140-200 chars, exactly 1 question, curiosity over CTA.
-    """
-    score = 100.0
-
-    # 0. Sanity Check
-    if not text or len(text.strip()) < 10:
-        return 0.0
-
-    # Length sweet spot
-    length = len(text)
-    if 1500 <= length <= 2500:
-        score += 20
-    elif length < 1000:
-        score -= 10
-    elif length > 2500:
-        score -= 15
-
-    # Question count (exactly 1 is ideal)
-    question_count = text.count("?")
-    if question_count == 1:
-        score += 15
-    elif question_count == 0:
-        score -= 5
-    else:
-        score -= 10 * (question_count - 1)
-
-    # Ends with curiosity (not hard CTA)
-    last_50 = text.lower()[-50:]
-    cta_words = [
-        "schedule",
-        "call",
-        "meeting",
-        "chat sometime",
-        "book a",
-        "let's connect",
-        "happy to chat",
-    ]
-    if any(word in last_50 for word in cta_words):
-        score -= 25  # Increased penalty for generic CTAs
-
-    # Gemini "Over-Helpful" Artifacts Check (CRITICAL)
-    # Banned phrases that scream "AI" or "Gemini"
-    banned_phrases = [
-        "as an ai",
-        "i understand",
-        "hope this message finds you",
-        "wanted to reach out",
-        "writing to explore",
-        "love the opportunity",
-        "please let me know if",
-        "additionally,",
-        "moreover,",
-        "it's important to note",
-        "based on your request",
-        "this message is intended",
-    ]
-    for phrase in banned_phrases:
-        if phrase in text.lower():
-            score -= 50  # Kill this draft
-
-    # Structure Enforcement
-    # Allow multiple question marks for long conversations
-    if text.count("?") > 4:
-        score -= 50
-
-    # Flexible Endings (Opt 15 + Refinement)
-    # Allow 0 question marks IF ending is soft curiosity
-    if text.count("?") == 0:
-        soft_endings = ["curious", "wondering", "thoughts", "perspective", "interest"]
-        last_sentence = text.strip().split(".")[-1].lower()
-        if any(w in last_sentence for w in soft_endings):
-            score += 10  # Valid soft ending
-        else:
-            score -= 5  # Penalty for statement with no curiosity
-
-    # Preview Sanity Check (Refinement)
-    # catch "I'm reaching out" / apologies in first 100 chars
-    first_100 = text[:100].lower()
-    bad_starts = ["reaching out to", "apologize", "sorry for", "hope you are"]
-    if any(b in first_100 for b in bad_starts):
-        score -= 50
-
-    # Pronoun Dominance Check (Refinement)
-    # Soft penalty if "I" > 2 AND "You" == 0
-    i_count = len(re.findall(r"\bI\b", text))  # Case sensitive for "I"
-    you_count = len(re.findall(r"\byou\b", text, re.IGNORECASE))
-
-    if i_count > 2 and you_count == 0:
-        score -= 15  # Self-centered penalty
-    elif i_count > 2:
-        score -= 5 * (i_count - 2)
-
-    # Check for their name/company mention (should appear once)
-    if candidate_context:
-        name_first = (
-            candidate_context.get("name", "").split()[0]
-            if candidate_context.get("name")
-            else ""
-        )
-        company = candidate_context.get("company", "")
-
-        if name_first and name_first.lower() in text.lower():
-            score += 5
-        if company and company.lower() in text.lower():
-            mentions = text.lower().count(company.lower())
-            if mentions == 1:
-                score += 5
-            elif mentions > 1:
-                score -= 5  # Over-personalization
-
-    # PATH A OPTIMIZATIONS (Advanced Reply-Rate Tuning)
-
-    # Optimization 15: End-of-message scoring
-    ending_score = score_ending(text, contact_type)
-    score += ending_score
-
-    # Optimization 14: Linguistic softness
-    softness_score = calculate_softness_score(text)
-    score += softness_score
-
-    # Optimization 20: Psychological consistency (calm tone)
-    calm_score = check_calm_consistency(text)
-    score += calm_score
-
-    # Optimization 16: Mobile readability
-    readability_score = check_mobile_readability(text, contact_type)
-    score += readability_score
-
-    # Optimization 16 (Part 2): Time-to-Read (Glance Test)
-    ttr = calculate_time_to_read(text)
-    if ttr > 180:
-        score -= 10  # Too long even for detailed messages
-
-    # Phase 2: Paragraph Asymmetry Guard (Heuristic for Humanness)
-    asymmetry_score = calculate_asymmetry_score(text)
-    score += asymmetry_score
-
-    return max(0, score)
-
-
-def calculate_time_to_read(text: str) -> int:
-    """Estimate reading time in seconds (approx 200 wpm / 3.3 wps)."""
-    words = len(text.split())
-    return round(words / 3.3)
-
-
-def score_ending(text: str, contact_type: str) -> float:
-    """Score the final sentence for reply probability (Optimization 15)."""
-    lines = text.strip().split("\n")
-    last_line = lines[-1].lower() if lines else ""
-
-    score = 0
-
-    # Good endings (curiosity-driven)
-    good_endings = [
-        "curious what you think",
-        "open to a quick exchange",
-        "would you be up for that",
-        "any thoughts on this",
-        "interested in your take",
-        "curious to hear",
-    ]
-
-    # Bad endings (hard CTAs)
-    bad_endings = [
-        "let's connect",
-        "let me know",
-        "happy to chat",
-        "reach out",
-        "schedule",
-        "book a",
-        "set up a call",
-        "grab coffee",
-        "sincerely",
-        "best regards",
-        "best,",
-        "cheers",
-        "warmly",
-    ]
-
-    # Check for good endings
-    for good in good_endings:
-        if good in last_line:
-            score += 20
-            break
-
-    # Check for bad endings
-    for bad in bad_endings:
-        if bad in last_line:
-            score -= 25
-            break
-
-    # Ends with question mark (curiosity)
-    if last_line.endswith("?"):
-        score += 15
-    # Ends with period (calm confidence)
-    elif last_line.endswith("."):
-        score += 5
-
-    return score
-
-
-def calculate_softness_score(text: str) -> float:
-    """Measure linguistic softness — higher is better (Optimization 14)."""
-    score = 0
-    text_lower = text.lower()
-
-    # Soft modal verbs (good)
-    soft_modals = [
-        "might",
-        "could",
-        "wondering",
-        "curious",
-        "perhaps",
-        "possibly",
-        "would you",
-    ]
-    for modal in soft_modals:
-        score += text_lower.count(modal) * 5
-
-    # Hard imperatives (bad)
-    imperatives = ["you should", "you need", "you must", "let's", "we should"]
-    for imp in imperatives:
-        score -= text_lower.count(imp) * 10
-
-    # Future assumptions (bad — presumes relationship)
-    future_words = ["will be", "going to", "excited to", "looking forward"]
-    for fw in future_words:
-        score -= text_lower.count(fw) * 8
-
-    return score
-
-
-def check_calm_consistency(text: str) -> float:
-    """Ensure psychological calmness in tone (Optimization 20)."""
-    score = 0
-
-    # No exclamation marks (breaks calm)
-    exclamation_count = text.count("!")
-    if exclamation_count == 0:
-        score += 10
-    else:
-        score -= 15 * exclamation_count
-
-    # No ALL CAPS words
-    words = text.split()
-    caps_words = [w for w in words if w.isupper() and len(w) > 2]
-    score -= len(caps_words) * 10
-
-    # No hype verbs
-    hype_verbs = [
-        "revolutionize",
-        "disrupt",
-        "transform",
-        "amazing",
-        "incredible",
-        "awesome",
-    ]
-    for hype in hype_verbs:
-        if hype in text.lower():
-            score -= 20
-
-    # Sentence rhythm (aim for 10-20 words per sentence)
-    sentences = [s.strip() for s in text.split(".") if s.strip()]
-    for sent in sentences:
-        word_count = len(sent.split())
-        if 10 <= word_count <= 20:
-            score += 3
-        elif word_count > 30:
-            score -= 5  # Too dense
-
-    return score
-
-
-def check_mobile_readability(text: str, contact_type: str) -> float:
-    """Ensure message passes mobile glance test (Optimization 16)."""
-    score = 0
-
-    # Simulate mobile width (approx 40 chars per line)
-    lines = text.split("\n")
-
-    for line in lines:
-        # Lines that would wrap to 2+ lines on mobile
-        if len(line) > 80:
-            score -= 10
-
-    # Email: Prefer 2-3 short paragraphs
-    if contact_type == "email":
-        paragraph_count = len([p for p in lines if p.strip()])
-        if 2 <= paragraph_count <= 3:
-            score += 15
-        elif paragraph_count > 4:
-            score -= 10
-
-    # No dense clauses (word count per sentence)
-    sentences = [s.strip() for s in text.split(".") if s.strip()]
-    for sent in sentences:
-        words = len(sent.split())
-        if words > 25:  # Dense clause
-            score -= 5
-
-    return score
-
-
-def calculate_asymmetry_score(text: str) -> float:
-    """Penalize drafts with perfectly symmetrical paragraph lengths (Phase 2).
-
-    Humans write with variance. Robots write in blocks.
-    Ideal: 1:2 or 2:1 length ratios between consecutive paragraphs.
-    """
-    paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
-    if len(paragraphs) < 2:
-        return 0
-
-    score = 0
-    lengths = [len(p) for p in paragraphs]
-
-    for i in range(len(lengths) - 1):
-        len1 = lengths[i]
-        len2 = lengths[i + 1]
-
-        if len1 == 0 or len2 == 0:
-            continue
-
-        # Calculate ratio (larger / smaller)
-        ratio = max(len1, len2) / min(len1, len2)
-
-        if ratio < 1.15:  # Too symmetrical (within 15%)
-            score -= 20
-        elif 1.5 <= ratio <= 3.0:  # Good variance
-            score += 10
-
-    return score
-
-
-def _detect_hiring_context(candidate: dict) -> dict:
-    """Analyze candidate data to determine if this is a hiring post or a person profile.
-
-    Returns: {'is_hiring_post': bool, 'hiring_role': str or None, 'recipient_role': str}
-    """
-    summary = (candidate.get("summary") or "").lower()
-    title = (candidate.get("title") or "").lower()
-    name = (candidate.get("name") or "").lower()
-
-    hiring_keywords = [
-        "we are hiring",
-        "we're hiring",
-        "join our team",
-        "hiring for",
-        "now hiring",
-        "open position",
-        "job opening",
-        "looking for",
-        "apply now",
-        "open role",
-        "job opportunity",
-        "career opportunity",
-        "we need",
-        "join us",
-        "urgent hiring",
-        "immediate opening",
-    ]
-
-    is_hiring_post = any(kw in summary for kw in hiring_keywords)
-    is_hiring_post = is_hiring_post or any(kw in title for kw in hiring_keywords)
-
-    # Also check if the name itself suggests hiring (e.g., "Hr Priya Hiring")
-    name_hiring_hints = ["hiring", "hr ", "recruiter", "talent"]
-    if any(hint in name for hint in name_hiring_hints):
-        is_hiring_post = True
-
-    # If it's a hiring post, the title is likely the ROLE BEING HIRED, not the person's role
-    hiring_role = None
-    if is_hiring_post and candidate.get("title"):
-        hiring_role = candidate.get(
-            "title"
-        )  # e.g., "Frontend Developer" is the role they're hiring for
-
-    # Determine what the RECIPIENT's actual role is
-    if is_hiring_post:
-        # The person is a recruiter/HR — they're posting about a role, not working in it
-        if any(w in title for w in ["recruit", "talent", "hr ", "hiring"]):
-            recipient_role = "recruiter"  # Explicitly a recruiter
-        else:
-            recipient_role = (
-                "hiring_manager"  # Posting about hiring but title doesn't say recruiter
-            )
-    else:
-        recipient_role = "professional"  # A regular person in their stated role
-
-    return {
-        "is_hiring_post": is_hiring_post,
-        "hiring_role": hiring_role,
-        "recipient_role": recipient_role,
-    }
-
-
-def extract_primary_signal(candidate: dict) -> Dict[str, str]:
-    """Extract ONE strong signal from candidate context.
-
-    Prevents over-stuffed, unnatural personalization.
-    Returns: {'signal': str, 'type': str, 'avoid': str, 'is_generic': bool}
-    """
-    signals = []
-
-    title = candidate.get("title") or ""  # None-safe
-    company = candidate.get("company") or ""  # None-safe
-    summary = candidate.get("summary") or ""  # None-safe
-
-    # NEW: Detect hiring context
-    hiring_ctx = _detect_hiring_context(candidate)
-
-    # Priority 4 (HIGHEST): This is a hiring post — signal = they're hiring for X role
-    if hiring_ctx["is_hiring_post"] and hiring_ctx.get("hiring_role"):
-        signals.append(
-            {
-                "type": "hiring_post",
-                "value": f"Hiring for {hiring_ctx['hiring_role']}",
-                "priority": 4,
-            }
-        )
-
-    # Priority 3: Hiring/recruiting focus (title says recruiter)
-    elif title and any(
-        word in title.lower() for word in ["recruit", "talent", "hiring"]
-    ):
-        domain = "technical roles" if "tech" in title.lower() else "hiring"
-        signals.append(
-            {
-                "type": "hiring_focus",
-                "value": f"Recruiter focusing on {domain}",
-                "priority": 3,
-            }
-        )
-
-    # Priority 2: Technical role (ONLY if NOT a hiring post)
-    if not hiring_ctx["is_hiring_post"]:
-        tech_keywords = [
-            "engineer",
-            "developer",
-            "designer",
-            "product",
-            "architect",
-            "lead",
-        ]
-        for keyword in tech_keywords:
-            if title and keyword in title.lower():
-                signals.append(
-                    {
-                        "type": "technical_role",
-                        "value": (
-                            f"{keyword.capitalize()} at {company}"
-                            if company
-                            else f"{keyword.capitalize()}"
-                        ),
-                        "priority": 2,
-                    }
-                )
-                break
-
-    # Priority 1: Interesting summary snippet (first sentence only)
-    if summary and len(signals) == 0:
-        first_sentence = summary.split(".")[0].strip()
-        if 20 < len(first_sentence) < 100:
-            signals.append({"type": "summary", "value": first_sentence, "priority": 1})
-
-    # Return highest priority signal or generic fallback
-    if signals:
-        best_signal = max(signals, key=lambda s: s["priority"])
-        return {
-            "signal": best_signal["value"],
-            "type": best_signal["type"],
-            "avoid": "generic experience, achievements not mentioned, overly detailed background",
-            "is_generic": False,
-        }
-
-    # IMPROVED FALLBACK: Don't say "Professional at Unknown"
-    if company:
-        return {
-            "signal": f"the work at {company}",
-            "type": "company_only",
-            "avoid": "making assumptions about their work",
-            "is_generic": True,
-        }
-
-    return {
-        "signal": "the tech sector",
-        "type": "user_interest",
-        "avoid": "making assumptions about their work",
-        "is_generic": True,
-    }
 
 
 def generate_fallback_draft(
@@ -955,7 +181,7 @@ def generate_fallback_draft(
     hiring_role = hiring_ctx.get("hiring_role") or title
 
     # Build greeting (skip 'Hr' or 'Hiring' as first names)
-    if has_name and first_name.lower() not in ("hiring", "hr", "team"):
+    if has_name and first_name and first_name.lower() not in ("hiring", "hr", "team"):
         greeting = f"Hi {first_name}"
     else:
         greeting = "Hi there"
@@ -1040,159 +266,6 @@ def generate_fallback_draft(
 
         return f"Subject: {subject}\n\n{body}"
 
-
-async def generate_with_scoring(
-    prompt: str,
-    contact_type: str,
-    candidate_context: dict,
-    num_variants: int = 3,
-    suggested_temp: float = None,
-) -> Dict:
-    """Generate multiple variants and return the highest scoring one.
-
-    This is the SECRET SAUCE for reply-rate optimization.
-    User sees 1 draft, but we generated 3 and picked the best.
-    """
-    import asyncio
-
-    # Initialize Supabase client for memory features
-    sb_client = get_supabase()
-
-    # RAG: Fetch recent user edits for tone matching
-    try:
-        edits_data = (
-            sb_client.table("draft_edits")
-            .select("original_text, edited_text")
-            .eq("contact_type", contact_type)
-            .order("created_at", desc=True)
-            .limit(3)
-            .execute()
-        )
-        recent_edits = edits_data.data if edits_data else []
-    except Exception as e:
-        logger.error(f"Failed to fetch draft edits for RAG: {str(e)}")
-        recent_edits = []
-
-    rag_context = ""
-    if recent_edits:
-        rag_context = "\n\nPAST TONE EXAMPLES (RAG FEEDBACK):\n"
-        rag_context += "The user has previously manually edited your drafts to sound more like them. Study these examples to match their style:\n"
-        for idx, edit in enumerate(recent_edits):
-            rag_context += f"--- Example {idx+1} ---\n"
-            rag_context += f"Original: {edit.get('original_text', '')}\n"
-            rag_context += f"User's Edit: {edit.get('edited_text', '')}\n"
-        rag_context += "Focus on exactly how they change your phrasing and word choice. Adopt their edited style.\n"
-
-    # Generate variants with CHANNEL-SPECIFIC temperatures (Gemini Tuning)
-    # LinkedIn: 0.35 - 0.45 (Strict control)
-    # Email: 0.45 - 0.55 (Slight flow)
-    base_temp = (
-        suggested_temp
-        if suggested_temp
-        else (0.35 if contact_type == "linkedin" else 0.45)
-    )
-
-    # Prepare tasks for parallel execution
-    tasks = []
-
-    for i in range(num_variants):
-        temp = base_temp + (i * 0.05)
-
-        # Use intent-based system prompt
-        intent_value = candidate_context.get("intent", IntentType.CURIOUS)
-        # Convert string back to Enum for dict lookup if needed
-        if isinstance(intent_value, str):
-            try:
-                intent_value = IntentType(intent_value)
-            except ValueError:
-                intent_value = IntentType.CURIOUS
-
-        system_prompt = SYSTEM_PROMPTS.get(
-            intent_value, SYSTEM_PROMPTS[IntentType.CURIOUS]
-        )
-
-        if rag_context:
-            system_prompt += rag_context
-
-        # Create a coroutine for each generation task (Prio: Qubrid -> Gemini)
-        if get_qubrid_client():
-            tasks.append(
-                generate_with_qubrid(
-                    prompt,
-                    temperature=temp,
-                    system_prompt=system_prompt,
-                    max_tokens=1500,
-                )
-            )
-        else:
-            tasks.append(
-                generate_with_gemini(
-                    prompt, temperature=temp, system_prompt=system_prompt
-                )
-            )
-
-    # Execute all generation tasks in parallel
-    if not tasks:
-        return None
-
-    # Wait for all generations to complete
-    responses = await asyncio.gather(*tasks)
-
-    # Fetch recent sent hashes for deduplication
-    sent_hashes = get_recent_opener_hashes(sb_client)
-
-    variants = []
-    for i, response_text in enumerate(responses):
-        temp = base_temp + (i * 0.05)
-        if response_text:
-            # Extract opener for hashing
-            opener = response_text.split("\n")[0].strip()
-            if "," in opener and len(opener.split(",")[0]) < 20:
-                opener = opener.split(",", 1)[1].strip()
-
-            # Compute hash
-            opener_hash = hashlib.md5(opener.lower().encode()).hexdigest()
-
-            # Base score
-            score = score_draft(response_text, contact_type, candidate_context)
-
-            # Anti-Repetition Penalty (Optimization 13 + Phase 2 Semantic)
-            if opener_hash in sent_hashes:
-                logger.warning(
-                    f"Repeated opener detected (hash: {opener_hash[:8]}). Penalizing variant {i+1}."
-                )
-                score -= 80  # Heavy penalty for exact repetition
-
-            # Semantic Deduplication
-            embedding = embeddings_service.generate_embedding(opener)
-            similar = get_semantically_similar_openers(sb_client, embedding)
-            if similar:
-                max_sim = max([s["similarity"] for s in similar])
-                logger.warning(
-                    f"Semantically similar opener detected (sim: {max_sim:.2f}). Penalizing variant {i+1}."
-                )
-                score -= 40 * max_sim  # Dynamic penalty based on similarity
-
-            variants.append(
-                {
-                    "text": response_text,
-                    "score": score,
-                    "temp": temp,
-                    "opener_hash": opener_hash,
-                    "embedding": embedding,
-                }
-            )
-            logger.info(
-                f"Variant {i+1}: score={score:.1f}, temp={temp}, hash={opener_hash[:8]}"
-            )
-
-    # Return the best one
-    if variants:
-        best = max(variants, key=lambda v: v["score"])
-        logger.info(f"SELECTED: score={best['score']:.1f}, temp={best['temp']}")
-        return best
-
-    return None
 
 
 # Updated system prompts with stronger tone anchors + Q2 Persona Anchor
@@ -1280,24 +353,19 @@ MAX: 100 words. Write the message ONLY.
 """,
     IntentType.OPPORTUNITY: PERSONA_ANCHOR
     + """
-You are writing a LinkedIn connection request to a Recruiter or TA.
-TONE: Brief, professional, and high-impact.
-GOAL: Ask to connect about open roles.
+You are writing a high-impact outreach message about an open opportunity.
+TONE: Professional, competent, and direct.
+GOAL: Express interest in an open role and secure next steps.
 NEGATIVE CONSTRAINTS (CRITICAL):
 - Do NOT use "I'm a [your role] with experience in...". That is boring. Start creatively.
 - Do NOT use "I hope this email finds you well".
-- Do NOT write multiple paragraphs.
-- Do NOT exceed 280 characters under ANY circumstances.
+- Do NOT use repetitive or awkward greetings (e.g. "Hi Name, Dear Name"). Only use one simple greeting like "Hi [Name]," or "Hi,".
 
 RULES:
 - Hook them immediately with your strongest skill mapped to their role.
-- Keep it to 2 short sentences total.
-- Soft Ask: "Open to connecting?"
+- Be articulate and detailed without rambling.
 
-STRUCTURE:
-1 sentence value prop. 1 short question.
-
-Write the message ONLY. Make it extremely brief, ABSOLUTE MAXIMUM 280 characters.
+Write the message ONLY.
 """,
     "GENERIC": PERSONA_ANCHOR
     + """
@@ -1336,7 +404,7 @@ def create_draft(draft: DraftCreate):
     raise HTTPException(status_code=500, detail="Failed to create draft")
 
 
-@router.post("/generate/{candidate_id}")
+@router.post("/generate/{candidate_id}", response_model=DraftGenerateResponse)
 async def generate_draft(
     candidate_id: int, context: str = "", contact_type: str = "auto"
 ):
@@ -1620,10 +688,12 @@ async def generate_draft(
 
         # Determine if Recipient is Company (Hiring Team) or Person
         is_company_recipient = False
-        if c.get("name") == "Hiring Team" or (
-            c.get("company")
-            and c.get("name")
-            and c.get("company").lower() in c.get("name").lower()
+        candidate_name = c.get("name") or ""
+        candidate_company = c.get("company") or ""
+        if candidate_name == "Hiring Team" or (
+            candidate_company
+            and candidate_name
+            and candidate_company.lower() in candidate_name.lower()
         ):
             is_company_recipient = True
 
@@ -1667,7 +737,7 @@ async def generate_draft(
             else:
                 task_instruction = f"Generate a JOB APPLICATION message. The recipient POSTED about hiring for '{hiring_role or c.get('title')}'. Express genuine interest in the position they mentioned. Reference specifics from their post."
         elif c.get("title") and (
-            "recruiter" in c.get("title").lower() or "talent" in c.get("title").lower()
+            "recruiter" in (c.get("title") or "").lower() or "talent" in (c.get("title") or "").lower()
         ):
             intent = IntentType.OPPORTUNITY
             role_context = sender_role
@@ -1746,13 +816,13 @@ async def generate_draft(
             == RULES ==
             1. TASK: {task_instruction}
             2. This is a JOB APPLICATION. The applicant wants to WORK at their company.
-            3. MANDATORY COMPOSITION: Your message MUST be strictly split 70/30. Exactly 70% of the message MUST focus on the applicant's Cortex (Core Skills: {skills}, identity, and value proposition). The remaining 30% MUST directly reference and react to the RECIPIENT'S POST ({post_context}). Do not just mention the role, actually engage with what they wrote in their post.
+            3. CONTENT BALANCE: Ensure roughly 70% of your message focuses on the applicant's unique skills and identity ({skills}). Use the remaining 30% to specifically reference and react to the RECIPIENT'S POST or Company Context ({post_context}). Show, don't just tell, why this specific background is a perfect fit for their engineering culture.
             4. NEVER say: "looking to connect", "expand my network", "great to meet", "love to chat"
             5. ALWAYS say things like: "interested in the role", "would love to apply", "my skills in X align with", "available for an interview"
-            6. End with a concrete CTA: ask to share resume, schedule a call, or submit application
+            6. End with a concrete CTA: ask to share resume, schedule a call, or submit application.
             7. Write in first person as {sender_name}. Sound eager but professional.
-            8. Be detailed and comprehensive. Aim for ~300 words / ~2000 characters.
-            9. No emojis. No quotes around the message. Just the message text.
+            8. BE COMPREHENSIVE: Write a substantial, high-signal message. Aim for 200-300 words. Do not keep it short.
+            9. No emojis. Just the message text.
             10. Do NOT start with "I'm an experienced engineer". Start with a reference to their post/role/company.
             """
         else:
@@ -1949,22 +1019,16 @@ async def generate_draft(
         if contact_type == "linkedin":
             final_msg = response_text.replace("Subject:", "").strip()
 
-            # Ensure proper greeting
-            first_name = c["name"].split()[0] if c.get("name") else "there"
-            # Don't prepend greeting if name is garbage
-            if not final_msg.lower().startswith("hi"):
-                if first_name and first_name.lower() not in ("unknown", "n/a", "#"):
-                    final_msg = f"Hi {first_name}, " + final_msg
-                else:
-                    final_msg = "Hi, " + final_msg
-
-            # Enforce Hard LinkedIn Limit (300 chars max, 280 safe)
-            if len(final_msg) > 280:
-                logger.warning(
-                    f"Draft exceeded LinkedIn limits ({len(final_msg)} chars). Truncating."
-                )
-                # Truncate to word boundary before 277 chars and add ...
-                final_msg = final_msg[:277].rsplit(" ", 1)[0] + "..."
+            # Remove any double greetings if the model ignored instructions
+            # (e.g. "Hi Nidhi, Dear Nidhi," -> "Hi Nidhi,")
+            lines = final_msg.split("\n")
+            if lines and "," in lines[0]:
+                first_line = lines[0].strip()
+                # Check for pattern like "Hi [Name], Dear [Name]," or "Hi [Name] Hi [Name]"
+                if first_line.count(",") >= 2 or ("Hi" in first_line and first_line.lower().count("hi") >= 2):
+                    first_name = c.get("name", "").split()[0] if c.get("name") else "there"
+                    lines[0] = f"Hi {first_name},"
+                    final_msg = "\n".join(lines)
 
             res = (
                 supabase.table("drafts")
@@ -2222,7 +1286,7 @@ async def generate_draft(
 
 # In-memory dictionary to track batch operations (works for single-instance/local)
 # In a distributed multi-instance deployment, this would use Redis or Postgres.
-_BATCH_TASKS = {}
+_BATCH_TASKS: Dict[str, Any] = {}
 
 
 async def _process_batch_drafts(
@@ -2297,15 +1361,22 @@ async def generate_drafts_batch(body: dict, background_tasks: BackgroundTasks):
     }
 
 
-@router.get("/batch/{task_id}/status")
+@router.get("/batch/{task_id}/status", response_model=BatchStatusResponse)
 async def get_batch_status(task_id: str):
     """Check the status of a background batch draft workflow."""
     task_info = _BATCH_TASKS.get(task_id)
 
     if not task_info:
-        return {"status": "error", "message": "Task not found or expired"}
+        return {
+            "task_id": task_id,
+            "status": "error",
+            "completed": 0,
+            "total": 0,
+            "successful": 0,
+            "failed": 0,
+        }
 
-    return task_info
+    return {"task_id": task_id, **task_info}
 
 
 @router.post("/edits")

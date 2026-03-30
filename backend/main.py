@@ -7,13 +7,13 @@ import logging
 from fastapi import FastAPI, Request
 
 logger = logging.getLogger("backend")
-from fastapi.responses import JSONResponse
-from time import time
-from collections import defaultdict
-from typing import Dict
+from fastapi.responses import JSONResponse  # noqa: E402
+from time import time  # noqa: E402
+from collections import defaultdict  # noqa: E402
+from typing import Dict  # noqa: E402
 
-from backend.config import setup_cors
-from backend.routers import candidates, drafts, discovery, emails, stats, settings
+from backend.config import setup_cors  # noqa: E402
+from backend.routers import candidates, drafts, discovery, emails, stats, settings  # noqa: E402
 
 # ============================================================
 # RATE LIMITING (Priority 6)
@@ -78,8 +78,10 @@ app.middleware("http")(rate_limit_middleware)
 setup_cors(app)
 
 
+from backend.models.schemas import HealthResponse  # noqa: E402
+
 # Health check endpoint
-@app.get("/", tags=["Health"])
+@app.get("/", tags=["Health"], response_model=HealthResponse)
 def read_root():
     """Health check and system status."""
     from backend.config import get_supabase

@@ -273,3 +273,38 @@ class GenerationParams(BaseModel):
     prompt_version: Optional[str] = None
     reason: Optional[GenerationReason] = None
     skill_count: Optional[int] = None
+
+
+# ==================== RESPONSE MODELS ====================
+
+
+class DraftGenerateResponse(BaseModel):
+    """Response model for draft generation endpoints."""
+
+    type: str  # "linkedin" or "email"
+    message: Optional[str] = None  # LinkedIn
+    subject: Optional[str] = None  # Email
+    body: Optional[str] = None  # Email
+    quality_score: float
+    draft_id: int
+    time_to_read: int
+    variant_id: str
+    is_fallback: bool = False
+
+
+class BatchStatusResponse(BaseModel):
+    """Response model for batch status endpoint."""
+
+    task_id: str
+    status: str
+    completed: int
+    total: int
+    successful: int
+    failed: int
+
+
+class HealthResponse(BaseModel):
+    """System health check response."""
+
+    status: str
+    supabase: str

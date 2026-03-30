@@ -33,8 +33,9 @@ class RecommendationService:
                 f"{candidate.get('title', '')} at {candidate.get('company', '')}. "
             )
             candidate_text += f"{candidate.get('summary', '')} "
-            if candidate.get("tags"):
-                candidate_text += f"Tags: {', '.join(candidate.get('tags'))}"
+            tags = candidate.get("tags")
+            if tags:
+                candidate_text += f"Tags: {', '.join(str(t) for t in tags)}"
 
             # 2. Get Embeddings
             context_to_match = (
@@ -44,6 +45,8 @@ class RecommendationService:
             candidate_emb = embeddings_service.generate_embedding(candidate_text)
 
             # 3. Calculate Cosine Similarity (-1 to 1)
+            if offer_emb is None or candidate_emb is None:
+                return 0
             similarity = embeddings_service.calculate_similarity(
                 offer_emb, candidate_emb
             )

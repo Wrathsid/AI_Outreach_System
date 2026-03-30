@@ -15,8 +15,8 @@ try:
     from backend.config import generate_with_gemini
     from backend.services.crawler import Crawler  # Reuse the crawler for search
 
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    SUPABASE_URL = os.getenv("SUPABASE_URL") or ""
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY") or ""
 
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
     crawler = Crawler()

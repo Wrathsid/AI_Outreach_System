@@ -9,10 +9,10 @@ from backend.config import logger
 router = APIRouter(tags=["Discovery"])
 
 
-from fastapi import WebSocket, WebSocketDisconnect, Query
-import asyncio
+from fastapi import WebSocket, WebSocketDisconnect, Query  # noqa: E402
+import asyncio  # noqa: E402
 
-from backend.services.crawler import Crawler
+from backend.services.crawler import Crawler  # noqa: E402
 
 
 @router.websocket("/ws/discover")
@@ -67,10 +67,14 @@ async def websocket_discover(
                     lead["email_confidence"] = guess_result.get("confidence")
 
                 if email:
-                    verification = await verify_email(email)
-                    lead["email"] = email
-                    lead["email_verification"] = verification
-                    if verification.get("status") == "invalid":
+                    try:
+                        verification = await verify_email(email)
+                        lead["email"] = email
+                        lead["email_verification"] = verification
+                        if verification.get("status") == "invalid":
+                            lead["email"] = None
+                    except Exception:
+                        # If email verification fails, just set email to None
                         lead["email"] = None
                 else:
                     lead["email"] = None
