@@ -40,7 +40,7 @@ for env_candidate in [project_root / ".env", backend_dir / ".env"]:
 REQUIRED_ENV_VARS = ["SUPABASE_URL", "SUPABASE_KEY"]
 OPTIONAL_ENV_VARS = [
     "GEMINI_API_KEY", "QUBRID_API_KEY", "SERPAPI_KEY",
-    "SENDGRID_API_KEY", "HUNTER_API_KEY", "TAVILY_API_KEY",
+    "HUNTER_API_KEY", "TAVILY_API_KEY",
 ]
 
 _missing_required = [v for v in REQUIRED_ENV_VARS if not os.getenv(v)]

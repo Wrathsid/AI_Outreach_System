@@ -125,35 +125,6 @@ class DraftEditCreate(BaseModel):
     contact_type: str
 
 
-# ==================== EMAIL MODELS ====================
-
-
-class SendEmailRequest(BaseModel):
-    """Legacy send email request model."""
-
-    candidate_id: Optional[int] = None
-    to: str
-    subject: str
-    body: str
-
-
-class SendEmailDirectRequest(BaseModel):
-    """Direct email sending request (SMTP/SendGrid)."""
-
-    to_email: str
-    subject: str
-    body: str
-    reply_to: Optional[str] = None
-
-
-class GmailSendRequest(BaseModel):
-    """Gmail OAuth email sending request."""
-
-    to: str
-    subject: str
-    body: str
-    candidate_id: Optional[int] = None
-
 
 class EmailGuessRequest(BaseModel):
     """Request model for email guessing."""
