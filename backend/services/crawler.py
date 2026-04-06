@@ -40,12 +40,13 @@ def is_recent_post(url: str, snippet: str, max_days: int = 7) -> bool:
 
 class Crawler:
     """
-    Handles searching using SerpAPI (Google) for reliable, production-grade results.
-    Falls back to DuckDuckGo if SerpAPI fails.
+    Handles searching using Tavily / SerpAPI / DuckDuckGo for reliable results.
+    Runs BOTH precision AND broad queries for maximum coverage, then applies
+    strict LinkedIn-post + recency filters.
     """
 
     def __init__(self):
-        self.seen_urls = set()
+        self.seen_urls: set = set()
         self.serpapi_key = os.getenv("SERPAPI_KEY")
         self.tavily_key = os.getenv("TAVILY_API_KEY")
 
@@ -108,6 +109,10 @@ class Crawler:
             f'site:linkedin.com/posts "we\'re hiring" "{role}"',
             f'site:linkedin.com/posts "looking to hire" "{role}"',
             f'site:linkedin.com/posts "{role}" "hiring" {posting_indicators}',
+            # Additional broad queries for wider net
+            f'site:linkedin.com/posts "{role}" "opportunity" "hiring"',
+            f'site:linkedin.com/posts "{role}" "open position"',
+            f'site:linkedin.com/feed "hiring" "{role}"',
         ]
 
         # Prioritize locations: India first, then Remote, then Global (no filter)
@@ -121,65 +126,184 @@ class Crawler:
 
         return all_queries
 
+    def _get_all_queries(
+        self, role: str, company_size: Optional[str] = None, revenue: Optional[str] = None, tech: Optional[str] = None
+    ) -> List[str]:
+        """
+        Combine BOTH precision and broad queries, de-duplicated and interleaved
+        for maximum coverage. Precision queries run first for quality, then broad
+        queries fill in the gaps.
+        """
+        precision = self.get_queries_for_role(role, company_size, revenue, tech)
+        broad = self.get_broad_queries(role, company_size, revenue, tech)
+
+        seen = set()
+        combined: List[str] = []
+
+        # Precision first
+        for q in precision:
+            if q not in seen:
+                seen.add(q)
+                combined.append(q)
+
+        # Then broad
+        for q in broad:
+            if q not in seen:
+                seen.add(q)
+                combined.append(q)
+
+        return combined
+
+    async def _search_tavily(self, query: str) -> List[Dict[str, str]]:
+        """Run a single Tavily search."""
+        def _tavily_search(q, api_key):
+            from tavily import TavilyClient
+            client = TavilyClient(api_key=api_key)
+            response = client.search(
+                query=q,
+                search_depth="basic",
+                max_results=20,
+            )
+            return [
+                {
+                    "title": r.get("title", ""),
+                    "body": r.get("content", ""),
+                    "href": r.get("url", ""),
+                }
+                for r in response.get("results", [])
+            ]
+
+        return await asyncio.to_thread(_tavily_search, query, self.tavily_key)
+
+    async def _search_serpapi(self, query: str) -> List[Dict[str, str]]:
+        """Run a single SerpAPI (Google) search."""
+        def _serpapi_search(q, api_key):
+            from serpapi import GoogleSearch
+            params = {
+                "q": q,
+                "api_key": api_key,
+                "num": 20,
+                "engine": "google",
+                "tbs": "qdr:w",  # Restrict to Past Week
+            }
+            search = GoogleSearch(params)
+            data = search.get_dict()
+            organic = data.get("organic_results", [])
+            return [
+                {
+                    "title": r.get("title", ""),
+                    "body": r.get("snippet", ""),
+                    "href": r.get("link", ""),
+                }
+                for r in organic
+            ]
+
+        return await asyncio.to_thread(_serpapi_search, query, self.serpapi_key)
+
+    async def _search_ddg(self, query: str) -> List[Dict[str, str]]:
+        """Run a single DuckDuckGo search with retry logic."""
+        def _ddg_search(q):
+            from duckduckgo_search import DDGS
+            from duckduckgo_search.exceptions import RatelimitException
+
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    return list(DDGS().text(q, max_results=15, timelimit="w"))
+                except RatelimitException:
+                    wait_time = 2 ** (attempt + 1)
+                    logging.warning(
+                        f"DDG rate limited (attempt {attempt + 1}/{max_retries}). "
+                        f"Waiting {wait_time}s..."
+                    )
+                    if attempt < max_retries - 1:
+                        time.sleep(wait_time)
+                    else:
+                        logging.error("DDG rate limit: all retries exhausted")
+                        return []
+                except (asyncio.TimeoutError, KeyError) as e:
+                    logging.error(f"DDG data/timeout error: {e}")
+                    return []
+                except Exception as e:
+                    import requests
+                    if isinstance(e, requests.RequestException):
+                        logging.error(f"DDG request error: {e}")
+                    else:
+                        logging.error(f"DDG search error: {e}")
+                    return []
+            return []
+
+        ddg_results = await asyncio.to_thread(_ddg_search, query)
+        return [
+            {
+                "title": r.get("title", ""),
+                "body": r.get("body", ""),
+                "href": r.get("href", ""),
+            }
+            for r in ddg_results
+        ]
+
+    def _is_valid_linkedin_post(self, url: str, body: str) -> bool:
+        """
+        Apply strict filtering: LinkedIn posts only, no job listings, recent only.
+        This is the quality gate — ALL results must pass through this.
+        """
+        url_lower = url.lower()
+
+        # Must be a LinkedIn URL
+        if not url or "linkedin.com" not in url_lower:
+            return False
+
+        # Reject obvious non-personal or news/job pages
+        bad_paths = ["/jobs/", "/job/", "/news/", "/story/", "/company/", "linkedin.com/company/"]
+        if any(bad in url_lower for bad in bad_paths):
+            return False
+
+        # Must be a post, feed activity, or pulse article
+        if not any(path in url_lower for path in ["/posts/", "/feed/", "/pulse/", "activity-"]):
+            return False
+
+        # Enforce strict 1-week time restriction
+        if not is_recent_post(url, body, max_days=7):
+            return False
+
+        return True
+
     async def crawl_stream(
         self,
         role: str,
         limit: int = 20,
-        broad_mode: bool = False,
+        broad_mode: bool = True,
         company_size: Optional[str] = None,
         revenue: Optional[str] = None,
         tech: Optional[str] = None,
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Async Generator: Yields raw search results using SerpAPI.
+        Async Generator: Yields raw search results.
+        Runs ALL queries (precision + broad) for maximum coverage.
         """
-        if broad_mode:
-            queries = self.get_broad_queries(role, company_size, revenue, tech)
-        else:
-            queries = self.get_queries_for_role(role, company_size, revenue, tech)
+        # Always combine both precision + broad for widest net
+        queries = self._get_all_queries(role, company_size, revenue, tech)
 
         count = 0
-        self.seen_urls = set()  # Reset per-request to avoid cross-search deduplication
-        mode_text = "Broad Mode" if broad_mode else "Precision Mode"
-        yield {"type": "status", "data": f"Starting {mode_text} search for '{role}'..."}
+        self.seen_urls = set()  # Reset per-request
+        yield {"type": "status", "data": f"Starting comprehensive search for '{role}' ({len(queries)} query variations)..."}
 
         for q in queries:
             if count >= limit:
                 break
 
-            yield {"type": "status", "data": f"Searching: {q[:50]}..."}
-            await asyncio.sleep(0.1)  # Small delay between queries
+            yield {"type": "status", "data": f"Searching: {q[:60]}..."}
+            await asyncio.sleep(0.05)  # Small delay between queries
 
             results: List[Dict[str, str]] = []
 
-            # Primary: Tavily (most reliable)
+            # Primary: Tavily
             if self.tavily_key and not results:
                 try:
-                    def _tavily_search(query, api_key):
-                        from tavily import TavilyClient
-                        client = TavilyClient(api_key=api_key)
-                        response = client.search(
-                            query=query,
-                            search_depth="basic",
-                            max_results=10,
-                        )
-                        return [
-                            {
-                                "title": r.get("title", ""),
-                                "body": r.get("content", ""),
-                                "href": r.get("url", ""),
-                            }
-                            for r in response.get("results", [])
-                        ]
-
-                    results = await asyncio.to_thread(
-                        _tavily_search, q, self.tavily_key
-                    )
+                    results = await self._search_tavily(q)
                     if results:
-                        yield {
-                            "type": "status",
-                            "data": f"Found {len(results)} results via Tavily",
-                        }
+                        yield {"type": "status", "data": f"Found {len(results)} results via Tavily"}
                 except (asyncio.TimeoutError, KeyError) as e:
                     logging.error(f"Tavily data/timeout error: {e}")
                     yield {"type": "status", "data": f"Tavily data/timeout error: {str(e)[:50]}"}
@@ -191,40 +315,12 @@ class Crawler:
                         logging.error(f"Tavily error: {e}", exc_info=True)
                     yield {"type": "status", "data": f"Tavily error: {str(e)[:50]}"}
 
-            # Fallback 1: SerpAPI (Google)
+            # Fallback 1: SerpAPI
             if self.serpapi_key and not results:
                 try:
-
-                    def _serpapi_search(query, api_key):
-                        from serpapi import GoogleSearch
-
-                        params = {
-                            "q": query,
-                            "api_key": api_key,
-                            "num": 10,
-                            "engine": "google",
-                            "tbs": "qdr:w",  # Restrict to Past Week
-                        }
-                        search = GoogleSearch(params)
-                        data = search.get_dict()
-                        organic = data.get("organic_results", [])
-                        return [
-                            {
-                                "title": r.get("title", ""),
-                                "body": r.get("snippet", ""),
-                                "href": r.get("link", ""),
-                            }
-                            for r in organic
-                        ]
-
-                    results = await asyncio.to_thread(
-                        _serpapi_search, q, self.serpapi_key
-                    )
+                    results = await self._search_serpapi(q)
                     if results:
-                        yield {
-                            "type": "status",
-                            "data": f"Found {len(results)} results via SerpAPI",
-                        }
+                        yield {"type": "status", "data": f"Found {len(results)} results via SerpAPI"}
                 except (asyncio.TimeoutError, KeyError) as e:
                     logging.error(f"SerpAPI data/timeout error: {e}")
                     yield {"type": "status", "data": f"SerpAPI data/timeout error: {str(e)[:50]}"}
@@ -236,88 +332,34 @@ class Crawler:
                         logging.error(f"SerpAPI error: {e}", exc_info=True)
                     yield {"type": "status", "data": f"SerpAPI error: {str(e)[:50]}"}
 
+            # Fallback 2: DuckDuckGo
             if not results:
                 yield {"type": "status", "data": "Trying DuckDuckGo fallback..."}
                 try:
-
-                    def _ddg_search(query):
-                        from duckduckgo_search import DDGS
-                        from duckduckgo_search.exceptions import RatelimitException
-
-                        max_retries = 3
-                        for attempt in range(max_retries):
-                            try:
-                                # 'w' = past week
-                                return list(
-                                    DDGS().text(query, max_results=10, timelimit="w")
-                                )
-                            except RatelimitException:
-                                wait_time = 2 ** (attempt + 1)  # 2, 4, 8 seconds
-                                logging.warning(
-                                    f"DDG rate limited (attempt {attempt + 1}/{max_retries}). "
-                                    f"Waiting {wait_time}s..."
-                                )
-                                if attempt < max_retries - 1:
-                                    import time
-                                    time.sleep(wait_time)
-                                else:
-                                    logging.error("DDG rate limit: all retries exhausted")
-                                    return []
-                            except (asyncio.TimeoutError, KeyError) as e:
-                                logging.error(f"DDG data/timeout error: {e}")
-                                return []
-                            except Exception as e:
-                                import requests
-                                if isinstance(e, requests.RequestException):
-                                    logging.error(f"DDG request error: {e}")
-                                else:
-                                    logging.error(f"DDG search error: {e}")
-                                return []
-                        return []
-
-                    ddg_results = await asyncio.to_thread(_ddg_search, q)
-                    if ddg_results:
-                        results = [
-                            {
-                                "title": r.get("title", ""),
-                                "body": r.get("body", ""),
-                                "href": r.get("href", ""),
-                            }
-                            for r in ddg_results
-                        ]
-                    else:
+                    results = await self._search_ddg(q)
+                    if not results:
                         yield {"type": "status", "data": "DuckDuckGo returned no results (may be rate limited)."}
                 except Exception as e:
                     logging.error(f"DDG fallback error: {e}")
                     yield {"type": "status", "data": f"Search error: {str(e)[:60]}"}
 
             if not results:
-                yield {"type": "status", "data": "No results for this query."}
+                yield {"type": "status", "data": "No results for this query, trying next..."}
+                continue
 
+            # Apply strict quality filters
             for r in results:
                 if count >= limit:
                     break
                 url = r.get("href", "")
                 body = r.get("body", "")
 
-                # Enforce strict LinkedIn POSTS filtering (reject job listings)
-                url_lower = url.lower()
-                if (
-                    not url
-                    or url in self.seen_urls
-                    or "linkedin.com" not in url_lower
-                ):
+                # Skip already-seen URLs
+                if url in self.seen_urls:
                     continue
 
-                # Only accept LinkedIn posts/feed/pulse, reject /jobs/ listings
-                if "/jobs/" in url_lower or "/job/" in url_lower:
-                    continue
-                # Must be a post, feed activity, or pulse article
-                if not any(path in url_lower for path in ["/posts/", "/feed/", "/pulse/", "activity-"]):
-                    continue
-
-                # Enforce strict 1-week time restriction parsing
-                if not is_recent_post(url, body, max_days=7):
+                # Apply strict LinkedIn post + recency filter
+                if not self._is_valid_linkedin_post(url, body):
                     continue
 
                 self.seen_urls.add(url)

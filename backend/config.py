@@ -339,7 +339,7 @@ def setup_cors(app: FastAPI):
     # Read allowed origins from env, or use secure defaults
     raw_origins = os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://192.168.0.234:3000,http://192.168.0.234:8000",
     )
     allowed_origins = [o.strip() for o in raw_origins.split(",") if o.strip()]
 

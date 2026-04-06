@@ -12,12 +12,25 @@ class RecommendationService:
     """
 
     # Default "Offer" description (In a real app, this would come from User Settings)
-    # This represents what the user is "selling" or "looking for".
     DEFAULT_OFFER_CONTEXT = """
     I am a software engineer looking for opportunities in AI/ML, full-stack development, 
     and autonomous agents. I have experience with Python, React, FastAPI, and LLMs.
     I want to connect with founders, CTOs, and recruiters hiring for these roles.
     """
+
+    # Cache for offer embeddings (avoids recomputing for every lead in a scan)
+    _offer_embedding_cache: Dict[str, list] = {}
+
+    @classmethod
+    def _get_offer_embedding(cls, context: str) -> Optional[list]:
+        """Get or compute the embedding for an offer context string, with caching."""
+        cache_key = context.strip()[:200]  # Use first 200 chars as key
+        if cache_key in cls._offer_embedding_cache:
+            return cls._offer_embedding_cache[cache_key]
+        embedding = embeddings_service.generate_embedding(context)
+        if embedding is not None:
+            cls._offer_embedding_cache[cache_key] = embedding
+        return embedding
 
     @classmethod
     def calculate_resonance_score(
@@ -28,7 +41,6 @@ class RecommendationService:
         """
         try:
             # 1. Construct Candidate Context
-            # Combine Title + Summary + Tags for a rich representation
             candidate_text = (
                 f"{candidate.get('title', '')} at {candidate.get('company', '')}. "
             )
@@ -37,11 +49,11 @@ class RecommendationService:
             if tags:
                 candidate_text += f"Tags: {', '.join(str(t) for t in tags)}"
 
-            # 2. Get Embeddings
+            # 2. Get Embeddings (offer embedding is cached)
             context_to_match = (
                 offer_context if offer_context else cls.DEFAULT_OFFER_CONTEXT
             )
-            offer_emb = embeddings_service.generate_embedding(context_to_match)
+            offer_emb = cls._get_offer_embedding(context_to_match)
             candidate_emb = embeddings_service.generate_embedding(candidate_text)
 
             # 3. Calculate Cosine Similarity (-1 to 1)
@@ -52,8 +64,6 @@ class RecommendationService:
             )
 
             # 4. Normalize to 0-100 Score
-            # Cosine similarity for real-world text usually hovers between 0.3 - 0.8.
-            # We treat < 0.25 similarity as 0 relevance, and stretch 0.25 -> 1.0 to 0 -> 100.
             if similarity > 0.25:
                 adjusted_similarity = (similarity - 0.25) / 0.75
             else:

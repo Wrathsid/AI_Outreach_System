@@ -119,7 +119,7 @@ const SearchPage = () => {
 
 
     // Real-time WebSocket logic for direct backend processing
-    const connectDirectWebSocket = (searchRole: string, limit: number = 15) => {
+    const connectDirectWebSocket = (searchRole: string, limit: number = 20) => {
         // Build WebSocket URL: strip any path suffix like /api from API_BASE
         const baseUrl = API_BASE.replace(/\/api\/?$/, '');
         const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/discover/ws/discover?role=${encodeURIComponent(searchRole)}&limit=${limit}`;

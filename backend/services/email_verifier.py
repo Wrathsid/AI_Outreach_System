@@ -195,11 +195,14 @@ class EmailVerifier:
             }
 
 
+# Module-level singleton — shared cache across all calls
+_verifier_instance = EmailVerifier()
+
+
 # Convenience function
 async def verify_email(email: str) -> Dict:
     """Quick verification of a single email."""
-    verifier = EmailVerifier()
-    return await verifier.verify(email)
+    return await _verifier_instance.verify(email)
 
 
 # Batch verification

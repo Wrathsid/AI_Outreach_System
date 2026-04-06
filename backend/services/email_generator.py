@@ -128,3 +128,8 @@ class EmailGenerator:
         """Get single best email guess."""
         patterns = cls.generate_patterns(name, company, limit=1)
         return patterns[0] if patterns else None
+
+    @classmethod
+    def get_top_guesses(cls, name: str, company: str, limit: int = 3) -> List[Dict[str, Any]]:
+        """Get top N email pattern guesses for verification."""
+        return cls.generate_patterns(name, company, limit=limit)
