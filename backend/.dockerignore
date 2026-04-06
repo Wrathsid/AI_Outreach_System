@@ -8,6 +8,7 @@ tests/
 testsprite_tests/
 *.log
 *.txt
+!requirements.txt
 .env
 .env.*
 static/
