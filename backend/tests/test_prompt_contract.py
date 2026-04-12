@@ -144,6 +144,36 @@ def test_skills_verifier():
     print("  ✓ verify_skills_grounding detects hallucinated skills correctly")
 
 
+def test_linkedin_fallback_uses_cortex_skills():
+    """LinkedIn fallback must follow Cortex skills instead of a fixed DevOps persona."""
+    from backend.routers.drafts import generate_fallback_draft
+
+    message = generate_fallback_draft(
+        candidate={
+            "name": "Priya Sharma",
+            "title": "Technical Recruiter",
+            "company": "Acme",
+            "summary": "Hiring web developers for our product team.",
+        },
+        sender_intro="Siddharth from Portfolio",
+        signal="web developer opportunity",
+        intent="opportunity",
+        contact_type="linkedin",
+        skills=["Web Development", "React", "JavaScript"],
+        desired_role="Web Developer",
+    )
+
+    assert "Web Development" in message
+    assert "React" in message
+    assert "JavaScript" in message
+    assert "looking for Web Developer" in message
+    assert "interested" in message.lower()
+
+    forbidden = ["Kubernetes", "Terraform", "CI/CD", "SRE", "cloud ops"]
+    for term in forbidden:
+        assert term.lower() not in message.lower(), f"Unexpected DevOps term: {term}"
+
+
 def test_prompt_contract_types():
     """D1: PromptSection and GenerationParams models exist and validate."""
     from backend.models.schemas import PromptSection, GenerationParams
@@ -179,6 +209,7 @@ if __name__ == "__main__":
         test_normalize_length,
         test_remove_hedging,
         test_skills_verifier,
+        test_linkedin_fallback_uses_cortex_skills,
         test_prompt_contract_types,
     ]
 

@@ -89,10 +89,10 @@ export default function MinimalCandidatePage() {
         setLoading(true);
         try {
             const candidateData = await api.getCandidate(candidateId);
-            
+
             if (mounted && candidateData) {
                 setCandidate(candidateData);
-                
+
                 // Auto-generate LinkedIn message
                 generateLinkedinMessage();
             }
@@ -107,6 +107,17 @@ export default function MinimalCandidatePage() {
 
     return () => { mounted = false; };
   }, [candidateId, generateLinkedinMessage]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault()
+        if (!isGenerating) generateLinkedinMessage()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isGenerating, generateLinkedinMessage])
 
   const handleDelete = async () => {
     if (confirm('Delete this candidate?')) {
@@ -137,7 +148,7 @@ export default function MinimalCandidatePage() {
     
     await api.updateCandidateStatus(candidateId, 'contacted');
     
-    success("✅ Copied to clipboard. Marked as contacted.");
+    success("✓ Copied to clipboard — marked as contacted");
     router.refresh();
   };
 
@@ -445,6 +456,9 @@ export default function MinimalCandidatePage() {
                           )}
                         </AnimatePresence>
                      </button>
+                     <span className="text-xs text-gray-600 mt-1 block text-center">
+                       Ctrl+G to generate
+                     </span>
                 </div>
             </MinimalCard>
         </div>

@@ -75,7 +75,7 @@ VALID_CHANNELS = {"email", "linkedin"}
 # Q5: CHANNEL TONE LOCK
 # ============================================================
 CHANNEL_TONE = {
-    "linkedin": "TONE: This is a JOB APPLICATION message. Write as someone seeking employment. Be professional, detailed, and direct about wanting to work there. Aim for ~300 words (~2000 characters). Never sound like a networking or connection request.",
+    "linkedin": "TONE: This is LinkedIn job-seeking outreach. Be professional, direct, and clear that the applicant is interested and looking for an opportunity. Aim for 130-220 words. Do not invent skills that are absent from Cortex.",
     "email": "TONE: This is a direct, professional cold email for a job application or inquiry. Be concise, respectful of their time, and clear about your value proposition. Aim for ~150 words.",
 }
 
@@ -149,8 +149,25 @@ You never say "the candidate" when referring to yourself.
 
 
 
+def _format_skill_phrase(skills: Optional[List[str]], max_items: int = 4) -> str:
+    """Turn Cortex skills into a short human phrase for templates."""
+    clean_skills = [s.strip() for s in (skills or []) if s and s.strip()]
+    if not clean_skills:
+        return "software development and problem solving"
+    visible = clean_skills[:max_items]
+    if len(visible) == 1:
+        return visible[0]
+    return ", ".join(visible[:-1]) + f", and {visible[-1]}"
+
+
 def generate_fallback_draft(
-    candidate: dict, sender_intro: str, signal: str, intent: str, contact_type: str
+    candidate: dict,
+    sender_intro: str,
+    signal: str,
+    intent: str,
+    contact_type: str,
+    skills: Optional[List[str]] = None,
+    desired_role: Optional[str] = None,
 ) -> str:
     """Generate a template-based draft when AI fails (Resilience).
 
@@ -169,6 +186,8 @@ def generate_fallback_draft(
     title = candidate.get("title") or None
     candidate.get("summary") or ""
     sender_first = sender_intro.split()[0] if sender_intro else "Siddharth"
+    skill_phrase = _format_skill_phrase(skills)
+    target_role = desired_role or "roles that match my background"
 
     # Determine what info we actually have
     has_name = first_name is not None and first_name.lower() not in ("unknown", "n/a")
@@ -188,6 +207,41 @@ def generate_fallback_draft(
 
     # ============ LINKEDIN TEMPLATES (with data-quality awareness) ============
     if contact_type == "linkedin":
+        role_label = hiring_role or title or target_role
+        company_label = company if has_company else "your team"
+
+        if is_hiring_post:
+            return (
+                f"{greeting}, I saw your post about the {role_label} opportunity at {company_label}. "
+                f"I am interested in this role and actively looking for an opportunity where I can contribute with {skill_phrase}.\n\n"
+                f"My background is focused on {skill_phrase}, and I would like to be considered if my profile matches what your team needs. "
+                f"Could I share my resume or apply for the {role_label} position?"
+            )
+
+        if intent == "opportunity" or intent == IntentType.OPPORTUNITY:
+            if has_company:
+                opening = (
+                    f"{greeting}, I came across your profile at {company}. "
+                    f"I am actively looking for {target_role} opportunities and wanted to reach out directly."
+                )
+            elif has_title:
+                opening = (
+                    f"{greeting}, I came across your profile as {title}. "
+                    f"I am actively looking for {target_role} opportunities and wanted to reach out."
+                )
+            else:
+                opening = (
+                    f"{greeting}, I came across your profile while searching for {target_role} opportunities. "
+                    "I wanted to reach out directly."
+                )
+
+            return (
+                f"{opening}\n\n"
+                f"My current focus is {skill_phrase}. I am interested in joining a team where I can apply these skills, "
+                f"keep learning, and contribute to real product work.\n\n"
+                "Are there any relevant openings on your team right now, or could I share my resume for future opportunities?"
+            )
+
         # HIRING POST TEMPLATES — these take priority over all other branches
         if is_hiring_post and has_title:
             role_label = hiring_role or title
@@ -568,7 +622,13 @@ async def generate_draft(
             signal = extract_primary_signal(c)
             intent = IntentType.OPPORTUNITY
             fallback_text = generate_fallback_draft(
-                c, sender_intro, signal["signal"], intent.value, contact_type
+                c,
+                sender_intro,
+                signal["signal"],
+                intent.value,
+                contact_type,
+                skills=brain.get("extracted_skills", []),
+                desired_role=settings.get("role"),
             )
             variant_id = str(uuid.uuid4())
             gen_params = {
@@ -717,6 +777,7 @@ async def generate_draft(
         Key Skills: {skills}
         {f'Current Company: {sender_company}' if sender_company else ''}
         Status: Actively looking for opportunities where I can apply these skills.
+        Writing Boundary: Only claim the skills listed above or stated in the resume. Do not add cloud, DevOps, SRE, backend, frontend, or AI skills unless they appear in Cortex.
         """.strip()
 
         # Get post context (first 800 chars for richer understanding)
@@ -816,14 +877,15 @@ async def generate_draft(
             == RULES ==
             1. TASK: {task_instruction}
             2. This is a JOB APPLICATION. The applicant wants to WORK at their company.
-            3. CONTENT BALANCE: Ensure roughly 70% of your message focuses on the applicant's unique skills and identity ({skills}). Use the remaining 30% to specifically reference and react to the RECIPIENT'S POST or Company Context ({post_context}). Show, don't just tell, why this specific background is a perfect fit for their engineering culture.
-            4. NEVER say: "looking to connect", "expand my network", "great to meet", "love to chat"
+            3. CONTENT BALANCE: Focus most of the message on the applicant's Cortex skills ({skills}) and current job search. Use the rest to reference the RECIPIENT'S POST or Company Context ({post_context}). Explain the fit for this role/company without changing the applicant's career track.
+            4. NEVER say: "expand my network", "great to meet", "love to chat"
             5. ALWAYS say things like: "interested in the role", "would love to apply", "my skills in X align with", "available for an interview"
             6. End with a concrete CTA: ask to share resume, schedule a call, or submit application.
             7. Write in first person as {sender_name}. Sound eager but professional.
-            8. BE COMPREHENSIVE: Write a substantial, high-signal message. Aim for 200-300 words. Do not keep it short.
+            8. Write a high-signal LinkedIn message. Aim for 130-220 words.
             9. No emojis. Just the message text.
             10. Do NOT start with "I'm an experienced engineer". Start with a reference to their post/role/company.
+            11. SKILL GROUNDING: Use ONLY these Cortex skills unless the resume explicitly proves another skill: {skills}.
             """
         else:
             # SOFT INTENT (Company pages, exploratory)
@@ -843,11 +905,12 @@ async def generate_draft(
             == TASK ==
             {task_instruction}
             - Write a professional inquiry about open positions.
-            - MANDATORY COMPOSITION: Your message MUST be strictly split 70/30. Exactly 70% of the message MUST focus on the applicant's Cortex (Core Skills: {skills}, identity, and value proposition). The remaining 30% MUST directly reference and react to the RECIPIENT'S POST ({post_context}). Do not just mention the role, actually engage with what they wrote in their post.
+            - Focus most of the message on the applicant's Cortex skills ({skills}), job-search status, and value proposition. Use the rest to reference the RECIPIENT'S POST ({post_context}).
             - Ask if they are currently hiring for roles matching this background.
             - Sound professional and genuinely interested, not generic.
             - End with a clear ask: share resume, schedule a call, etc.
-            - Be detailed. Aim for ~250 words.
+            - Aim for 130-220 words.
+            - Use ONLY the Cortex skills listed here unless the resume explicitly proves another skill: {skills}.
             - No emojis. Only the message text.
             """
 
@@ -887,7 +950,13 @@ async def generate_draft(
                 "Switching to Fallback Template (Reason: AI Failed or Result None)."
             )
             fallback_text = generate_fallback_draft(
-                c, sender_intro, signal["signal"], intent.value, contact_type
+                c,
+                sender_intro,
+                signal["signal"],
+                intent.value,
+                contact_type,
+                skills=brain.get("extracted_skills", []),
+                desired_role=sender_role,
             )
             variant_id = str(uuid.uuid4())
 
@@ -1108,6 +1177,14 @@ async def generate_draft(
             signal["signal"],
             intent.value if hasattr(intent, "value") else str(intent),
             contact_type,
+            skills=brain.get("extracted_skills", []) if "brain" in locals() else [],
+            desired_role=(
+                sender_role
+                if "sender_role" in locals()
+                else settings.get("role", "Professional")
+                if "settings" in locals()
+                else "Professional"
+            ),
         )
 
         # We need to wrap this in the same structure as a successful result to save it
@@ -1207,7 +1284,13 @@ async def generate_draft(
         safe_contact = contact_type if "contact_type" in locals() else "linkedin"
 
         fallback_text = generate_fallback_draft(
-            safe_c, safe_sender, safe_signal, safe_intent, safe_contact
+            safe_c,
+            safe_sender,
+            safe_signal,
+            safe_intent,
+            safe_contact,
+            skills=brain.get("extracted_skills", []) if "brain" in locals() else [],
+            desired_role=sender_role if "sender_role" in locals() else None,
         )
 
         variant_id = str(uuid.uuid4())

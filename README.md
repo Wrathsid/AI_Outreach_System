@@ -401,6 +401,88 @@ All data lives in **Supabase (PostgreSQL)**:
 
 ---
 
+## 🗺️ Architecture Diagram
+
+```mermaid
+graph TD
+    A[Next.js 14 Frontend<br/>TailwindCSS + Framer Motion] -->|REST API| B[FastAPI Backend<br/>Python 3.11+]
+    B --> C[AI Engine<br/>Gemini + Llama-3.3-70B]
+    B --> D[Supabase<br/>PostgreSQL]
+    B --> E[Lead Discovery<br/>SerpAPI + DuckDuckGo]
+    B --> F[Email Services<br/>Gmail OAuth + SendGrid]
+    B --> G[Verification<br/>Hunter.io + MX Fallback]
+    C -->|Cortex Personalization| F
+```
+
+---
+
+## 📁 Project Structure
+
+```
+AI_Outreach_System/
+├── backend/                         # FastAPI Backend
+│   ├── main.py                      # App entry, router registration
+│   ├── config.py                    # Supabase, Gemini, Qubrid client init
+│   ├── dependencies.py              # JWT auth middleware
+│   ├── models/
+│   │   └── schemas.py               # Pydantic models
+│   ├── routers/                     # API route handlers
+│   │   ├── candidates.py            # Lead CRUD, pipeline management
+│   │   ├── drafts.py                # AI generation engine
+│   │   ├── discovery.py             # Temporal lead discovery
+│   │   ├── emails.py                # Email guessing, verification, sending
+│   │   ├── stats.py                 # Dashboard analytics
+│   │   ├── settings.py              # Profile, Cortex/Brain, resume upload
+│   │   ├── auth.py                  # Gmail OAuth flow
+│   │   └── automation.py            # LinkedIn browser automation
+│   ├── services/                    # Business logic layer
+│   │   ├── crawler.py               # SerpAPI + DuckDuckGo web scraping
+│   │   ├── email_generator.py       # Email pattern prediction
+│   │   ├── email_verifier.py        # Hunter.io + MX verification
+│   │   ├── email_sender.py          # SendGrid delivery
+│   │   ├── gmail_oauth.py           # Gmail API integration
+│   │   ├── throttle.py              # Adaptive rate limiting
+│   │   ├── embeddings.py            # Semantic similarity
+│   │   ├── hr_extractor.py          # AI opportunity extraction
+│   │   └── browser_automation.py    # Playwright LinkedIn messaging
+│   ├── tests/                       # pytest test suite
+│   ├── Dockerfile                   # API container
+│   └── requirements.txt
+│
+├── frontend/                        # Next.js 14 Frontend
+│   ├── src/
+│   │   ├── app/                     # App Router pages
+│   │   │   ├── layout.tsx           # Root layout (Sidebar, AuthGuard)
+│   │   │   ├── globals.css          # Global styles + glassmorphism
+│   │   │   ├── dashboard/           # Stats, charts, activity feed
+│   │   │   ├── search/              # Lead discovery UI
+│   │   │   ├── candidates/          # Pipeline management
+│   │   │   ├── drafts/              # AI draft review/edit
+│   │   │   ├── sent/                # Sent message history
+│   │   │   ├── settings/            # Profile + Cortex config
+│   │   │   ├── analytics/           # Conversion funnel
+│   │   │   ├── brain/               # AI personality setup
+│   │   │   └── login/ & signup/     # Auth pages
+│   │   ├── components/              # Reusable React components
+│   │   │   ├── Dashboard.tsx        # Main dashboard with stat cards
+│   │   │   ├── Sidebar.tsx          # Navigation sidebar
+│   │   │   ├── CommandPalette.tsx   # ⌘K command palette
+│   │   │   └── AuthGuard.tsx        # Client-side auth wrapper
+│   │   ├── lib/                     # Utilities
+│   │   │   ├── api.ts               # Centralized API client
+│   │   │   └── supabase.ts          # Supabase browser client
+│   │   └── context/                 # React Contexts
+│   └── package.json
+│
+├── .gitignore                       # Git exclusions
+├── README.md                        # This file
+├── CHANGELOG.md                     # Version history
+├── LICENSE                          # MIT License
+└── start_dev.py                     # Development startup script
+```
+
+---
+
 ## 🤝 Contributing
 
 1. Fork the Project

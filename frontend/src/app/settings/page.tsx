@@ -1,5 +1,7 @@
 "use client";
 
+export const metadata = { title: 'Settings | AI Outreach' };
+
 import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { Camera, Trash2, Upload, RefreshCw } from "lucide-react";

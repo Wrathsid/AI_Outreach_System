@@ -1,5 +1,7 @@
 'use client';
 
+export const metadata = { title: 'Personal Brain | AI Outreach' };
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   RefreshCw, Search, X, Zap, Plus, Check, Sparkles, BrainCircuit

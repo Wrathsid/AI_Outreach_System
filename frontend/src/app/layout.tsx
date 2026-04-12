@@ -6,6 +6,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider } from "@/context/ToastContext";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TemplateProvider } from "@/context/TemplateContext";
+import ScrollToTop from "@/components/ScrollToTop";
 
 
 const inter = Inter({ subsets: ["latin"] });
@@ -42,6 +43,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <ToastProvider>
           <TemplateProvider>
+                <ScrollToTop />
                 <CommandPalette />
                 {/* SmoothScroll removed to support fixed app-layout with internal scrolling */}
                 <div className="relative flex h-screen bg-background-dark overflow-hidden">

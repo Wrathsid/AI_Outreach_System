@@ -15,6 +15,10 @@ from typing import Dict  # noqa: E402
 from backend.config import setup_cors  # noqa: E402
 from backend.routers import candidates, drafts, discovery, emails, stats, settings  # noqa: E402
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
 # ============================================================
 # RATE LIMITING (Priority 6)
 # ============================================================

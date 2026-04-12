@@ -11,6 +11,25 @@ const Sidebar = () => {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(false);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+        await fetch('http://localhost:8000/health', { signal: controller.signal });
+        clearTimeout(timeoutId);
+        setBackendOnline(true);
+      } catch {
+        setBackendOnline(false);
+      }
+    };
+
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
 
   useEffect(() => {
@@ -100,10 +119,11 @@ const Sidebar = () => {
               transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             />
           </MagneticHover>
-          <motion.div 
-            className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-[#1a1a2e] rounded-full"
+          <motion.div
+            className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-[#1a1a2e] rounded-full ${backendOnline ? 'bg-green-400' : 'bg-red-400'}`}
             animate={{ scale: [1, 1.2, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
+            title={backendOnline ? 'Backend online' : 'Backend offline'}
           />
         </motion.div>
 

@@ -1,5 +1,7 @@
 'use client';
 
+export const metadata = { title: 'Pipeline | AI Outreach' };
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';
@@ -338,8 +340,12 @@ const CandidatesPage = () => {
 
         {/* Loading State */}
         {loading && (
-          <div className="py-2">
-            <PipelineSkeleton />
+          <div className="py-2 space-y-2">
+            <div className="h-12 rounded-lg bg-gray-800/50 animate-pulse"></div>
+            <div className="h-12 rounded-lg bg-gray-800/50 animate-pulse"></div>
+            <div className="h-12 rounded-lg bg-gray-800/50 animate-pulse"></div>
+            <div className="h-12 rounded-lg bg-gray-800/50 animate-pulse"></div>
+            <div className="h-12 rounded-lg bg-gray-800/50 animate-pulse"></div>
           </div>
         )}
 

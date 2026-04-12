@@ -1,8 +1,12 @@
 # Dependencies
 node_modules/
 venv/
+.venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 
 # Environment
 .env
@@ -63,4 +67,12 @@ pytest_*.txt
 .env*.local
 .mypy_cache/
 .pytest_cache/
+.ruff_cache/
 .swc/
+
+# Coverage
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
