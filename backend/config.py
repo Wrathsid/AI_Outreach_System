@@ -185,7 +185,7 @@ async def generate_with_gemini(
         base_delay = 2.0
 
         # Models to try (using new SDK model names)
-        models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-flash-latest"]
+        models_to_try = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"]
 
         for model_name in models_to_try:
 
