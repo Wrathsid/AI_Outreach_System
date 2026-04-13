@@ -1,7 +1,5 @@
 'use client';
 
-export const metadata = { title: 'Pipeline | AI Outreach' };
-
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import NextImage from 'next/image';

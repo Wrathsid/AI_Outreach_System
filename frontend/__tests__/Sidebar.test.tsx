@@ -9,18 +9,6 @@ jest.mock('next/navigation', () => ({
   })),
 }))
 
-jest.mock('@/lib/supabase', () => {
-  const mockClient = {
-    auth: {
-      signOut: jest.fn(),
-    }
-  };
-  return {
-    supabase: mockClient,
-    createClient: jest.fn(() => mockClient),
-  }
-})
-
 describe('Sidebar', () => {
   it('renders navigation links', () => {
     render(<Sidebar />)
@@ -36,9 +24,8 @@ describe('Sidebar', () => {
     expect(screen.getAllByText('Settings').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders the log out button', () => {
+  it('renders the Personal Brain link', () => {
     render(<Sidebar />)
-    // actual text in the component is "Log out" (lowercase o)
-    expect(screen.getAllByText('Log out').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Personal Brain').length).toBeGreaterThanOrEqual(1)
   })
 })

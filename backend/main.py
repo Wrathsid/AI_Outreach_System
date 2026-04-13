@@ -13,11 +13,7 @@ from collections import defaultdict  # noqa: E402
 from typing import Dict  # noqa: E402
 
 from backend.config import setup_cors  # noqa: E402
-from backend.routers import candidates, drafts, discovery, emails, stats, settings  # noqa: E402
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
+from backend.routers import candidates, drafts, discovery, emails, stats, settings, cortex  # noqa: E402
 
 # ============================================================
 # RATE LIMITING (Priority 6)
@@ -84,7 +80,7 @@ setup_cors(app)
 
 from backend.models.schemas import HealthResponse  # noqa: E402
 
-# Health check endpoint
+# Health check endpoints
 @app.get("/", tags=["Health"], response_model=HealthResponse)
 def read_root():
     """Health check and system status."""
@@ -96,6 +92,11 @@ def read_root():
     }
 
 
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # Include routers directly (Authentication bypassed for local demo)
 app.include_router(candidates.router, prefix="/candidates", tags=["Candidates"])
 app.include_router(drafts.router, prefix="/drafts", tags=["Drafts"])
@@ -103,6 +104,7 @@ app.include_router(discovery.router, prefix="/discover", tags=["Discovery"])
 app.include_router(emails.router, prefix="/emails", tags=["Emails"])
 app.include_router(stats.router, prefix="/stats", tags=["Stats"])
 app.include_router(settings.router, prefix="/settings", tags=["Settings"])
+app.include_router(cortex.router, prefix="/cortex", tags=["Cortex"])
 
 
 if __name__ == "__main__":

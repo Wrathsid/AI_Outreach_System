@@ -24,14 +24,20 @@ const Dashboard = () => {
   });
 
   const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
+  const [backendDown, setBackendDown] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [statsData, settingsData] = await Promise.all([
-      api.getStats(),
-      api.getSettings()
-    ]);
-    setStats(statsData);
-    setUserSettings(settingsData);
+    try {
+      const [statsData, settingsData] = await Promise.all([
+        api.getStats(),
+        api.getSettings()
+      ]);
+      setStats(statsData);
+      setUserSettings(settingsData);
+      setBackendDown(false);
+    } catch {
+      setBackendDown(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -51,6 +57,11 @@ const Dashboard = () => {
   return (
     <main className="flex-1 flex flex-col h-full overflow-x-hidden p-4 md:p-8 relative overflow-y-auto">
       <div className="max-w-[1200px] mx-auto w-full flex flex-col gap-8 pb-10">
+        {backendDown && (
+          <div className="flex items-center justify-center p-8 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 text-yellow-400 text-center">
+            <p>⚠️ Backend is not running. Start the server to load data.</p>
+          </div>
+        )}
         
         {/* Page Heading with Text Reveal */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">

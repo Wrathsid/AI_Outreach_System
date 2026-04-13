@@ -29,7 +29,7 @@ def get_candidate_by_id(candidate_id: int):
 
 
 # ============================================================
-# UX IMPROVEMENT ENDPOINTS
+# STATIC ROUTES (must come BEFORE /{candidate_id})
 # ============================================================
 
 
@@ -75,39 +75,38 @@ def get_sent_candidates():
         return []
 
 
-@router.patch("/{candidate_id}/mark-sent")
-def mark_as_sent(candidate_id: int):
-    """Mark candidate as sent when message is sent (UX Improvement)."""
+@router.delete("/prune")
+def prune_candidates(days: int = 7):
+    """Delete candidates older than X days."""
     supabase = get_supabase()
-    if not supabase:
-        raise HTTPException(status_code=500, detail="Database not connected")
+    if supabase:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        supabase.table("candidates").delete().lt("created_at", cutoff).execute()
+        return {
+            "status": "success",
+            "message": f"Pruned candidates older than {days} days",
+        }
+    return {"status": "error", "message": "Database not connected"}
 
-    from datetime import datetime, timezone
 
-    try:
-        result = (
-            supabase.table("candidates")
-            .update(
-                {
-                    "sent_at": datetime.now(timezone.utc).isoformat(),
-                    "status": "contacted",
-                }
-            )
-            .eq("id", candidate_id)
-            .execute()
-        )
-
-        if result.data:
-            logger.info(f"Marked candidate {candidate_id} as sent")
-            return result.data[0]
-        raise HTTPException(status_code=404, detail="Candidate not found")
-    except Exception as e:
-        logger.error(f"Mark sent failed: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
+@router.delete("/all/delete")
+def delete_all_candidates():
+    """Delete ALL candidates (Dangerous Operation)."""
+    supabase = get_supabase()
+    if supabase:
+        # Delete all records
+        try:
+            supabase.table("candidates").delete().neq("id", 0).execute()
+            logger.warning("Deleted ALL candidates via API")
+            return {"status": "success", "message": "All candidates deleted"}
+        except Exception as e:
+            logger.error(f"Delete all failed: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+    raise HTTPException(status_code=500, detail="Database not connected")
 
 
 # ============================================================
-# ORIGINAL ENDPOINTS
+# LIST ENDPOINT
 # ============================================================
 
 
@@ -125,30 +124,6 @@ def get_all_candidates():
         )
         return result.data
     return []
-
-
-@router.get("/{candidate_id}", response_model=Candidate)
-def get_candidate(candidate_id: int):
-    """Get a single candidate by ID."""
-    supabase = get_supabase()
-    if supabase:
-        result = (
-            supabase.table("candidates")
-            .select("*")
-            .eq("id", candidate_id)
-            .single()
-            .execute()
-        )
-        if result.data:
-            data = result.data
-            # Compute email_source
-            data["email_source"] = (
-                "verified"
-                if data.get("email")
-                else ("generated" if data.get("generated_email") else "none")
-            )
-            return data
-    raise HTTPException(status_code=404, detail="Candidate not found")
 
 
 @router.post("", response_model=Candidate)
@@ -242,6 +217,35 @@ def create_candidate(candidate: CandidateCreate):
     raise HTTPException(status_code=500, detail="Database connection failed")
 
 
+# ============================================================
+# DYNAMIC ROUTES (/{candidate_id} pattern — must come LAST)
+# ============================================================
+
+
+@router.get("/{candidate_id}", response_model=Candidate)
+def get_candidate(candidate_id: int):
+    """Get a single candidate by ID."""
+    supabase = get_supabase()
+    if supabase:
+        result = (
+            supabase.table("candidates")
+            .select("*")
+            .eq("id", candidate_id)
+            .single()
+            .execute()
+        )
+        if result.data:
+            data = result.data
+            # Compute email_source
+            data["email_source"] = (
+                "verified"
+                if data.get("email")
+                else ("generated" if data.get("generated_email") else "none")
+            )
+            return data
+    raise HTTPException(status_code=404, detail="Candidate not found")
+
+
 @router.put("/{candidate_id}", response_model=Candidate)
 def update_candidate(candidate_id: int, candidate: CandidateCreate):
     """Update an existing candidate."""
@@ -292,31 +296,32 @@ def update_candidate_status(candidate_id: int, status: str):
     raise HTTPException(status_code=404, detail="Candidate not found")
 
 
-@router.delete("/prune")
-def prune_candidates(days: int = 7):
-    """Delete candidates older than X days."""
+@router.patch("/{candidate_id}/mark-sent")
+def mark_as_sent(candidate_id: int):
+    """Mark candidate as sent when message is sent (UX Improvement)."""
     supabase = get_supabase()
-    if supabase:
-        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
-        supabase.table("candidates").delete().lt("created_at", cutoff).execute()
-        return {
-            "status": "success",
-            "message": f"Pruned candidates older than {days} days",
-        }
-    return {"status": "error", "message": "Database not connected"}
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not connected")
 
+    from datetime import datetime, timezone
 
-@router.delete("/all/delete")
-def delete_all_candidates():
-    """Delete ALL candidates (Dangerous Operation)."""
-    supabase = get_supabase()
-    if supabase:
-        # Delete all records
-        try:
-            supabase.table("candidates").delete().neq("id", 0).execute()
-            logger.warning("Deleted ALL candidates via API")
-            return {"status": "success", "message": "All candidates deleted"}
-        except Exception as e:
-            logger.error(f"Delete all failed: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
-    raise HTTPException(status_code=500, detail="Database not connected")
+    try:
+        result = (
+            supabase.table("candidates")
+            .update(
+                {
+                    "sent_at": datetime.now(timezone.utc).isoformat(),
+                    "status": "contacted",
+                }
+            )
+            .eq("id", candidate_id)
+            .execute()
+        )
+
+        if result.data:
+            logger.info(f"Marked candidate {candidate_id} as sent")
+            return result.data[0]
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    except Exception as e:
+        logger.error(f"Mark sent failed: {e}")
+        raise HTTPException(status_code=400, detail=str(e))

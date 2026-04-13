@@ -1,7 +1,5 @@
 'use client';
 
-export const metadata = { title: 'Search | AI Outreach' };
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2 } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';

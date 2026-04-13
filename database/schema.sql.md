@@ -48,7 +48,7 @@ CREATE TABLE sent_emails (
   sent_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Brain context (user's professional info)
+-- Brain context (user's professional info + Cortex Skills Engine)
 CREATE TABLE brain_context (
   id SERIAL PRIMARY KEY,
   user_id UUID DEFAULT uuid_generate_v4(),
@@ -57,11 +57,34 @@ CREATE TABLE brain_context (
   linkedin_url VARCHAR(500),
   portfolio_url VARCHAR(500),
   anecdotes TEXT[],
+  extracted_skills TEXT[] DEFAULT '{}',
+  portfolio_summary TEXT,
+  preferred_tone VARCHAR(100),
   formality INTEGER DEFAULT 75,
   detail_level INTEGER DEFAULT 30,
   use_emojis BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- User settings (profile info)
+CREATE TABLE user_settings (
+  id SERIAL PRIMARY KEY,
+  full_name VARCHAR(255) DEFAULT '',
+  company VARCHAR(255) DEFAULT '',
+  role VARCHAR(255) DEFAULT '',
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Sent openers for deduplication
+CREATE TABLE sent_openers (
+  id SERIAL PRIMARY KEY,
+  opener_hash VARCHAR(64) NOT NULL,
+  opener_text TEXT,
+  embedding VECTOR(768),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Activity log for dashboard

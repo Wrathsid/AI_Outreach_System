@@ -34,7 +34,11 @@ async function apiFetch(url: string, options: RequestInit = {}) {
   if (!fetchOptions.cache && !(fetchOptions as Record<string, unknown>).next) {
     fetchOptions.cache = 'no-store';
   }
-  return fetch(url, fetchOptions);
+  try {
+    return await fetch(url, fetchOptions);
+  } catch {
+    throw new Error('BACKEND_UNREACHABLE');
+  }
 }
 
 export const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -115,8 +119,12 @@ export interface UserSettings {
 export const api = {
   // Settings
   getSettings: async (): Promise<UserSettings> => {
-    const res = await apiFetch(`${API_BASE}/settings`);
-    return res.json();
+    try {
+      const res = await apiFetch(`${API_BASE}/settings`);
+      return res.json();
+    } catch {
+      return { full_name: '', company: '', role: '', avatar_url: null };
+    }
   },
   
   updateSettings: async (settings: UserSettings): Promise<boolean> => {
@@ -300,8 +308,8 @@ export const api = {
   // Brain Context
   async updateSkills(skills: string[]): Promise<boolean> {
     try {
-      const res = await apiFetch(`${API_BASE}/settings/brain/skills`, {
-        method: 'PUT',
+      const res = await apiFetch(`${API_BASE}/cortex/skills`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(skills),
       });
@@ -318,6 +326,21 @@ export const api = {
       return res.json();
     } catch {
       return { formality: 75, detail_level: 30, use_emojis: false };
+    }
+  },
+
+  async uploadResume(file: File): Promise<{ extracted_skills?: string[]; warning?: string; status?: string } | null> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiFetch(`${API_BASE}/settings/brain/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Upload failed');
+      return res.json();
+    } catch {
+      return null;
     }
   },
 
