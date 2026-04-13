@@ -27,7 +27,7 @@ def start_dev():
     # 2. Start Backend (FastAPI)
     print("\n📡 Starting Backend (FastAPI)...")
     backend_proc = subprocess.Popen(
-        [python_exe, "-m", "backend.main"],
+        [python_exe, "-m", "uvicorn", "backend.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
         cwd=root,
         bufsize=1,
         universal_newlines=True
@@ -52,7 +52,7 @@ def start_dev():
     print("\n" + "-"*50)
     print("✅ SERVERS RUNNING")
     print("   • Backend:  http://localhost:8000")
-    print("   • Frontend: http://localhost:3000")
+    print("   • Frontend: http://localhost:3001")
     print("   • Docs:     http://localhost:8000/docs")
     print("-"*50)
     print("💡 Press Ctrl+C to stop both servers.")

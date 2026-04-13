@@ -21,7 +21,7 @@ _Discover leads, verify emails, generate AI-personalized messages, and send — 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          FRONTEND                                   │
-│        Next.js 14 (App Router) · TailwindCSS · Framer Motion       │
+│        Next.js 16 (App Router) · TailwindCSS · Framer Motion       │
 │   ┌─────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐  │
 │   │Dashboard│ │  Search  │ │Candidates│ │  Drafts  │ │Settings │  │
 │   └────┬────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬────┘  │
@@ -33,8 +33,8 @@ _Discover leads, verify emails, generate AI-personalized messages, and send — 
 │                           BACKEND                                   │
 │              FastAPI · Python 3.11+ · Pydantic · Uvicorn            │
 │   ┌──────────────────────────────────────────────────────────────┐  │
-│   │  8 Routers: candidates · drafts · discovery · emails ·      │  │
-│   │             stats · settings · auth · automation             │  │
+│   │  9 Routers: candidates · drafts · discovery · emails ·      │  │
+│   │      stats · settings · auth · automation · cortex           │  │
 │   ├──────────────────────────────────────────────────────────────┤  │
 │   │  13 Services: crawler · email_generator · email_verifier ·   │  │
 │   │    email_sender · gmail_oauth · throttle · embeddings ·      │  │
@@ -112,7 +112,7 @@ User enters role → Crawler scrapes LinkedIn (SerpAPI/DDG) → AI polishes lead
 
 | Layer              | Technologies                                                                                                  |
 | :----------------- | :------------------------------------------------------------------------------------------------------------ |
-| **Frontend**       | ⚡ Next.js 14 (App Router), React 19, TypeScript, TailwindCSS v4, Framer Motion, Recharts, Lucide Icons, cmdk |
+| **Frontend**       | ⚡ Next.js 16 (App Router), React 19, TypeScript, TailwindCSS v4, Framer Motion, Recharts, Lucide Icons, cmdk |
 | **Backend**        | 🚀 FastAPI (Python 3.11+), Pydantic, Uvicorn, AsyncIO                                                         |
 | **AI / NLP**       | 🧠 Google Gemini (2.5-flash / 2.0-flash), Qubrid (Llama-3.3-70B), SentenceTransformers                        |
 | **Database**       | 🗄️ Supabase (PostgreSQL)                                                                                      |
@@ -120,7 +120,7 @@ User enters role → Crawler scrapes LinkedIn (SerpAPI/DDG) → AI polishes lead
 | **Scraping**       | 🕷️ SerpAPI (Google), DuckDuckGo Search                                                                        |
 | **Email**          | ✉️ SendGrid, Gmail API (OAuth2), Hunter.io (verification)                                                     |
 | **Automation**     | 🤖 Playwright (LinkedIn browser automation)                                                                   |
-| **Infrastructure** | 🐳 Vercel (FE), Railway (BE)                                                                                  |
+| **Infrastructure** | 🐳 Vercel (FE), Render (BE)                                                                                   |
 
 </div>
 
@@ -144,14 +144,14 @@ cd AI_Outreach_System
 ### 2. Backend Setup
 
 ```bash
-cd backend
-python -m venv venv
+# From the project root:
+python -m venv .venv
 
 # Activate:
-# Windows:  .\venv\Scripts\activate
-# Mac/Linux: source venv/bin/activate
+# Windows:  .\.venv\Scripts\activate
+# Mac/Linux: source .venv/bin/activate
 
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 Create `backend/.env`:
@@ -173,10 +173,14 @@ GOOGLE_CLIENT_SECRET="your-oauth-secret"
 GOOGLE_REDIRECT_URI="http://localhost:8000/auth/google/callback"
 ```
 
+#### Database Setup
+
+Run `backend/migrations/full_schema.sql` in the Supabase SQL Editor to create all tables and seed default rows.
+
 Start the backend:
 
 ```bash
-python -m backend.main
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 API runs at `http://localhost:8000`
@@ -202,7 +206,9 @@ Start the app:
 npm run dev
 ```
 
-UI runs at `http://localhost:3000`
+UI runs at `http://localhost:3001`
+
+> **Or use the unified starter:** `python start_dev.py` from the project root to launch both.
 
 ---
 
@@ -396,7 +402,7 @@ All data lives in **Supabase (PostgreSQL)**:
 | Component       | Platform       | Config                             |
 | --------------- | -------------- | ---------------------------------- |
 | **Frontend**    | Vercel         | `vercel.json` — serverless Next.js |
-| **Backend API** | Railway        | `railway.toml` + `Dockerfile`      |
+| **Backend API** | Render         | `Dockerfile` — containerized API   |
 | **Database**    | Supabase Cloud | Managed PostgreSQL                 |
 
 ---
@@ -405,7 +411,7 @@ All data lives in **Supabase (PostgreSQL)**:
 
 ```mermaid
 graph TD
-    A[Next.js 14 Frontend<br/>TailwindCSS + Framer Motion] -->|REST API| B[FastAPI Backend<br/>Python 3.11+]
+    A[Next.js 16 Frontend<br/>TailwindCSS + Framer Motion] -->|REST API| B[FastAPI Backend<br/>Python 3.11+]
     B --> C[AI Engine<br/>Gemini + Llama-3.3-70B]
     B --> D[Supabase<br/>PostgreSQL]
     B --> E[Lead Discovery<br/>SerpAPI + DuckDuckGo]

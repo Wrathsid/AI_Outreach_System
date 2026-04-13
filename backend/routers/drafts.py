@@ -607,6 +607,8 @@ async def generate_draft(
                         "reason": reason_code,
                     }
 
+        # NOTE: Run backend/migrations/seed_brain_context.sql in Supabase SQL Editor
+        # if brain context is empty on first use — otherwise Generate Draft returns 412.
         # R2: Hard fail-fast on missing brain context
         if not brain.get("extracted_skills") and not brain.get("resume_text"):
             raise HTTPException(

@@ -178,7 +178,8 @@ const Dashboard = () => {
                </div>
                
                 <div className="flex-1 w-full min-h-0">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer width="100%" height={300}>
                       <BarChart data={stats.recent_leads}>
                          <defs>
                             <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
@@ -215,6 +216,7 @@ const Dashboard = () => {
                          />
                       </BarChart>
                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
             </HoverSpotlight>
@@ -236,7 +238,8 @@ const Dashboard = () => {
                </div>
                
                <div className="flex-1 w-full min-h-0 relative">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <div style={{ width: '100%', height: 300 }}>
+                  <ResponsiveContainer width="100%" height={300}>
                       <PieChart>
                          <Pie
                             data={stats.top_industries}
@@ -263,6 +266,7 @@ const Dashboard = () => {
                          />
                       </PieChart>
                    </ResponsiveContainer>
+                  </div>
                   {/* Center Text */}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                      <div className="text-center">

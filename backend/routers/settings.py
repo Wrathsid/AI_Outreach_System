@@ -249,6 +249,15 @@ def get_brain_context():
     supabase = get_supabase()
     if supabase:
         result = supabase.table("brain_context").select("*").limit(1).execute()
+        if not result.data:
+            supabase.table("brain_context").upsert({
+                "id": 1,
+                "extracted_skills": [],
+                "formality": 75,
+                "detail_level": 30,
+                "use_emojis": False
+            }).execute()
+            result = supabase.table("brain_context").select("*").limit(1).execute()
         if result.data:
             return result.data[0]
     return {"formality": 75, "detail_level": 30, "use_emojis": False}

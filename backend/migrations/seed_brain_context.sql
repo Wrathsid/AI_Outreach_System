@@ -1,7 +1,7 @@
 -- Seed brain_context row (id=1) if missing
 -- This MUST exist for draft generation to work
-INSERT INTO brain_context (id, formality, detail_level, use_emojis, extracted_skills)
-VALUES (1, 75, 30, false, '[]'::jsonb)
+INSERT INTO brain_context (id, extracted_skills, resume_text, formality, detail_level, use_emojis)
+VALUES (1, ARRAY[]::TEXT[], '', 75, 30, false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Add columns that may be missing from older schema versions
