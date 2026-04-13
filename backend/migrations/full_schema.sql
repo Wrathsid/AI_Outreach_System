@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS user_settings (
 -- ====================
 CREATE TABLE IF NOT EXISTS brain_context (
     id INTEGER PRIMARY KEY DEFAULT 1,
-    extracted_skills TEXT[] DEFAULT '{}',
+    extracted_skills JSONB DEFAULT '[]'::jsonb,
     resume_text TEXT DEFAULT '',
     formality INTEGER DEFAULT 75,
     detail_level INTEGER DEFAULT 30,
@@ -144,7 +144,7 @@ CREATE INDEX IF NOT EXISTS idx_sent_openers_created ON sent_openers(created_at D
 -- SEED DATA
 -- ====================
 INSERT INTO brain_context (id, extracted_skills, resume_text, formality, detail_level, use_emojis)
-VALUES (1, ARRAY[]::TEXT[], '', 75, 30, false)
+VALUES (1, '[]'::jsonb, '', 75, 30, false)
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO user_settings (id, full_name, company, role)
