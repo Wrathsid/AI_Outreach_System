@@ -40,7 +40,7 @@ for env_candidate in [project_root / ".env", backend_dir / ".env"]:
 REQUIRED_ENV_VARS = ["SUPABASE_URL", "SUPABASE_KEY"]
 OPTIONAL_ENV_VARS = [
     "GEMINI_API_KEY", "QUBRID_API_KEY", "SERPAPI_KEY",
-    "HUNTER_API_KEY", "TAVILY_API_KEY",
+    "HUNTER_API_KEY", "TAVILY_API_KEY", "GROQ_API_KEY",
 ]
 
 _missing_required = [v for v in REQUIRED_ENV_VARS if not os.getenv(v)]
@@ -58,15 +58,16 @@ if _missing_optional:
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Initialize Supabase client
-_supabase = None
+import threading
 
+# Use thread-local storage for instances that use synchronous httpx clients 
+# to prevent WinError 10035 non-blocking socket issues across FastAPI threadpool workers.
+_thread_local = threading.local()
 
 def get_supabase():
-    """Get the Supabase client instance with lazy initialization."""
-    global _supabase
-    if _supabase is not None:
-        return _supabase
+    """Get the Supabase client instance with thread-local lazy initialization."""
+    if hasattr(_thread_local, 'supabase') and _thread_local.supabase is not None:
+        return _thread_local.supabase
 
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
@@ -75,9 +76,9 @@ def get_supabase():
         try:
             from supabase import create_client
 
-            _supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-            logger.info("Supabase connected")
-            return _supabase
+            client = create_client(SUPABASE_URL, SUPABASE_KEY)
+            _thread_local.supabase = client
+            return client
         except ImportError as e:
             logger.error(f"Supabase package not installed: {e}")
         except (ValueError, ConnectionError) as e:
@@ -87,11 +88,6 @@ def get_supabase():
     else:
         logger.warning("Supabase credentials not found - using local storage")
     return None
-
-
-# Initialize it on module load if not in testing
-if "pytest" not in sys.modules:
-    get_supabase()
 
 # Initialize Gemini client
 _gemini_model = None
@@ -127,41 +123,42 @@ if "pytest" not in sys.modules:
     get_gemini_model()
 
 # ============================================================
-# Initialize Qubrid OpenAI Client
 # ============================================================
-_qubrid_client = None
+# Initialize Groq OpenAI Client
+# ============================================================
+_groq_client = None
 
 
-def get_qubrid_client():
-    """Get the Qubrid AsyncOpenAI client instance."""
-    global _qubrid_client
-    if _qubrid_client is not None:
-        return _qubrid_client
+def get_groq_client():
+    """Get the Groq AsyncOpenAI client instance."""
+    global _groq_client
+    if _groq_client is not None:
+        return _groq_client
 
-    QUBRID_API_KEY = os.getenv("QUBRID_API_KEY")
-    if QUBRID_API_KEY:
+    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+    if GROQ_API_KEY:
         try:
             from openai import AsyncOpenAI
 
-            _qubrid_client = AsyncOpenAI(
-                base_url="https://platform.qubrid.com/v1",
-                api_key=QUBRID_API_KEY,
+            _groq_client = AsyncOpenAI(
+                base_url="https://api.groq.com/openai/v1",
+                api_key=GROQ_API_KEY,
             )
-            logger.info("Qubrid API configured (Client initialized)")
-            return _qubrid_client
+            logger.info("Groq API configured (Client initialized)")
+            return _groq_client
         except ImportError as e:
             logger.error(f"OpenAI package not installed: {e}")
         except (ValueError, ConnectionError) as e:
-            logger.error(f"Qubrid API connection error: {e}")
+            logger.error(f"Groq API connection error: {e}")
         except Exception as e:
-            logger.error(f"Qubrid API error: {e}")
+            logger.error(f"Groq API error: {e}")
     else:
-        logger.warning("QUBRID_API_KEY not found - Qubrid features disabled")
+        logger.warning("GROQ_API_KEY not found - Groq features disabled")
     return None
 
 
 if "pytest" not in sys.modules:
-    get_qubrid_client()
+    get_groq_client()
 
 
 async def generate_with_gemini(
@@ -181,11 +178,11 @@ async def generate_with_gemini(
         import random
         from google.genai import types
 
-        max_retries = 3
-        base_delay = 2.0
+        max_retries = 2
+        base_delay = 1.5
 
-        # Models to try (using new SDK model names)
-        models_to_try = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"]
+        # Models to try (fast first, then fallback)
+        models_to_try = ["gemini-2.0-flash", "gemini-2.0-flash-lite"]
 
         for model_name in models_to_try:
 
@@ -202,7 +199,7 @@ async def generate_with_gemini(
                                 max_output_tokens=max_tokens,
                             ),
                         ),
-                        timeout=25.0,
+                        timeout=15.0,
                     )
                     return response.text
 
@@ -260,32 +257,30 @@ async def generate_with_gemini(
         return None
 
 
-async def generate_with_qubrid(
+async def generate_with_groq(
     prompt: str,
     temperature: float = 0.5,
     max_tokens: int = 1500,
     system_prompt: Optional[str] = None,
 ) -> Optional[str]:
-    """Generate text using Qubrid Platform via OpenAI SDK."""
-    client = get_qubrid_client()
+    """Generate text using Groq via OpenAI SDK."""
+    client = get_groq_client()
     if not client:
         return None
 
     messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-
-    messages.append({"role": "user", "content": prompt})
+    combined_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+    messages.append({"role": "user", "content": combined_prompt})
 
     try:
         import asyncio
         import random
 
-        max_retries = 3
-        base_delay = 2.0
+        max_retries = 2
+        base_delay = 1.5
 
-        # We recommend Llama-3.3-70B over Fara-7B for highly detailed and structurally complex instructions
-        model_name = "meta-llama/Llama-3.3-70B-Instruct"
+        # We recommend Llama-3.3-70B for highly detailed and structurally complex instructions
+        model_name = "llama-3.3-70b-versatile"
 
         for attempt in range(max_retries):
             try:
@@ -298,14 +293,14 @@ async def generate_with_qubrid(
                         temperature=temperature,
                         top_p=1,
                     ),
-                    timeout=20.0,
+                    timeout=15.0,
                 )
-                if response and response.choices and len(response.choices) > 0:
+                if response.choices and response.choices[0].message:
                     return response.choices[0].message.content
                 return None
 
             except asyncio.TimeoutError:
-                logger.warning(f"Qubrid {model_name} timed out on attempt {attempt+1}")
+                print(f"[WARN] Groq {model_name} timed out on attempt {attempt+1}")
                 if attempt < max_retries - 1:
                     sleep_time = (base_delay * (2**attempt)) + (random.random() * 0.5)
                     await asyncio.sleep(sleep_time)
@@ -313,24 +308,22 @@ async def generate_with_qubrid(
                 break
 
             except Exception as e:
+                print(f"[ERR] Groq {model_name} Attempt {attempt+1} failed: {e}")
                 if "429" in str(e) or "Too Many Requests" in str(e):
                     if attempt < max_retries - 1:
-                        sleep_time = (base_delay * (2**attempt)) + (
-                            random.random() * 0.5
-                        )
+                        sleep_time = (base_delay * (2**attempt)) + (random.random() * 0.5)
                         logger.warning(
-                            f"Qubrid {model_name} 429 Hit. Retrying in {sleep_time:.2f}s..."
+                            f"Groq {model_name} 429 Hit. Retrying in {sleep_time:.2f}s..."
                         )
                         await asyncio.sleep(sleep_time)
                         continue
-                logger.error(f"Qubrid {model_name} Attempt {attempt+1} failed: {e}")
                 if attempt == max_retries - 1:
                     break
 
         return None
 
     except Exception as e:
-        logger.error(f"Qubrid API Critical Error: {e}")
+        logger.error(f"Groq API Critical Error: {e}")
         return None
 
 

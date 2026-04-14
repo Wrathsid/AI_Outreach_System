@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2 } from 'lucide-react';
+import { Search, Loader2, Mail, Check, Github, Linkedin, Sparkles, Building2, ExternalLink } from 'lucide-react';
 import { API_BASE, api } from '@/lib/api';
 import { JOB_TITLES } from '@/data/jobTitles';
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,7 @@ interface ScanResult {
     generated_email?: string;  // AI-generated email guess
     email_confidence?: number;  // Confidence score 0-100
     linkedin_url: string;
+    source_url?: string;  // Original discovery post URL
     summary?: string;
     is_hr?: boolean;
     hr_score?: number;
@@ -162,6 +163,7 @@ const SearchPage = () => {
                             title: lead.title || undefined,
                             company: lead.company || undefined,
                             linkedin_url: lead.linkedin_url || undefined,
+                            source_url: lead.source_url || lead.linkedin_url || undefined,
                             email: lead.email || undefined,
                             generated_email: lead.generated_email || undefined,
                             email_confidence: lead.email_confidence,
@@ -313,11 +315,11 @@ const SearchPage = () => {
                         {/* Actions (Vertical Alignment) */}
                         <div className="flex flex-col items-end gap-2 shrink-0 pl-4 border-l border-white/5 ml-2 min-w-[100px]">
                              <button 
-                                onClick={() => window.open(r.linkedin_url, '_blank')}
+                                onClick={() => window.open(r.source_url || r.linkedin_url, '_blank')}
                                 className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors shadow-lg shadow-blue-500/10"
                              >
-                                <Linkedin size={12} />
-                                <span>LinkedIn</span>
+                                <ExternalLink size={12} />
+                                <span>View Post</span>
                              </button>
                              
                              {r.email && (
@@ -569,6 +571,7 @@ const SearchPage = () => {
                                                         title: r.title || undefined,
                                                         company: r.company || undefined,
                                                         linkedin_url: r.linkedin_url || undefined,
+                                                        source_url: r.source_url || r.linkedin_url || undefined,
                                                         email: r.email || undefined,
                                                         generated_email: r.generated_email || undefined,
                                                         email_confidence: typeof r.email_confidence === 'number' ? r.email_confidence : undefined,

@@ -160,6 +160,54 @@ def _format_skill_phrase(skills: Optional[List[str]], max_items: int = 4) -> str
     return ", ".join(visible[:-1]) + f", and {visible[-1]}"
 
 
+def _group_skills_for_prompt(skills_list: List[str]) -> str:
+    """Group raw skills into domain buckets so the AI references categories, not a laundry list.
+
+    RULE: The generated message must mention skill DOMAINS (e.g. 'frontend development'),
+    NOT individual tools (e.g. 'React, Next.js, Vue.js, Angular, Vite, WebGL...').
+    """
+    frontend_kw = {"react", "next", "nextjs", "vue", "angular", "svelte", "html", "css",
+                   "tailwind", "framer", "webgl", "vite", "webpack", "typescript", "javascript",
+                   "web components", "sass", "scss", "figma", "three.js", "gsap"}
+    backend_kw = {"node", "express", "fastapi", "django", "flask", "spring", "rails",
+                  "graphql", "rest", "api", "postgres", "mysql", "mongodb", "redis", "prisma"}
+    cloud_kw = {"aws", "gcp", "azure", "cloud", "docker", "kubernetes", "k8s", "terraform",
+                "ansible", "ci/cd", "devops", "sre", "linux", "nginx", "serverless", "lambda"}
+    ai_kw = {"ml", "ai", "llm", "machine learning", "deep learning", "pytorch", "tensorflow",
+             "langchain", "openai", "nlp", "computer vision", "data science"}
+    mobile_kw = {"flutter", "react native", "swift", "kotlin", "android", "ios"}
+
+    buckets: dict = {"Frontend": [], "Backend": [], "Cloud/DevOps": [], "AI/ML": [], "Mobile": [], "Other": []}
+
+    for skill in skills_list:
+        sl = skill.strip().lower()
+        if any(k in sl for k in frontend_kw):
+            buckets["Frontend"].append(skill.strip())
+        elif any(k in sl for k in backend_kw):
+            buckets["Backend"].append(skill.strip())
+        elif any(k in sl for k in cloud_kw):
+            buckets["Cloud/DevOps"].append(skill.strip())
+        elif any(k in sl for k in ai_kw):
+            buckets["AI/ML"].append(skill.strip())
+        elif any(k in sl for k in mobile_kw):
+            buckets["Mobile"].append(skill.strip())
+        else:
+            buckets["Other"].append(skill.strip())
+
+    lines = []
+    for domain, items in buckets.items():
+        if items:
+            # Show max 2 representative tools + "and more" to avoid laundry lists
+            sample = items[:2]
+            sample_str = " and ".join(sample)
+            extra = len(items) - 2
+            if extra > 0:
+                lines.append(f"- {domain}: {sample_str} (and {extra} more tools)")
+            else:
+                lines.append(f"- {domain}: {sample_str}")
+    return "\n".join(lines) if lines else "- General: Software Development"
+
+
 def generate_fallback_draft(
     candidate: dict,
     sender_intro: str,
@@ -707,10 +755,13 @@ async def generate_draft(
                     "is_fallback": True,
                 }
 
+        raw_skills_list = brain.get("extracted_skills", [])
         skills = (
-            ", ".join(brain.get("extracted_skills", []))
+            ", ".join(raw_skills_list)
             or "Software Development, Automation, and Problem Solving"
         )
+        # Grouped skills for prompt injection — prevents laundry-list skill dumps
+        skills_grouped = _group_skills_for_prompt(raw_skills_list)
 
         # 3. CONTEXT COMPRESSION & MEMORY (Priority 2, 13)
         signal = extract_primary_signal(c)
@@ -878,16 +929,49 @@ async def generate_draft(
             
             == RULES ==
             1. TASK: {task_instruction}
-            2. This is a JOB APPLICATION. The applicant wants to WORK at their company.
-            3. CONTENT BALANCE: Focus most of the message on the applicant's Cortex skills ({skills}) and current job search. Use the rest to reference the RECIPIENT'S POST or Company Context ({post_context}). Explain the fit for this role/company without changing the applicant's career track.
-            4. NEVER say: "expand my network", "great to meet", "love to chat"
-            5. ALWAYS say things like: "interested in the role", "would love to apply", "my skills in X align with", "available for an interview"
-            6. End with a concrete CTA: ask to share resume, schedule a call, or submit application.
-            7. Write in first person as {sender_name}. Sound eager but professional.
-            8. Write a high-signal LinkedIn message. Aim for 130-220 words.
-            9. No emojis. Just the message text.
-            10. Do NOT start with "I'm an experienced engineer". Start with a reference to their post/role/company.
-            11. SKILL GROUNDING: Use ONLY these Cortex skills unless the resume explicitly proves another skill: {skills}.
+            
+            2. STRUCTURE — ALWAYS follow this exactly:
+               - Line 1 (Hook): One sentence directly tied to something specific in their job post or company. Reference what they're building, their role, or their specific opening. Never open with "I".
+               
+               [LEAVE ONE BLANK LINE HERE]
+               
+               - Line 2 (Proof): 2 sentences max. Group skills into meaningful pairs (e.g. "Python + AWS for backend, React + Next.js for frontend"). Never list more than 4 technologies. Lead with impact, not tools.
+                 APPLICANT SKILLS (Use these to construct the middle section):
+{skills_grouped}
+
+               [LEAVE ONE BLANK LINE HERE]
+               
+               - Line 3 (CTA): One short, direct question. No more than 15 words. Example: "Open to a quick call this week?" or "Would you be open to connecting?"
+               
+               Always leave exactly one blank line between each of the 3 sections.
+               
+            3. HARD RULES — violating any = rewrite:
+               - CHARACTER LIMIT: Final message MUST be under 950 characters. Never exceed.
+               - BANNED PHRASES (never use these, ever): "I'm excited to...", "I came across your...", "I would love to...", "I'd appreciate the opportunity...", "drive innovation", "great fit", "versatile candidate", "leverage my skills", "contribute to your team's success", "actively looking for new opportunities", "are you currently hiring", "I'm confident in my ability to", "expand my network", "great to meet".
+               - NEVER mention current or past employer unless explicitly provided in the user profile.
+               - NEVER repeat the job title or salary from the post back to the recruiter.
+               - NEVER ask if they're hiring — they posted the job, they're hiring.
+               - NEVER write more than 4 technologies in a single sentence.
+               - NEVER use one large paragraph — always use the 3-section structure with blank lines between.
+               - ALWAYS write in first person as {sender_name}. No robotic sign-offs.
+               - No emojis. Just the message text.
+               - GROUNDING: Only claim skills from the domains listed above. Do not invent or add new skills.
+               
+            4. TONE — how it should feel:
+               - Read like a senior professional reaching out — not someone begging for a chance.
+               - Confident, warm, specific. Think: "I solve problems at this level, want to talk?" — not "please consider me."
+               - The reader should finish the message thinking: "This person knows what they're doing."
+               
+            5. BEFORE FINALISING — check:
+               [ ] Under 950 characters?
+               [ ] No banned phrases?
+               [ ] Hook references their specific post/company?
+               [ ] Skills grouped, not dumped?
+               [ ] CTA is one direct question under 15 words?
+               [ ] No employer mentioned unless provided?
+               [ ] 3 sections with exactly blank lines between?
+               
+               If ANY checkbox fails -> rewrite yourself silently before outputting.
             """
         else:
             # SOFT INTENT (Company pages, exploratory)
@@ -945,6 +1029,23 @@ async def generate_draft(
             logger.error(f"H3: AI Generation CRITICAL FAILURE: {e}")
             result = None
             reason_code = GenerationReason.FALLBACK_TEMPLATE
+
+        if not result:
+            # H3: Final Fallback - Use Template
+            logger.warning(
+                "Switching to Fallback Template (Reason: AI Failed or Result None)."
+            )
+        elif result:
+            # Validate completeness: reject truncated responses
+            text = result.get("text", "")
+            word_count = len(text.split())
+            ends_cleanly = text.rstrip().endswith(('.', '!', '?', '"'))
+            if word_count < 80 or (not ends_cleanly and word_count < 120):
+                logger.warning(
+                    f"AI response appears truncated ({word_count} words, clean_end={ends_cleanly}). Falling back to template."
+                )
+                result = None
+                reason_code = GenerationReason.FALLBACK_TEMPLATE
 
         if not result:
             # H3: Final Fallback - Use Template

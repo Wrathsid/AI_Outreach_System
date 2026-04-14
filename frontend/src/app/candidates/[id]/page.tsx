@@ -292,24 +292,16 @@ export default function MinimalCandidatePage() {
                     )}
                 </div>
 
-                {candidate.linkedin_url && (
+                {/* Source Post Link — always show if we have one */}
+                {candidate.source_url && (
                     <a 
-                        href={candidate.linkedin_url} 
+                        href={candidate.source_url} 
                         target="_blank" 
                         rel="noopener noreferrer"
-                        className="flex items-center gap-3 text-sm text-[#0077b5] hover:text-[#00669c] transition-colors"
+                        className="flex items-center gap-3 text-sm text-slate-400 hover:text-[#0077b5] transition-colors"
                     >
-                        {candidate.linkedin_url.includes('/posts/') || candidate.linkedin_url.includes('/feed/') || candidate.linkedin_url.includes('/activity/') ? (
-                             <>
-                                <ExternalLink size={16} />
-                                <span className="font-medium">View Post</span>
-                             </>
-                        ) : (
-                             <>
-                                <Linkedin size={16} />
-                                <span className="font-medium">Open LinkedIn Profile</span>
-                             </>
-                        )}
+                        <ExternalLink size={16} />
+                        <span className="font-medium">View Original Post</span>
                         <ExternalLink size={12} className="opacity-50" />
                     </a>
                 )}
@@ -356,9 +348,9 @@ export default function MinimalCandidatePage() {
                      <div className="flex items-center gap-2">
 
                          {/* View Post Button (Contextual) */}
-                         {(candidate.linkedin_url?.includes('/posts/') || candidate.linkedin_url?.includes('/feed/') || candidate.linkedin_url?.includes('/activity/')) && (
+                         {(candidate.source_url || candidate.linkedin_url?.includes('/posts/') || candidate.linkedin_url?.includes('/feed/') || candidate.linkedin_url?.includes('/activity/')) && (
                             <a 
-                                href={candidate.linkedin_url}
+                                href={candidate.source_url || candidate.linkedin_url}
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-2 text-xs bg-[#131326] hover:bg-[#1c1c36] text-[#0077b5] px-3 py-1.5 rounded-lg border border-white/5 transition-colors"

@@ -54,6 +54,7 @@ export interface Candidate {
   generated_email?: string;  // AI-generated email
   email_confidence?: number;  // 0-100
   linkedin_url?: string;
+  source_url?: string;  // Original discovery post URL
   avatar_url?: string;
   match_score: number;
   summary?: string;

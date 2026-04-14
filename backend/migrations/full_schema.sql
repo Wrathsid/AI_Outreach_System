@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     generated_email TEXT,
     email_confidence INTEGER,
     linkedin_url TEXT,
+    source_url TEXT,
     avatar_url TEXT,
     match_score INTEGER DEFAULT 0,
     summary TEXT,

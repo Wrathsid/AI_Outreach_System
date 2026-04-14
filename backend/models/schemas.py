@@ -43,6 +43,7 @@ class Candidate(BaseModel):
     generated_email: Optional[str] = None
     email_confidence: Optional[int] = None
     linkedin_url: Optional[str] = None
+    source_url: Optional[str] = None  # Original discovery post URL
     avatar_url: Optional[str] = None
     match_score: int = 0
     summary: Optional[str] = None
@@ -65,6 +66,7 @@ class CandidateCreate(BaseModel):
     generated_email: Optional[str] = None
     email_confidence: Optional[int] = None
     linkedin_url: Optional[str] = None
+    source_url: Optional[str] = None  # Original discovery post URL
     avatar_url: Optional[str] = None
     match_score: int = 0
     summary: Optional[str] = None

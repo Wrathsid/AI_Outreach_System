@@ -15,8 +15,8 @@ from typing import Any, Dict, List, Optional
 from backend.config import (
     get_supabase,
     generate_with_gemini,
-    generate_with_qubrid,
-    get_qubrid_client,
+    generate_with_groq,
+    get_groq_client,
     logger,
 )
 from backend.services.embeddings import embeddings_service
@@ -199,20 +199,20 @@ async def generate_with_scoring(
 
     # Generate variants with slightly different temperatures
     tasks = []
-    for i in range(num_variants):
-        temp = base_temp + (i * 0.05)
-
-        # Alternate between Gemini and Qubrid for diversity
-        if i > 0 and get_qubrid_client():
+    # If Groq is available, use it as primary because it's much faster and reliable
+    if get_groq_client():
+        logger.info(f"Generating {num_variants} variants with Groq...")
+        for i in range(num_variants):
+            temp = base_temp + (i * 0.05)
             tasks.append(
-                generate_with_qubrid(
-                    prompt,
-                    temperature=temp,
-                    system_prompt=system_prompt,
-                    max_tokens=1500,
+                generate_with_groq(
+                    prompt, temperature=temp, system_prompt=system_prompt
                 )
             )
-        else:
+    else:
+        logger.info(f"Generating {num_variants} variants with Gemini...")
+        for i in range(num_variants):
+            temp = base_temp + (i * 0.05)
             tasks.append(
                 generate_with_gemini(
                     prompt, temperature=temp, system_prompt=system_prompt
@@ -223,6 +223,19 @@ async def generate_with_scoring(
         return None  # type: ignore[return-value]
 
     responses = await asyncio.gather(*tasks)
+
+    # If Groq failed, fallback to Gemini
+    if all(r is None for r in responses) and get_groq_client():
+        logger.warning("Groq variants failed. Trying Gemini as fallback...")
+        tasks = []
+        for i in range(num_variants):
+            temp = base_temp + (i * 0.05)
+            tasks.append(
+                generate_with_gemini(
+                    prompt, temperature=temp, system_prompt=system_prompt
+                )
+            )
+        responses = await asyncio.gather(*tasks)
 
     sent_hashes = get_recent_opener_hashes(sb_client)
 

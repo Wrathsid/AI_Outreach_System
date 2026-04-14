@@ -1,8 +1,21 @@
 import json
+import asyncio
 import logging
-from backend.config import generate_with_gemini
+from backend.config import generate_with_gemini, generate_with_groq, get_groq_client
 
 logger = logging.getLogger("lead-processor")
+
+
+async def _generate_ai(prompt: str, timeout: float = 15.0) -> str | None:
+    """Try Groq first (fast), fallback to Gemini."""
+    if get_groq_client():
+        try:
+            result = await asyncio.wait_for(generate_with_groq(prompt), timeout=timeout)
+            if result:
+                return result
+        except Exception as e:
+            logger.warning(f"Groq failed for lead polishing, falling back to Gemini: {e}")
+    return await asyncio.wait_for(generate_with_gemini(prompt), timeout=timeout)
 
 
 async def polish_leads_activity(raw_leads: list) -> list:
@@ -49,7 +62,7 @@ async def polish_leads_activity(raw_leads: list) -> list:
     """
 
     try:
-        response_text = await generate_with_gemini(prompt)
+        response_text = await _generate_ai(prompt)
 
         if not isinstance(response_text, str):
             logger.warning(
@@ -118,7 +131,7 @@ async def polish_single_lead(lead: dict) -> dict:
     Return ONLY valid JSON. No markdown formatting.
     """
     try:
-        response_text = await generate_with_gemini(prompt)
+        response_text = await _generate_ai(prompt, timeout=15.0)
 
         if not isinstance(response_text, str):
             logger.warning(
@@ -138,6 +151,9 @@ async def polish_single_lead(lead: dict) -> dict:
                 "is_hiring_post": p.get("is_hiring_post", False),
             }
         )
+        return lead
+    except asyncio.TimeoutError:
+        logger.warning("Single lead polishing timed out (15s). Using raw data.")
         return lead
     except (json.JSONDecodeError, ValueError) as e:
         logger.error(f"Single lead polishing JSON/Value error: {e}")

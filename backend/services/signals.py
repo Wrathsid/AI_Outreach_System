@@ -27,9 +27,31 @@ def clean_candidate_data(candidate: dict) -> dict:
     raw_name = cleaned.get("name", "") or ""
     name_cleaned = re.sub(r"#\w+", "", raw_name).strip()
     name_cleaned = re.sub(r"[^a-zA-Z\s\-\'.]+", "", name_cleaned).strip()
-    if not name_cleaned or name_cleaned.lower() in ("unknown", "n/a", "none"):
+    if not name_cleaned or name_cleaned.lower() in ("unknown", "n/a", "none") or name_cleaned.lower().startswith("unknown "):
         name_cleaned = ""  # type: ignore[assignment]
     cleaned["name"] = name_cleaned or None
+
+    # --- Fallback Name Extraction from Title ---
+    # If name is still empty, try to extract from title patterns:
+    # - "HIRING : Product Manager | Shunsuke Osawa" → "Shunsuke Osawa"
+    # - "John Doe on LinkedIn: We are hiring" → "John Doe"
+    if not cleaned["name"]:
+        raw_title = cleaned.get("title", "") or ""
+        # Pattern 1: Name after pipe "|"
+        if "|" in raw_title:
+            parts = raw_title.split("|")
+            for part in reversed(parts):
+                candidate_name = re.sub(r"[^a-zA-Z\s\-\'.]+", "", part).strip()
+                # Valid name: 2+ words, each starting with uppercase
+                words = candidate_name.split()
+                if len(words) >= 2 and all(w[0].isupper() for w in words if w):
+                    cleaned["name"] = candidate_name
+                    break
+        # Pattern 2: "Name on LinkedIn:" prefix
+        if not cleaned["name"]:
+            on_li = re.match(r"^([A-Z][a-zA-Z\-']+(?:\s+[A-Z][a-zA-Z\-']+)+)\s+on\s+LinkedIn", raw_title)
+            if on_li:
+                cleaned["name"] = on_li.group(1).strip()
 
     # --- Clean Title ---
     raw_title = cleaned.get("title", "") or ""
@@ -38,7 +60,15 @@ def clean_candidate_data(candidate: dict) -> dict:
         title_cleaned = None
     if title_cleaned and title_cleaned.startswith("#"):
         title_cleaned = re.sub(r"#\w+\s*", "", title_cleaned).strip() or None
-    cleaned["title"] = title_cleaned
+    # Preserve raw title for hiring context detection
+    cleaned["_raw_title"] = title_cleaned
+    # Strip "HIRING :" or "HIRING:" prefix for display
+    if title_cleaned:
+        title_cleaned = re.sub(r"^(?:HIRING|Hiring|hiring)\s*:\s*", "", title_cleaned).strip()
+    # Strip "| PersonName" suffix (common in LinkedIn post titles)
+    if title_cleaned and "|" in title_cleaned:
+        title_cleaned = title_cleaned.split("|")[0].strip()
+    cleaned["title"] = title_cleaned or None
 
     # --- Clean Company ---
     raw_company = cleaned.get("company", "") or ""
@@ -164,13 +194,15 @@ def _detect_hiring_context(candidate: dict) -> dict:
     Returns: {'is_hiring_post': bool, 'hiring_role': str or None, 'recipient_role': str}
     """
     summary = (candidate.get("summary") or "").lower()
-    title = (candidate.get("title") or "").lower()
+    # Use _raw_title (pre-cleaning) for hiring detection since clean title strips HIRING prefix
+    title = (candidate.get("_raw_title") or candidate.get("title") or "").lower()
     name = (candidate.get("name") or "").lower()
 
     hiring_keywords = [
         "we are hiring",
         "we're hiring",
         "join our team",
+        "join our",
         "hiring for",
         "now hiring",
         "open position",
@@ -189,8 +221,15 @@ def _detect_hiring_context(candidate: dict) -> dict:
     is_hiring_post = any(kw in summary for kw in hiring_keywords)
     is_hiring_post = is_hiring_post or any(kw in title for kw in hiring_keywords)
 
+    # Also check if the title starts with "hiring" (e.g., "HIRING : Product Manager")
+    if not is_hiring_post and title.lstrip().startswith("hiring"):
+        is_hiring_post = True
+
     name_hiring_hints = ["hiring", "hr ", "recruiter", "talent"]
     if any(hint in name for hint in name_hiring_hints):
+        is_hiring_post = True
+    # Also check title for hiring hints
+    if any(hint in title for hint in name_hiring_hints):
         is_hiring_post = True
 
     # Extract the role being hired for
@@ -199,7 +238,7 @@ def _detect_hiring_context(candidate: dict) -> dict:
         from backend.services.hr_extractor import extract_role_from_post_body
 
         hiring_role = extract_role_from_post_body(
-            candidate.get("summary") or candidate.get("title") or ""
+            candidate.get("summary") or candidate.get("_raw_title") or candidate.get("title") or ""
         )
 
     # Determine recipient role

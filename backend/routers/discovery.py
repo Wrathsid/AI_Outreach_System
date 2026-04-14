@@ -74,7 +74,6 @@ async def websocket_discover(
             try:
                 from backend.services.lead_processor import polish_single_lead
                 from backend.services.email_generator import EmailGenerator
-                from backend.services.email_verifier import verify_email
                 from backend.services.recommendation import recommendation_service
                 from backend.services.confidence import ConfidenceScorer
 
@@ -92,66 +91,47 @@ async def websocket_discover(
                 if person_key:
                     seen_persons.add(person_key)
 
-                # --- Soft filter for non-hiring posts (P0 Fix #3) ---
-                # Instead of silently dropping, downgrade resonance and tag
+                # --- Soft filter for non-hiring posts ---
                 is_hiring = lead.get("is_hiring_post")
                 if is_hiring is False:
                     lead["_unverified_hiring"] = True
                     logger.info(f"AI flagged '{name}' as non-hiring — keeping with penalty.")
 
-                # B. Email prediction & verification (P1 Fix #5: try top 3)
-                lead_name = lead.get("name", "Unknown Candidate")
-                lead_company = lead.get("company", "Unknown")
+                # Set URL fields
                 url = lead.get("url", "")
-
                 lead["linkedin_url"] = url
+                lead["source_url"] = url
                 lead["result_type"] = "person"
 
-                # --- Rich resonance scoring (P1 Fix #1) ---
+                lead_name = lead.get("name", "Unknown Candidate")
+                lead_company = lead.get("company", "Unknown")
+
+                # --- Rich resonance scoring ---
                 raw_score = recommendation_service.calculate_resonance_score(
                     lead, offer_context=offer_context
                 )
                 resonance = round(float(raw_score) / 100.0, 2)
 
-                # Apply penalty for unverified hiring posts
                 if lead.get("_unverified_hiring"):
-                    resonance = round(resonance * 0.6, 2)  # 40% penalty
+                    resonance = round(resonance * 0.6, 2)
 
                 lead["resonance_score"] = resonance
+
+                # --- Fast email prediction (no DNS calls — saves 5-8s per lead) ---
+                lead["email"] = None
                 lead["email_confidence"] = 0
+                guesses = EmailGenerator.get_top_guesses(lead_name, lead_company, limit=1)
+                if guesses:
+                    top_guess = guesses[0]
+                    lead["email"] = top_guess.get("email")
+                    lead["email_confidence"] = top_guess.get("confidence", 40)
+                    lead["email_verification"] = {
+                        "status": "predicted",
+                        "score": top_guess.get("confidence", 40),
+                        "source": "pattern_prediction",
+                    }
 
-                # --- Try top 3 email patterns (P1 Fix #5) ---
-                best_email = None
-                best_confidence = 0
-
-                guesses = EmailGenerator.get_top_guesses(lead_name, lead_company, limit=3)
-                for guess in guesses:
-                    candidate_email = guess.get("email")
-                    if not candidate_email:
-                        continue
-                    try:
-                        verification = await verify_email(candidate_email)
-                        status = verification.get("status", "unknown")
-
-                        if status == "valid":
-                            # Found a verified email — use it immediately
-                            best_email = candidate_email
-                            best_confidence = guess.get("confidence", 80)
-                            lead["email_verification"] = verification
-                            break
-                        elif status == "risky" and not best_email:
-                            # Keep as fallback
-                            best_email = candidate_email
-                            best_confidence = guess.get("confidence", 40)
-                            lead["email_verification"] = verification
-                        # If invalid, try next pattern
-                    except Exception:
-                        continue
-
-                lead["email"] = best_email
-                lead["email_confidence"] = best_confidence
-
-                # --- Integrate ConfidenceScorer (P1 Fix #7) ---
+                # --- Integrate ConfidenceScorer ---
                 lead = ConfidenceScorer.score(lead)
 
                 # Clean up internal fields before sending to frontend
@@ -170,8 +150,18 @@ async def websocket_discover(
 
         tasks = []
 
+        # 90-second hard deadline — parallel crawling is faster, gives room for 15+ leads
+        search_deadline = asyncio.get_event_loop().time() + 90.0
+
         # Stream results & instantly fire processing tasks (P0 Fix #6: pass limit)
         async for r in crawler.crawl_stream(role, limit=limit):
+            # Check deadline during crawling
+            if asyncio.get_event_loop().time() >= search_deadline:
+                await websocket.send_json(
+                    {"status": "running", "message": "Search time limit reached. Finalizing results..."}
+                )
+                break
+
             if r["type"] == "raw_result":
                 task = asyncio.create_task(process_and_stream(r["data"]))
                 tasks.append(task)
@@ -189,16 +179,32 @@ async def websocket_discover(
             }
         )
 
-        # Wait for all background tasks to finish processing before closing
-        results = await asyncio.gather(*tasks)
+        # Wait for all background tasks with remaining time budget (max 60s total)
+        remaining = max(1.0, search_deadline - asyncio.get_event_loop().time())
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*tasks, return_exceptions=True), timeout=remaining
+            )
+        except asyncio.TimeoutError:
+            logger.warning("Search gather timed out. Returning partial results.")
+            results = []
+            for t in tasks:
+                if t.done() and not t.cancelled():
+                    try:
+                        results.append(t.result())
+                    except Exception:
+                        pass
 
-        # Filter out dropped (None) results
-        valid_results = [r for r in results if r is not None]
+        # Filter out dropped (None) results and exceptions
+        valid_results = [r for r in results if r is not None and not isinstance(r, Exception)]
 
         await websocket.send_json({"status": "completed", "results": valid_results})
 
     except WebSocketDisconnect:
         logger.info("WebSocket disconnected")
+        for task in tasks:
+            if not task.done():
+                task.cancel()
     except Exception as e:
         logger.error(f"WebSocket error: {e}")
         try:

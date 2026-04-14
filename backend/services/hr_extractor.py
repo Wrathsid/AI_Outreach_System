@@ -365,18 +365,19 @@ def extract_role_from_post_body(body: str) -> Optional[str]:
         return None
 
     patterns = [
-        r"(?:hiring|looking for|seeking|need)\s+(?:a|an)?\s*([A-Z][A-Za-z\s/\-]+?)(?:\.|,|!|\n|to join)",
+        r"(?:hiring|looking for|seeking|need)\s*:?\s+(?:a|an)?\s*([A-Z][A-Za-z\s/\-]+?)(?:\.|,|!|\n|to join|to work|\|)",
         r"(?:PART-TIME|FULL-TIME|Part-Time|Full-Time)\s+([A-Z][A-Za-z\s/\-]+?)(?:\.|,|!|\n|to join)",
         r"open\s+(?:role|position)\s*:?\s*([A-Z][A-Za-z\s/\-]+?)(?:\.|,|!|\n)",
     ]
 
     for pattern in patterns:
-        match = re.search(pattern, body)
+        match = re.search(pattern, body, re.IGNORECASE)
         if match:
             role = match.group(1).strip()
             # Sanity check: role should be reasonable length
             if 3 < len(role) < 60:
-                return role
+                # Title-case the role for consistency
+                return role.title() if role.isupper() or role.islower() else role
 
     return None
 
