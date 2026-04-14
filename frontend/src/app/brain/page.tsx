@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  RefreshCw, Search, X, Zap, Plus, Check, Sparkles, BrainCircuit, Upload, FileText
+  RefreshCw, Search, X, Zap, Plus, Check, Sparkles, BrainCircuit
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '@/lib/api';
@@ -24,10 +24,7 @@ export default function PersonalBrain() {
   const [isSavingName, setIsSavingName] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const resumeInputRef = useRef<HTMLInputElement>(null);
   const [backendDown, setBackendDown] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [resumeFile, setResumeFile] = useState<string | null>(null);
 
   const loadBrainContext = useCallback(async () => {
     try {
@@ -40,9 +37,7 @@ export default function PersonalBrain() {
         setUserName(settings.full_name);
       }
       setBackendDown(false);
-      if (context.resume_url) {
-        setResumeFile(context.resume_url);
-      }
+
     } catch {
       setBackendDown(true);
     }
@@ -231,48 +226,6 @@ export default function PersonalBrain() {
         </header>
 
 
-        {/* Resume Upload Section */}
-        <div className="mb-8">
-          <h2 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2 mb-4">
-            <FileText size={16} /> RESUME UPLOAD
-          </h2>
-          <input
-            ref={resumeInputRef}
-            type="file"
-            accept=".pdf,.txt"
-            className="hidden"
-            onChange={async (e) => {
-              const file = e.target.files?.[0];
-              if (!file) return;
-              setIsUploading(true);
-              const result = await api.uploadResume(file);
-              if (result && result.extracted_skills && result.extracted_skills.length > 0) {
-                setSelectedSkills(result.extracted_skills);
-                setResumeFile(file.name);
-                setSaved(false);
-              }
-              setIsUploading(false);
-              if (resumeInputRef.current) resumeInputRef.current.value = '';
-            }}
-          />
-          <button
-            onClick={() => resumeInputRef.current?.click()}
-            disabled={isUploading}
-            className="w-full p-6 rounded-2xl border-2 border-dashed border-white/10 hover:border-white/30 bg-[#0a0f16]/40 hover:bg-white/5 transition-all duration-300 flex flex-col items-center gap-3 group/upload cursor-pointer"
-          >
-            {isUploading ? (
-              <RefreshCw size={24} className="text-white animate-spin" />
-            ) : (
-              <Upload size={24} className="text-slate-500 group-hover/upload:text-white transition-colors" />
-            )}
-            <div className="text-center">
-              <p className="text-sm font-medium text-slate-300 group-hover/upload:text-white transition-colors">
-                {isUploading ? 'Analyzing resume...' : resumeFile ? `Uploaded: ${resumeFile}` : 'Drop your resume here or click to upload'}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">PDF or TXT • Skills will be auto-extracted</p>
-            </div>
-          </button>
-        </div>
 
         {/* Skills Section */}
         <div className="flex flex-col gap-6 w-full mx-auto">
