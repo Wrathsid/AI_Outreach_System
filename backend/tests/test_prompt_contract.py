@@ -166,7 +166,9 @@ def test_linkedin_fallback_uses_cortex_skills():
     assert "Web Development" in message
     assert "React" in message
     assert "JavaScript" in message
-    assert "looking for Web Developer" in message
+    # The hiring-post template says "actively looking for an opportunity"
+    # and mentions the role in "apply for the {role_label} position?"
+    assert "actively looking for" in message
     assert "interested" in message.lower()
 
     forbidden = ["Kubernetes", "Terraform", "CI/CD", "SRE", "cloud ops"]

@@ -8,7 +8,7 @@ import { api, Candidate } from '@/lib/api';
 import { cleanDisplayName, getNameInitial } from '@/lib/displayUtils';
 import { useToast } from '@/context/ToastContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PipelineSkeleton } from '@/components/SkeletonLoaders';
+
 import { FadeUp } from '@/components/Animations';
 import { useRef } from 'react';
 
