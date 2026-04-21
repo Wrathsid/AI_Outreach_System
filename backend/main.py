@@ -94,7 +94,30 @@ def read_root():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    """Detailed health check including database connectivity."""
+    from backend.config import get_supabase, SUPABASE_URL, SUPABASE_KEY
+    import os
+
+    db_status = "not_configured"
+    if SUPABASE_URL and SUPABASE_KEY:
+        client = get_supabase()
+        if client:
+            try:
+                # Lightweight probe — just count up to 1 row
+                client.table("candidates").select("id").limit(1).execute()
+                db_status = "connected"
+            except Exception as e:
+                err = str(e).lower()
+                db_status = "paused" if ("paused" in err or "503" in err) else "error"
+        else:
+            db_status = "paused_or_unreachable"
+
+    return {
+        "status": "ok",
+        "database": db_status,
+        "ai": "configured" if os.getenv("GEMINI_API_KEY") else "not_configured",
+    }
+
 
 
 # Include routers directly (Authentication bypassed for local demo)

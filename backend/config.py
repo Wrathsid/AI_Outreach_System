@@ -84,10 +84,21 @@ def get_supabase():
         except (ValueError, ConnectionError) as e:
             logger.error(f"Supabase connection failed: {e}")
         except Exception as e:
-            logger.error(f"Supabase not connected: {e}")
+            err_str = str(e).lower()
+            # Supabase Free Tier pauses projects after 1 week of inactivity.
+            # When paused the API returns 503 with "Project is paused" in the message.
+            if "paused" in err_str or "503" in err_str:
+                logger.error(
+                    "🔴 Supabase project is PAUSED (free tier inactivity). "
+                    "Go to https://supabase.com/dashboard → your project → click 'Restore'. "
+                    "The app will work in degraded (stateless) mode until restored."
+                )
+            else:
+                logger.error(f"Supabase not connected: {e}")
     else:
         logger.warning("Supabase credentials not found - using local storage")
     return None
+
 
 # Initialize Gemini client
 _gemini_model = None

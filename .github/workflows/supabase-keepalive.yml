@@ -1,0 +1,52 @@
+name: Supabase Keep-Alive
+
+# Supabase Free Tier pauses projects after 1 week of inactivity.
+# This workflow runs every 5 days to send a lightweight ping that
+# registers as activity and prevents the project from being paused.
+
+on:
+  schedule:
+    # Every Sunday at 03:00 UTC (~every 5 days keeps well within the 7-day window)
+    - cron: "0 3 * * 0"
+    # Also run on push to main so we can test the workflow
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/supabase-keepalive.yml"
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  keepalive:
+    name: Ping Supabase
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Ping Supabase REST endpoint
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "⚠️  SUPABASE_URL or SUPABASE_KEY secret not set — skipping ping."
+            echo "Add them at: Settings > Secrets and variables > Actions"
+            exit 0
+          fi
+
+          echo "🏓 Pinging Supabase project at $SUPABASE_URL ..."
+
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_KEY" \
+            "$SUPABASE_URL/rest/v1/candidates?select=id&limit=1")
+
+          echo "Response status: $STATUS"
+
+          if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then
+            echo "✅ Supabase is alive and responded with HTTP $STATUS"
+          elif [ "$STATUS" = "406" ]; then
+            # 406 = Not Acceptable — project is alive, the table may just be empty
+            echo "✅ Supabase is alive (HTTP 406 — empty result set is fine)"
+          else
+            echo "❌ Unexpected response: HTTP $STATUS"
+            exit 1
+          fi
