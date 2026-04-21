@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "@/components/Sidebar";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import BackendStatusBanner from "@/components/BackendStatusBanner";
 import { ToastProvider } from "@/context/ToastContext";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TemplateProvider } from "@/context/TemplateContext";
@@ -45,6 +46,7 @@ export default function RootLayout({
           <TemplateProvider>
                 <ScrollToTop />
                 <CommandPalette />
+                <BackendStatusBanner />
                 {/* SmoothScroll removed to support fixed app-layout with internal scrolling */}
                 <div className="relative flex h-screen bg-background-dark overflow-hidden">
                 {/* Global Noise Texture */}

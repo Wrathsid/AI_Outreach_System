@@ -4,6 +4,7 @@ Main entry point with router registration.
 """
 
 import logging
+import os
 from fastapi import FastAPI, Request
 
 logger = logging.getLogger("backend")
@@ -14,6 +15,33 @@ from typing import Dict  # noqa: E402
 
 from backend.config import setup_cors  # noqa: E402
 from backend.routers import candidates, drafts, discovery, emails, stats, settings, cortex  # noqa: E402
+
+# ============================================================
+# API KEY AUTHENTICATION
+# ============================================================
+# Set BACKEND_API_KEY env var to enable. If unset, auth is skipped
+# (allows local dev without any config changes).
+# Used by: frontend (X-Api-Key header), CI keep-alive, external clients.
+_API_KEY = os.getenv("BACKEND_API_KEY", "")
+
+# Public endpoints that never require an API key
+_PUBLIC_PATHS = {"/", "/health", "/docs", "/openapi.json", "/redoc"}
+
+
+async def api_key_middleware(request: Request, call_next):
+    """Enforce API key on all non-public endpoints when BACKEND_API_KEY is set."""
+    if request.scope["type"] == "websocket":
+        return await call_next(request)
+
+    if _API_KEY and request.url.path not in _PUBLIC_PATHS:
+        incoming = request.headers.get("X-Api-Key", "")
+        if incoming != _API_KEY:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Unauthorized. Set X-Api-Key header."},
+            )
+    return await call_next(request)
+
 
 # ============================================================
 # RATE LIMITING (Priority 6)
@@ -71,8 +99,9 @@ app = FastAPI(
     description="API for intelligent outreach with AI-powered discovery and drafting",
     version="2.0.0",
 )
-# Add rate limiting middleware
+# Middleware registered in LIFO order — api_key runs first, then rate limit
 app.middleware("http")(rate_limit_middleware)
+app.middleware("http")(api_key_middleware)
 
 # Setup CORS
 setup_cors(app)
@@ -117,7 +146,6 @@ async def health():
         "database": db_status,
         "ai": "configured" if os.getenv("GEMINI_API_KEY") else "not_configured",
     }
-
 
 
 # Include routers directly (Authentication bypassed for local demo)

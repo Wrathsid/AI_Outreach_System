@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import Any, List, Dict, Optional
 from pydantic import BaseModel
 import hashlib
+import os
 import uuid
 from datetime import datetime, timedelta
 import asyncio
@@ -548,16 +549,16 @@ async def generate_draft(
                     res.data[0]
                     if res and res.data
                     else {
-                        "full_name": "Siddharth",
-                        "company": "Antigravity",
-                        "role": "Founder",
+                        "full_name": os.getenv("SENDER_NAME", "User"),
+                        "company": os.getenv("SENDER_COMPANY", "Company"),
+                        "role": os.getenv("SENDER_ROLE", "Professional"),
                     }
                 )
             except Exception:
                 return {
-                    "full_name": "Siddharth",
-                    "company": "Antigravity",
-                    "role": "Founder",
+                    "full_name": os.getenv("SENDER_NAME", "User"),
+                    "company": os.getenv("SENDER_COMPANY", "Company"),
+                    "role": os.getenv("SENDER_ROLE", "Professional"),
                 }
 
         def _fetch_last_draft():
